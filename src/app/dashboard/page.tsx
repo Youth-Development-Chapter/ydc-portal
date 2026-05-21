@@ -4,6 +4,7 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { getCourses, getProgress } from "@/lib/wellms";
 
 export default async function UserDashboard() {
   const supabase = await createClient();
@@ -22,26 +23,103 @@ export default async function UserDashboard() {
     .eq('id', user.id)
     .single();
 
-  // Map real data to UI (fallback to defaults if fields don't exist yet)
+  // If no profile exists, redirect to onboarding
+  if (!profile) {
+    redirect("/onboarding");
+  }
+
+  // Map real data to UI
   const name = profile?.full_name || user.user_metadata?.full_name || "YDC Member";
-  
-  const division = profile?.division || "Multan";
+  const division = profile?.division || "Not specified";
+  const education = profile?.qualification || "Not specified";
   const memberId = profile?.id ? `YDC-${profile.id.substring(0, 8).toUpperCase()}` : "YDC-UNKNOWN";
   
-  // Mocked Metrics for now since these tables don't exist yet
-  const tier = "Silver Tier";
-  const coins = 450;
-  const streak = 12;
-  const education = "BS-CS";
+  // Fetch real Coins sum from transaction ledger
+  const { data: coinTxns } = await supabase
+    .from('coin_transactions')
+    .select('amount')
+    .eq('user_id', user.id);
+  const coins = coinTxns?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
 
-  const upcomingEvents = [
-    { id: 1, title: "Pioneers Camp 2026", date: "May 25, 2026", time: "09:00 AM", location: "Bahauddin Zakariya University" },
-    { id: 2, title: "Khidmat: Tree Plantation", date: "June 2, 2026", time: "04:00 PM", location: "Qila Kohna Qasim Bagh" }
-  ];
+  // Determine Tier dynamically
+  const tier = coins >= 1000 ? "Gold Tier" : coins >= 300 ? "Silver Tier" : "Bronze Tier";
 
-  // Dynamic Flashcard State Simulator
-  // Options: 'course_progress', 'streak_warning', 'upcoming_event'
-  const flashcardState: string = 'course_progress'; 
+  // Fetch Streak record
+  const { data: streakRecord } = await supabase
+    .from('streaks')
+    .select('current_streak')
+    .eq('user_id', user.id)
+    .single();
+  const streak = streakRecord?.current_streak || 0;
+
+  // Fetch event registrations
+  const { data: registrations } = await supabase
+    .from('event_registrations')
+    .select('*, events(*)')
+    .eq('user_id', user.id);
+
+  // Find if there is an upcoming registered event starting in < 48 hours
+  const now = new Date();
+  const upcomingEvent48h = (registrations || []).find(reg => {
+    if (!reg.events) return false;
+    const eventDate = new Date(`${reg.events.date}T${reg.events.time.split(' - ')[0] || '00:00:00'}`);
+    const diffMs = eventDate.getTime() - now.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    return diffHours > 0 && diffHours <= 48;
+  });
+
+  // Check if today a deed was submitted
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const { data: todayDeeds } = await supabase
+    .from('deed_submissions')
+    .select('id')
+    .eq('user_id', user.id)
+    .gte('created_at', `${todayStr}T00:00:00.000Z`);
+
+  const hasLoggedDeedToday = todayDeeds && todayDeeds.length > 0;
+
+  let flashcardState: 'course_progress' | 'streak_warning' | 'upcoming_event' = 'course_progress';
+  let flashcardEventTitle = "";
+
+  if (upcomingEvent48h && upcomingEvent48h.events) {
+    flashcardState = 'upcoming_event';
+    flashcardEventTitle = upcomingEvent48h.events.title;
+  } else if (!hasLoggedDeedToday) {
+    flashcardState = 'streak_warning';
+  } else {
+    flashcardState = 'course_progress';
+  }
+
+  // Calculate LMS progress percentage
+  let progressPercentage = 0;
+  let activeCourseTitle = "Ethics & Character Building";
+  let activeCourseId = "";
+
+  try {
+    const courses = await getCourses();
+    if (courses && courses.length > 0) {
+      const firstCourse = courses[0];
+      activeCourseTitle = firstCourse.title;
+      activeCourseId = firstCourse.id;
+      const completedLessons = await getProgress(user.id, firstCourse.id);
+      const totalLessons = firstCourse.modules?.length || 1;
+      progressPercentage = Math.round((completedLessons.length / totalLessons) * 100);
+    }
+  } catch (err) {
+    console.error("Failed to fetch LMS progress:", err);
+  }
+
+  const myEvents = (registrations || [])
+    .filter(reg => reg.events)
+    .map(reg => ({
+      id: reg.events.id,
+      title: reg.events.title,
+      date: new Date(reg.events.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: reg.events.time,
+      location: reg.events.location,
+      ticketCode: reg.ticket_code,
+      attended: reg.attended
+    })); 
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
@@ -103,16 +181,16 @@ export default async function UserDashboard() {
       {/* DYNAMIC FLASHCARD ALERT */}
       <div className="max-w-lg mx-auto px-4 mt-6">
         {flashcardState === 'course_progress' && (
-          <Link href="/lms" className="block bg-gradient-to-r from-[#0A9EDE]/10 to-blue-500/5 border border-[#0A9EDE]/20 rounded-2xl p-4 flex items-center justify-between group hover:border-[#0A9EDE]/40 transition-colors shadow-sm cursor-pointer">
+          <Link href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"} className="block bg-gradient-to-r from-[#0A9EDE]/10 to-blue-500/5 border border-[#0A9EDE]/20 rounded-2xl p-4 flex items-center justify-between group hover:border-[#0A9EDE]/40 transition-colors shadow-sm cursor-pointer">
             <div className="flex items-center gap-4 flex-1">
               <div className="w-12 h-12 rounded-full bg-[#0A9EDE]/10 flex items-center justify-center shrink-0">
                 <BookOpen size={20} className="text-[#0A9EDE]" />
               </div>
               <div className="flex-1 pr-4">
                 <p className="text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5">Resume Course</p>
-                <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 truncate">Ethics & Character Building</h4>
+                <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 truncate">{activeCourseTitle}</h4>
                 <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-[#0A9EDE] h-full w-[60%] rounded-full"></div>
+                  <div className="bg-[#0A9EDE] h-full rounded-full" style={{ width: `${progressPercentage}%` }}></div>
                 </div>
               </div>
             </div>
@@ -121,35 +199,35 @@ export default async function UserDashboard() {
         )}
 
         {flashcardState === 'streak_warning' && (
-          <div className="bg-gradient-to-r from-[#DD0408]/10 to-red-500/5 border border-[#DD0408]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#DD0408]/40 transition-colors">
+          <Link href="/dashboard/log-deed" className="block bg-gradient-to-r from-[#DD0408]/10 to-red-500/5 border border-[#DD0408]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#DD0408]/40 transition-colors">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-[#DD0408]/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={20} className="text-[#DD0408] animate-pulse" />
               </div>
               <div>
                 <p className="text-xs text-[#DD0408] font-bold uppercase tracking-wider mb-0.5">Action Required</p>
-                <h4 className="font-bold text-sm text-[#1D1D1D]">Streak expires in 2 hours!</h4>
+                <h4 className="font-bold text-sm text-[#1D1D1D]">Keep your streak!</h4>
                 <p className="text-xs text-[#555555] mt-0.5">Log a daily deed to keep your fire alive.</p>
               </div>
             </div>
             <ChevronRight size={18} className="text-[#DD0408]" />
-          </div>
+          </Link>
         )}
 
         {flashcardState === 'upcoming_event' && (
-          <div className="bg-gradient-to-r from-[#0BA242]/10 to-green-500/5 border border-[#0BA242]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#0BA242]/40 transition-colors">
+          <Link href="/events" className="block bg-gradient-to-r from-[#0BA242]/10 to-green-500/5 border border-[#0BA242]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#0BA242]/40 transition-colors">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-full bg-[#0BA242]/10 flex items-center justify-center shrink-0">
                 <Calendar size={20} className="text-[#0BA242]" />
               </div>
               <div>
-                <p className="text-xs text-[#0BA242] font-bold uppercase tracking-wider mb-0.5">Tomorrow</p>
-                <h4 className="font-bold text-sm text-[#1D1D1D]">Pioneers Camp 2026</h4>
-                <p className="text-xs text-[#555555] mt-0.5">Check your email for the QR ticket.</p>
+                <p className="text-xs text-[#0BA242] font-bold uppercase tracking-wider mb-0.5">Upcoming Event</p>
+                <h4 className="font-bold text-sm text-[#1D1D1D] truncate">{flashcardEventTitle}</h4>
+                <p className="text-xs text-[#555555] mt-0.5">Check details and QR ticket below.</p>
               </div>
             </div>
             <ChevronRight size={18} className="text-[#0BA242]" />
-          </div>
+          </Link>
         )}
       </div>
 
@@ -183,46 +261,61 @@ export default async function UserDashboard() {
           </div>
 
           <div className="space-y-3">
-            {upcomingEvents.map(event => (
-              <div key={event.id} className="bg-white border border-[#E5E5E5] rounded-2xl p-4 shadow-sm flex items-center justify-between group cursor-pointer hover:border-[#0A9EDE] transition-colors">
-                <div>
-                  <h4 className="font-bold text-sm mb-2">{event.title}</h4>
-                  <div className="flex items-center gap-4 text-xs text-[#555555]">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={14} className="text-[#0BA242]" />
-                      {event.date}
+            {myEvents.length > 0 ? (
+              myEvents.map(event => (
+                <Link key={event.id} href="/events" className="block">
+                  <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 shadow-sm flex items-center justify-between group cursor-pointer hover:border-[#0A9EDE] transition-colors">
+                    <div>
+                      <h4 className="font-bold text-sm mb-2">{event.title}</h4>
+                      <div className="flex items-center gap-4 text-xs text-[#555555]">
+                        <div className="flex items-center gap-1">
+                          <Calendar size={14} className="text-[#0BA242]" />
+                          {event.date}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock size={14} className="text-[#DD0408]" />
+                          {event.time}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} className="text-[#DD0408]" />
-                      {event.time}
+                    <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#F0F9FF] transition-colors shrink-0 ml-2">
+                      <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0A9EDE]" />
                     </div>
                   </div>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#F0F9FF] transition-colors shrink-0 ml-2">
-                  <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0A9EDE]" />
-                </div>
+                </Link>
+              ))
+            ) : (
+              <div className="bg-white border border-dashed border-[#E5E5E5] rounded-2xl p-6 text-center text-[#555555] text-sm">
+                No events registered yet.{" "}
+                <Link href="/events" className="text-[#0A9EDE] font-semibold hover:underline">
+                  Browse events
+                </Link>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
         {/* Action Blocks */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Award size={48} />
+          <Link href="/lms/courses" className="block">
+            <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Award size={48} />
+              </div>
+              <h4 className="font-bold mb-1 relative z-10">LMS Portal</h4>
+              <p className="text-xs text-[#A3A3A3] relative z-10">All Courses</p>
             </div>
-            <h4 className="font-bold mb-1 relative z-10">LMS Portal</h4>
-            <p className="text-xs text-[#A3A3A3] relative z-10">All Courses</p>
-          </div>
+          </Link>
           
-          <div className="bg-gradient-to-br from-[#0A9EDE] to-[#088abf] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Flame size={48} />
+          <Link href="/dashboard/log-deed" className="block">
+            <div className="bg-gradient-to-br from-[#0A9EDE] to-[#088abf] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Flame size={48} />
+              </div>
+              <h4 className="font-bold mb-1 relative z-10">Log Deed</h4>
+              <p className="text-xs text-white/80 relative z-10">Keep your streak</p>
             </div>
-            <h4 className="font-bold mb-1 relative z-10">Log Deed</h4>
-            <p className="text-xs text-white/80 relative z-10">Keep your streak</p>
-          </div>
+          </Link>
         </div>
 
       </div>

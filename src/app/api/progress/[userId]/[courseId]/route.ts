@@ -1,0 +1,33 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string; courseId: string }> }
+) {
+  try {
+    const { userId, courseId } = await params
+    const supabase = await createClient()
+
+    // Fetch progress for this user and course
+    const { data: progress, error: progressError } = await supabase
+      .from('user_progress')
+      .select('lesson_id')
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
+      .eq('completed', true)
+
+    if (progressError) {
+      console.error(`Error fetching progress for user ${userId} and course ${courseId}:`, progressError)
+      return NextResponse.json({ error: progressError.message }, { status: 500 })
+    }
+
+    const completedLessonIds = (progress || []).map((row) => row.lesson_id)
+    return NextResponse.json(completedLessonIds)
+  } catch (error: any) {
+    console.error('Unhandled server error in GET /api/progress/[userId]/[courseId]:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}

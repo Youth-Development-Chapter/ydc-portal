@@ -6,6 +6,8 @@ export interface MCQ {
 
 export interface Lesson {
   id: string;
+  moduleId: string;
+  courseId: string;
   title: string;
   videoUrl?: string;
   textContent: string;
@@ -21,7 +23,11 @@ export interface Course {
   modules: { id: string; title: string; duration: string }[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_LMS_API_URL || 'http://localhost:5000/api';
+// Server-side fetches need an absolute URL; client-side fetches can be relative.
+const API_BASE_URL =
+  typeof window === 'undefined'
+    ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api`
+    : '/api';
 
 export async function getCourses(): Promise<Course[]> {
   try {

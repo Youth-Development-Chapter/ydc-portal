@@ -47,8 +47,9 @@ export async function updateSession(request: NextRequest) {
 
   const isDashboardRoute = request.nextUrl.pathname.startsWith('/dashboard')
   const isOnboardingRoute = request.nextUrl.pathname.startsWith('/onboarding')
+  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
 
-  if (!user && (isDashboardRoute || isOnboardingRoute)) {
+  if (!user && (isDashboardRoute || isOnboardingRoute || isAdminRoute)) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
@@ -56,16 +57,23 @@ export async function updateSession(request: NextRequest) {
   }
 
   // If user is logged in, check if they have completed their profile
-  if (user && isDashboardRoute) {
+  if (user && (isDashboardRoute || isAdminRoute)) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('id', user.id)
       .single()
 
     if (!profile) {
       const url = request.nextUrl.clone()
       url.pathname = '/onboarding'
+      return NextResponse.redirect(url)
+    }
+
+    // Protect administrative routes
+    if (isAdminRoute && !['admin', 'superadmin', 'president', 'tier-3'].includes(profile.role)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
       return NextResponse.redirect(url)
     }
   }
