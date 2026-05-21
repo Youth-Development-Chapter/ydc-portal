@@ -4,7 +4,7 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { getCourses, getProgress } from "@/lib/lms-data";
+import { getCourses } from "@/lib/lms-data";
 
 export default async function UserDashboard() {
   const supabase = await createClient();
@@ -97,17 +97,38 @@ export default async function UserDashboard() {
   let isCourseCompleted = false;
 
   try {
+    const supabaseForLms = await createClient();
     const courses = await getCourses();
     if (courses && courses.length > 0) {
+      const courseIds = courses.map(c => c.id);
+
+      // Fetch ALL progress for this user across all courses in ONE query
+      // instead of N sequential queries (N+1 elimination).
+      const { data: allProgress } = await supabaseForLms
+        .from('user_progress')
+        .select('course_id, lesson_id')
+        .eq('user_id', user.id)
+        .in('course_id', courseIds)
+        .eq('completed', true);
+
+      // Build a per-course set of completed lesson ids
+      const progressByCourse = new Map<string, Set<string>>();
+      for (const row of allProgress || []) {
+        if (!progressByCourse.has(row.course_id)) {
+          progressByCourse.set(row.course_id, new Set());
+        }
+        progressByCourse.get(row.course_id)!.add(row.lesson_id);
+      }
+
       let selectedCourse = courses[0];
       let selectedProgress = 0;
       let foundIncomplete = false;
 
       for (const course of courses) {
-        const completedLessons = await getProgress(user.id, course.id);
-        const totalLessons = course.modules?.length || 1;
-        const pct = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
-        
+        const completed = progressByCourse.get(course.id)?.size ?? 0;
+        const total = course.modules?.length || 1;
+        const pct = Math.min(100, Math.round((completed / total) * 100));
+
         if (pct < 100) {
           selectedCourse = course;
           selectedProgress = pct;
@@ -118,9 +139,9 @@ export default async function UserDashboard() {
 
       // If all are completed, show the first course as completed
       if (!foundIncomplete) {
-        const completedLessons = await getProgress(user.id, courses[0].id);
-        const totalLessons = courses[0].modules?.length || 1;
-        selectedProgress = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
+        const completed = progressByCourse.get(courses[0].id)?.size ?? 0;
+        const total = courses[0].modules?.length || 1;
+        selectedProgress = Math.min(100, Math.round((completed / total) * 100));
         isCourseCompleted = true;
       }
 
