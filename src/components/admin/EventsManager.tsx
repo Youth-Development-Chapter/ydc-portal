@@ -168,7 +168,7 @@ export default function EventsManager({
         // In Next.js, actions run revalidatePath, so a soft refresh could work,
         // but for immediate UI response let's append it locally
         const newEvt: EventItem = {
-          id: Math.random().toString(36).substring(2, 9), // temp id, path will refresh
+          id: crypto.randomUUID(), // temp id, path will refresh
           title: newTitle,
           description: newDescription,
           date: newDate,

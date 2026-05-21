@@ -1,5 +1,5 @@
 -- Fix Admin RLS Policies
--- The original schema.sql policies only check for role = 'admin', but admin_schema.sql
+-- The original schema.sql policies only check for role IN ('admin', 'superadmin', 'president', 'tier-3'), but admin_schema.sql
 -- expanded the role check to include 'superadmin', 'president', and 'tier-3'.
 -- Users with those new roles are silently filtered out by RLS — e.g. the admin
 -- dashboard sees zero pending deeds even though they exist.

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, CheckCircle, AlertTriangle, Award } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { submitQuiz, type SubmitQuizResult } from "@/app/lms/lessons/actions";
+import DOMPurify from "isomorphic-dompurify";
 
 interface LearnerMCQ {
   question: string;
@@ -297,7 +298,7 @@ export default function InteractiveLesson({
 
         <div
           className="prose prose-sm text-[#1D1D1D] leading-relaxed max-w-none"
-          dangerouslySetInnerHTML={{ __html: lesson.textContent }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lesson.textContent) }}
         />
 
         {lesson.mcq.length > 0 && (

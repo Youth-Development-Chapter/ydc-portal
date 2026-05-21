@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import crypto from 'crypto'
 
 export async function signup(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
@@ -55,12 +56,29 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
   const userId = user.id
 
   if (profile_pic && profile_pic.size > 0) {
+    if (profile_pic.size > 5 * 1024 * 1024) {
+      return { error: 'File size exceeds 5MB limit.' }
+    }
+
+    const arrayBuffer = await profile_pic.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+
+    const { fileTypeFromBuffer } = await import('file-type')
+    const typeInfo = await fileTypeFromBuffer(buffer)
+    if (!typeInfo || !typeInfo.mime.startsWith('image/')) {
+      return { error: 'Invalid file type. Only images are allowed.' }
+    }
+
     const fileExt = profile_pic.name.split('.').pop()
-    const fileName = `${userId}-${Math.random()}.${fileExt}`
+    const fileName = `${userId}-${crypto.randomUUID()}.${fileExt}`
     
+    // Convert File back to Blob/Buffer to upload, but supabase upload supports File or Buffer
+    // Actually passing buffer to supabase upload is safer with the correct content type
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(`public/${fileName}`, profile_pic)
+      .upload(`public/${fileName}`, buffer, {
+        contentType: typeInfo.mime
+      })
 
     if (!uploadError) {
       const { data: publicUrlData } = supabase.storage
@@ -110,7 +128,7 @@ export async function login(prevState: unknown, formData: FormData) {
   if (!rememberMe) {
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
-    cookieStore.set('session_only', 'true', { path: '/' })
+    cookieStore.set('session_only', 'true', { path: '/', httpOnly: true, secure: true, sameSite: 'lax' })
   } else {
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
@@ -157,8 +175,8 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
   const password = formData.get('password') as string
 
-  if (!password || password.length < 6) {
-    return { error: 'Password must be at least 6 characters long' }
+  if (!password || password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' }
   }
 
   const { error } = await supabase.auth.updateUser({

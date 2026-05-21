@@ -34,4 +34,4 @@ CREATE POLICY "Allow users to update their own quiz attempts"
 DROP POLICY IF EXISTS "Allow administrators full control over quiz attempts" ON public.quiz_attempts;
 CREATE POLICY "Allow administrators full control over quiz attempts"
     ON public.quiz_attempts FOR ALL
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));

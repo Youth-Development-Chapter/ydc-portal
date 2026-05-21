@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useState, useId } from "react";
 import { ChevronDown } from "lucide-react";
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
@@ -13,7 +13,8 @@ export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElemen
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className = "", label, error, containerClassName = "", id, options, children, onFocus, onBlur, ...props }, ref) => {
     const [isFocused, setIsFocused] = useState(false);
-    const selectId = id || `select-${Math.random().toString(36).substr(2, 9)}`;
+    const reactId = useId();
+    const selectId = id || reactId;
 
     const handleFocus = (e: React.FocusEvent<HTMLSelectElement>) => {
       setIsFocused(true);

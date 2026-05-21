@@ -25,7 +25,7 @@ CREATE POLICY "Allow public read access to events"
 
 CREATE POLICY "Allow administrators write access to events" 
     ON public.events FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 2. Event Registrations Table
@@ -54,7 +54,7 @@ CREATE POLICY "Allow users to register themselves for events"
 
 CREATE POLICY "Allow administrators full control over registrations" 
     ON public.event_registrations FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 3. Deed Submissions Table
@@ -84,7 +84,7 @@ CREATE POLICY "Allow users to submit their own deeds"
 
 CREATE POLICY "Allow administrators full control over deed submissions" 
     ON public.deed_submissions FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 4. User Streaks Table
@@ -105,7 +105,7 @@ CREATE POLICY "Allow anyone to read user streaks (for leaderboards)"
 
 CREATE POLICY "Allow administrators write access to streaks" 
     ON public.streaks FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 5. Coin Transactions Table (Append-Only Ledger)
@@ -128,7 +128,7 @@ CREATE POLICY "Allow users to read their own transaction history"
 
 CREATE POLICY "Allow administrators write access to transactions" 
     ON public.coin_transactions FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 6. Trigger Function to Automatically Update Streaks and Credit Coins on Deed Approval
@@ -207,7 +207,7 @@ CREATE POLICY "Allow public read access to courses"
 
 CREATE POLICY "Allow administrators full control over courses" 
     ON public.courses FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 8. Modules Table
@@ -229,7 +229,7 @@ CREATE POLICY "Allow public read access to modules"
 
 CREATE POLICY "Allow administrators full control over modules" 
     ON public.modules FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 9. Lessons Table
@@ -252,7 +252,7 @@ CREATE POLICY "Allow public read access to lessons"
 
 CREATE POLICY "Allow administrators full control over lessons" 
     ON public.lessons FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 10. MCQs Table
@@ -274,7 +274,7 @@ CREATE POLICY "Allow public read access to mcqs"
 
 CREATE POLICY "Allow administrators full control over mcqs" 
     ON public.mcqs FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 
 
 -- 11. User Progress Table
@@ -302,5 +302,5 @@ CREATE POLICY "Allow users to record their own progress"
 
 CREATE POLICY "Allow administrators full control over progress" 
     ON public.user_progress FOR ALL 
-    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role = 'admin'));
+    USING (auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')));
 

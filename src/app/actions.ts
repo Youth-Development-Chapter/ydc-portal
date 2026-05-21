@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { r2Client, R2_BUCKET_NAME } from '@/lib/r2'
+import crypto from 'crypto'
 
 export async function claimTicket(eventId: string) {
   const supabase = await createClient()
@@ -16,7 +17,7 @@ export async function claimTicket(eventId: string) {
   }
 
   // Generate a random unique ticket code
-  const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase()
+  const randomHex = crypto.randomBytes(4).toString('hex').toUpperCase()
   const ticketCode = `TKT-${eventId.substring(0, 4).toUpperCase()}-${randomHex}`
 
   const { error } = await supabase
@@ -55,6 +56,9 @@ export async function logDeed(prevState: unknown, formData: FormData) {
   }
   if (!proofPic || proofPic.size === 0) {
     return { error: 'Proof picture is required.' }
+  }
+  if (proofPic.size > 5 * 1024 * 1024) {
+    return { error: 'File size exceeds 5MB limit.' }
   }
   if (!localDate || !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
     return { error: 'Invalid or missing local date.' }
@@ -99,18 +103,25 @@ export async function logDeed(prevState: unknown, formData: FormData) {
 
   // Upload proof picture to Cloudflare R2
   const fileExt = proofPic.name.split('.').pop()
-  const fileName = `${userId}-${Math.random()}.${fileExt}`
+  const fileName = `${userId}-${crypto.randomUUID()}.${fileExt}`
 
   try {
     const arrayBuffer = await proofPic.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
+
+    // Perform server-side MIME-type magic byte validation
+    const { fileTypeFromBuffer } = await import('file-type')
+    const typeInfo = await fileTypeFromBuffer(buffer)
+    if (!typeInfo || !typeInfo.mime.startsWith('image/')) {
+      return { error: 'Invalid file type. Only images are allowed.' }
+    }
 
     await r2Client.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET_NAME,
         Key: fileName,
         Body: buffer,
-        ContentType: proofPic.type,
+        ContentType: typeInfo.mime,
       })
     )
   } catch (uploadError: unknown) {
