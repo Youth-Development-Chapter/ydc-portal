@@ -59,14 +59,31 @@ export async function logDeed(prevState: any, formData: FormData) {
   let proofUrl = ''
   const userId = user.id
 
+  // Resolve the public-read URL for R2 BEFORE the upload, so a missing
+  // env var fails loudly instead of silently writing a broken URL into
+  // the database. The R2 API endpoint (`*.r2.cloudflarestorage.com`)
+  // is not browser-readable — `CLOUDFLARE_R2_PUBLIC_URL` must point at
+  // an r2.dev subdomain or a custom domain that serves the bucket
+  // publicly.
+  const publicBaseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL
+  if (!publicBaseUrl || publicBaseUrl.includes('your-r2-public-url')) {
+    return {
+      error:
+        'Server misconfiguration: CLOUDFLARE_R2_PUBLIC_URL is not set to a real R2 public URL. Contact an admin.',
+    }
+  }
+  const cleanBaseUrl = publicBaseUrl.endsWith('/')
+    ? publicBaseUrl.slice(0, -1)
+    : publicBaseUrl
+
   // Upload proof picture to Cloudflare R2
   const fileExt = proofPic.name.split('.').pop()
   const fileName = `${userId}-${Math.random()}.${fileExt}`
-  
+
   try {
     const arrayBuffer = await proofPic.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
-    
+
     await r2Client.send(
       new PutObjectCommand({
         Bucket: R2_BUCKET_NAME,
@@ -79,8 +96,6 @@ export async function logDeed(prevState: any, formData: FormData) {
     return { error: `Failed to upload proof image to R2: ${uploadError.message}` }
   }
 
-  const publicBaseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL || ''
-  const cleanBaseUrl = publicBaseUrl.endsWith('/') ? publicBaseUrl.slice(0, -1) : publicBaseUrl
   proofUrl = `${cleanBaseUrl}/${fileName}`
 
   // Insert deed submission record
