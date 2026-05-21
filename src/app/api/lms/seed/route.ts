@@ -228,8 +228,8 @@ export async function GET() {
 
     console.log('Custom LMS database seeded successfully!')
     return NextResponse.json({ success: true, message: 'Database seeded successfully' })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Seed error:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Seed failed' }, { status: 500 })
   }
 }

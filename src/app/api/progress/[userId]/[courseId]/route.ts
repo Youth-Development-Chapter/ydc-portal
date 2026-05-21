@@ -26,8 +26,8 @@ export async function GET(
 
     const completedLessonIds = (progress || []).map((row) => row.lesson_id)
     return NextResponse.json(completedLessonIds)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unhandled server error in GET /api/progress/[userId]/[courseId]:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }

@@ -101,30 +101,42 @@ export default function InteractiveLesson({
 
   // ───────────────────────── Result: PASS ─────────────────────────
   if (view.kind === "result-pass") {
+    const isCourseDone = !!view.completedCourseId;
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh] animate-in zoom-in duration-500">
-        <div className="w-24 h-24 bg-green-100 text-[#0BA242] rounded-full flex items-center justify-center mb-6">
-          <CheckCircle size={48} />
-        </div>
-        <h2 className="text-2xl font-coolvetica mb-2">Chapter Completed!</h2>
-        <p className="text-[#555555] mb-2">
-          You passed the questionnaire. The next chapter is now unlocked.
+        {isCourseDone ? (
+          <div className="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-6 ring-8 ring-yellow-50 animate-bounce">
+            <Award size={48} />
+          </div>
+        ) : (
+          <div className="w-24 h-24 bg-green-100 text-[#0BA242] rounded-full flex items-center justify-center mb-6">
+            <CheckCircle size={48} />
+          </div>
+        )}
+        
+        <h2 className="text-2xl font-coolvetica mb-2">
+          {isCourseDone ? "Course Completed! 🎉" : "Chapter Completed!"}
+        </h2>
+        <p className="text-[#555555] mb-2 max-w-md">
+          {isCourseDone
+            ? "Congratulations! You have passed the final questionnaire and successfully completed the entire course!"
+            : "You passed the questionnaire. The next chapter is now unlocked."}
         </p>
         <p className="text-xs text-[#A3A3A3] mb-8">
           Score: {view.total} / {view.total}
         </p>
 
-        {view.completedCourseId && view.rewardCoins > 0 && (
-          <div className="w-full max-w-sm bg-[#0A9EDE]/5 border border-[#0A9EDE]/30 rounded-2xl p-5 mb-8 flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#0A9EDE] text-white rounded-full flex items-center justify-center shrink-0">
+        {isCourseDone && view.rewardCoins > 0 && (
+          <div className="w-full max-w-sm bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-8 flex items-center gap-3">
+            <div className="w-10 h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center shrink-0">
               <Award size={20} />
             </div>
             <div className="text-left">
-              <p className="font-bold text-sm text-[#1D1D1D]">Course Complete!</p>
+              <p className="font-bold text-sm text-[#1D1D1D]">Completion Bonus!</p>
               <p className="text-xs text-[#555555]">
                 Reward credited:{" "}
-                <span className="font-bold text-[#0A9EDE]">
-                  +{view.rewardCoins} coins
+                <span className="font-bold text-yellow-600">
+                  +{view.rewardCoins} YDC Coins
                 </span>
               </p>
             </div>
@@ -132,10 +144,10 @@ export default function InteractiveLesson({
         )}
 
         <Button
-          onClick={() => router.push(`/lms/courses/${courseId}`)}
-          className="w-full max-w-sm"
+          onClick={() => router.push(isCourseDone ? "/lms/courses" : `/lms/courses/${courseId}`)}
+          className="w-full max-w-sm bg-[#0A9EDE] hover:bg-[#0A9EDE]/90"
         >
-          Return to Course
+          {isCourseDone ? "Return to Academy" : "Return to Course"}
         </Button>
       </div>
     );

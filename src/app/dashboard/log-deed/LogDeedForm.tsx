@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useActionState } from "react";
-import { Camera, Loader2, Heart, Award, AlertCircle } from "lucide-react";
+import { Camera, Heart, Award, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { logDeed } from "../../actions";
@@ -34,6 +34,7 @@ export default function LogDeedForm() {
       )}
 
       <form action={action} className="space-y-6">
+        <input type="hidden" name="local_date" value={new Date().toLocaleDateString('en-CA')} />
         <div>
           <Input
             id="description"
@@ -64,20 +65,12 @@ export default function LogDeedForm() {
         <div className="pt-4">
           <Button
             type="submit"
-            disabled={pending}
-            className="w-full bg-[#0BA242] hover:bg-[#098235] text-white border-transparent shadow-md focus:ring-[#0BA242] font-semibold text-base py-3 h-auto rounded-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-75"
+            isLoading={pending}
+            size="lg"
+            leftIcon={<Award size={18} />}
+            className="w-full bg-[#0BA242] hover:bg-[#098235] text-white border-transparent shadow-md focus:ring-[#0BA242] font-semibold cursor-pointer disabled:opacity-75"
           >
-            {pending ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Submitting Deed...
-              </>
-            ) : (
-              <>
-                <Award size={18} />
-                Submit Good Deed
-              </>
-            )}
+            {pending ? "Submitting Deed..." : "Submit Good Deed"}
           </Button>
         </div>
       </form>

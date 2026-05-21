@@ -52,7 +52,7 @@ export async function GET(
     }
 
     // Map MCQs options to array of strings (it is JSONB, so it's already an array in JS)
-    const mappedMcqs = (mcqs || []).map((m: any) => ({
+    const mappedMcqs = (mcqs || []).map((m: { question: string; options: unknown }) => ({
       question: m.question,
       options: typeof m.options === 'string' ? JSON.parse(m.options) : m.options,
     }))
@@ -68,8 +68,8 @@ export async function GET(
     }
 
     return NextResponse.json(response)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unhandled server error in GET /api/lessons/[id]:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }

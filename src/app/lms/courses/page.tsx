@@ -1,67 +1,78 @@
 import React from "react";
-import Link from "next/link";
-import { BookOpen, ChevronRight, Award } from "lucide-react";
 import { getCourses } from "@/lib/lms-data";
+import { createClient } from "@/utils/supabase/server";
+import CoursesClient from "./CoursesClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function LmsCoursesPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const courses = await getCourses();
+  
+  const completedCourseIds: string[] = [];
+  const courseProgressMap: Record<string, { completed: number; total: number; percent: number }> = {};
+
+  if (user) {
+    // 1. Fetch all modules & lessons to establish baseline counts
+    const { data: allModules } = await supabase
+      .from("modules")
+      .select("id, course_id");
+      
+    const { data: allLessons } = await supabase
+      .from("lessons")
+      .select("id, module_id");
+
+    // Establish mapping of module_id -> course_id
+    const moduleToCourseMap: Record<string, string> = {};
+    for (const mod of allModules || []) {
+      moduleToCourseMap[mod.id] = mod.course_id;
+    }
+
+    // Accumulate total lessons count per course
+    const courseLessonsCount: Record<string, number> = {};
+    for (const les of allLessons || []) {
+      const courseId = moduleToCourseMap[les.module_id];
+      if (courseId) {
+        courseLessonsCount[courseId] = (courseLessonsCount[courseId] || 0) + 1;
+      }
+    }
+
+    // 2. Fetch all completed user progress records for this user
+    const { data: userProgress } = await supabase
+      .from("user_progress")
+      .select("lesson_id, course_id")
+      .eq("user_id", user.id)
+      .eq("completed", true);
+
+    const completedCountPerCourse: Record<string, number> = {};
+    for (const prog of userProgress || []) {
+      if (prog.course_id) {
+        completedCountPerCourse[prog.course_id] = (completedCountPerCourse[prog.course_id] || 0) + 1;
+      }
+    }
+
+    // 3. Populate progress mapping & completed course status
+    for (const course of courses) {
+      const total = courseLessonsCount[course.id] || 0;
+      const completed = completedCountPerCourse[course.id] || 0;
+      const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+
+      courseProgressMap[course.id] = { completed, total, percent };
+      if (total > 0 && completed >= total) {
+        completedCourseIds.push(course.id);
+      }
+    }
+  }
 
   return (
-    <div className="px-4 pt-6 space-y-6 animate-in fade-in duration-500">
-      <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 opacity-10">
-          <Award size={140} />
-        </div>
-        <h1 className="text-2xl font-bold mb-2 relative z-10 font-coolvetica">Academy</h1>
-        <p className="text-sm text-[#A3A3A3] relative z-10 max-w-[80%]">
-          Expand your knowledge with authentic courses and build your character.
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <h2 className="font-bold text-lg text-[#1D1D1D]">Available Courses</h2>
-        
-        <div className="grid gap-4">
-          {courses.map((course) => (
-            <Link key={course.id} href={`/lms/courses/${course.id}`} className="block">
-              <div className="bg-white border border-[#E5E5E5] rounded-3xl p-4 shadow-sm hover:border-[#0A9EDE] transition-all group overflow-hidden relative">
-                <div 
-                  className="absolute inset-0 z-0 opacity-5"
-                  style={{ backgroundImage: `url(${course.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                />
-                
-                <div className="relative z-10 flex gap-4">
-                  <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 shadow-md">
-                    <div 
-                      className="w-full h-full bg-cover bg-center"
-                      style={{ backgroundImage: `url(${course.imageUrl})` }}
-                    />
-                  </div>
-                  
-                  <div className="flex-1 flex flex-col justify-center">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <BookOpen size={14} className="text-[#DD0408]" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
-                        {course.modules.length} Chapters
-                      </span>
-                    </div>
-                    <h3 className="font-bold text-[#1D1D1D] text-lg leading-tight mb-1">{course.title}</h3>
-                    <p className="text-xs text-[#0A9EDE] font-semibold">{course.author}</p>
-                  </div>
-
-                  <div className="flex items-center justify-center pr-2">
-                    <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#0A9EDE] transition-colors">
-                      <ChevronRight size={16} className="text-[#555555] group-hover:text-white" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
+    <div className="max-w-lg mx-auto w-full px-4 py-6 animate-in fade-in duration-500">
+      <CoursesClient
+        courses={courses}
+        completedCourseIds={completedCourseIds}
+        courseProgressMap={courseProgressMap}
+      />
     </div>
   );
 }

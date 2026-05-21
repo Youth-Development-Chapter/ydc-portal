@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, progress: data })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unhandled server error in POST /api/progress:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }

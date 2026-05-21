@@ -36,7 +36,7 @@ export async function GET() {
     }
 
     // Group modules by course_id
-    const modulesByCourse: Record<string, any[]> = {}
+    const modulesByCourse: Record<string, { id: string; title: string; duration: string }[]> = {}
     modulesData?.forEach((mod) => {
       if (!modulesByCourse[mod.course_id]) {
         modulesByCourse[mod.course_id] = []
@@ -59,8 +59,8 @@ export async function GET() {
     }))
 
     return NextResponse.json(response)
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Unhandled server error in GET /api/courses:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 })
   }
 }

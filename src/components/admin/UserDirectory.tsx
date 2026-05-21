@@ -8,14 +8,13 @@ import {
   Flame, 
   Check, 
   X, 
-  ShieldAlert, 
   Key, 
   Shield, 
   AlertTriangle,
   GraduationCap,
   MapPin
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Switch } from '@/components/ui/Switch'
@@ -128,8 +127,8 @@ export default function UserDirectory({
         
         setTimeout(() => closeModal(), 1500)
       }
-    } catch (err: any) {
-      setActionError(err.message || 'An error occurred.')
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSubmitting(false)
     }
@@ -168,8 +167,8 @@ export default function UserDirectory({
         
         setTimeout(() => closeModal(), 1500)
       }
-    } catch (err: any) {
-      setActionError(err.message || 'An error occurred.')
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSubmitting(false)
     }

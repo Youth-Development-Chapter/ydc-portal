@@ -43,8 +43,20 @@ body {
     background-position: 0% 50%;
   }
   100% {
-    background-position: 100% 50%;
+    background-position: 200% 50%;
   }
+}
+
+.fluid-header-gradient {
+  background: linear-gradient(
+    90deg,
+    #DD0408 0%,
+    #0A9EDE 33.33%,
+    #0BA242 66.66%,
+    #DD0408 100%
+  );
+  background-size: 200% 100%;
+  animation: fluid-flow 12s linear infinite;
 }
 
 .fluid-bottom-gradient {

@@ -145,29 +145,55 @@ export async function submitQuiz(
       .eq('lesson_id', lessonId)
       .maybeSingle()
 
-    // Check whether the database trigger just awarded course-completion
-    // coins for this course. The trigger is fire-and-forget so we have
-    // to look the result up.
-    const completionReason = `course_completion:${courseId}`
-    const { data: completionTxn } = await supabase
-      .from('coin_transactions')
-      .select('amount, created_at')
+    // 6. Check absolute course completion by counting lessons vs completed progress.
+    const { data: allModules } = await supabase
+      .from('modules')
+      .select('id')
+      .eq('course_id', courseId)
+    
+    const moduleIds = allModules?.map(m => m.id) || []
+    
+    let totalLessonsCount = 0
+    if (moduleIds.length > 0) {
+      const { count } = await supabase
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
+        .in('module_id', moduleIds)
+      totalLessonsCount = count || 0
+    }
+    
+    const { count: completedLessonsCount } = await supabase
+      .from('user_progress')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .eq('reason', completionReason)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      .eq('course_id', courseId)
+      .eq('completed', true)
+
+    const isCourseCompleted = completedLessonsCount !== null && totalLessonsCount !== 0 && completedLessonsCount >= totalLessonsCount
 
     let completedCourseId: string | null = null
     let rewardCoins = 0
-    if (completionTxn) {
-      // Treat the course as "just completed" if the txn is fresh — within
-      // 30 seconds of this request. Otherwise it was already awarded on a
-      // prior submission and we should not double-celebrate.
-      const txnTime = new Date(completionTxn.created_at as string).getTime()
-      if (Date.now() - txnTime < 30_000) {
-        completedCourseId = courseId
-        rewardCoins = (completionTxn.amount as number) || 0
+
+    if (isCourseCompleted) {
+      completedCourseId = courseId
+      
+      const completionReason = `course_completion:${courseId}`
+      const { data: completionTxn } = await supabase
+        .from('coin_transactions')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('reason', completionReason)
+        .maybeSingle()
+      
+      if (completionTxn) {
+        rewardCoins = completionTxn.amount || 0
+      } else {
+        const { data: courseRow } = await supabase
+          .from('courses')
+          .select('reward_points')
+          .eq('id', courseId)
+          .maybeSingle()
+        rewardCoins = courseRow?.reward_points ?? 50
       }
     }
 

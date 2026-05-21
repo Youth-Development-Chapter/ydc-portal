@@ -3,7 +3,6 @@
 import React, { useState } from 'react'
 import { 
   Calendar, 
-  Clock, 
   MapPin, 
   Users, 
   Plus, 
@@ -18,7 +17,6 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Badge } from '@/components/ui/Badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { checkInTicket, createEvent, toggleManualAttendance } from '@/app/admin/actions'
 
@@ -126,10 +124,10 @@ export default function EventsManager({
         )
         setTicketInput('')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setScanResult({
         type: 'error',
-        message: err.message || 'An error occurred during ticket scan.',
+        message: err instanceof Error ? err.message : 'An error occurred during ticket scan.',
       })
     } finally {
       setIsScanning(false)
@@ -180,8 +178,8 @@ export default function EventsManager({
         }
         setEvents(prev => [newEvt, ...prev])
       }
-    } catch (err: any) {
-      setCreateError(err.message || 'An error occurred.')
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsCreating(false)
     }
@@ -202,8 +200,8 @@ export default function EventsManager({
           )
         )
       }
-    } catch (err: any) {
-      alert(err.message || 'Error occurred.')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Error occurred.')
     } finally {
       setIsTogglingAttendance(null)
     }
@@ -252,7 +250,7 @@ export default function EventsManager({
                 </div>
                 <CardTitle className="text-xl">Scan Volunteer Ticket</CardTitle>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Type or scan the unique ticket code from the volunteer's mobile app.
+                  Type or scan the unique ticket code from the volunteer&apos;s mobile app.
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">

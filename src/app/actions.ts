@@ -37,7 +37,7 @@ export async function claimTicket(eventId: string) {
   return { success: true }
 }
 
-export async function logDeed(prevState: any, formData: FormData) {
+export async function logDeed(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
 
   // Authenticate user
@@ -48,6 +48,7 @@ export async function logDeed(prevState: any, formData: FormData) {
 
   const description = formData.get('description') as string
   const proofPic = formData.get('proof_pic') as File | null
+  const localDate = formData.get('local_date') as string
 
   if (!description) {
     return { error: 'Description is required.' }
@@ -55,9 +56,29 @@ export async function logDeed(prevState: any, formData: FormData) {
   if (!proofPic || proofPic.size === 0) {
     return { error: 'Proof picture is required.' }
   }
+  if (!localDate || !/^\d{4}-\d{2}-\d{2}$/.test(localDate)) {
+    return { error: 'Invalid or missing local date.' }
+  }
+
+  const userId = user.id
+
+  // Enforce one submission per day (approved or pending status only)
+  const { data: existingDeeds, error: queryError } = await supabase
+    .from('deed_submissions')
+    .select('id, status')
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+
+  if (queryError) {
+    return { error: `Database error checking existing deeds: ${queryError.message}` }
+  }
+
+  const hasDuplicate = existingDeeds && existingDeeds.some(d => d.status === 'approved' || d.status === 'pending')
+  if (hasDuplicate) {
+    return { error: 'You have already submitted a deed for today.' }
+  }
 
   let proofUrl = ''
-  const userId = user.id
 
   // Resolve the public-read URL for R2 BEFORE the upload, so a missing
   // env var fails loudly instead of silently writing a broken URL into
@@ -92,8 +113,8 @@ export async function logDeed(prevState: any, formData: FormData) {
         ContentType: proofPic.type,
       })
     )
-  } catch (uploadError: any) {
-    return { error: `Failed to upload proof image to R2: ${uploadError.message}` }
+  } catch (uploadError: unknown) {
+    return { error: `Failed to upload proof image to R2: ${uploadError instanceof Error ? uploadError.message : 'Unknown upload error'}` }
   }
 
   proofUrl = `${cleanBaseUrl}/${fileName}`
@@ -105,7 +126,8 @@ export async function logDeed(prevState: any, formData: FormData) {
       user_id: userId,
       description,
       proof_url: proofUrl,
-      status: 'pending'
+      status: 'pending',
+      local_date: localDate
     })
 
   if (insertError) {

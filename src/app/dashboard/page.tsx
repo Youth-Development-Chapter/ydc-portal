@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle } from "lucide-react";
+import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses, getProgress } from "@/lib/lms-data";
@@ -68,15 +68,15 @@ export default async function UserDashboard() {
     return diffHours > 0 && diffHours <= 48;
   });
 
-  // Check if today a deed was submitted
+  // Check if today a deed was submitted using local_date
   const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
   const { data: todayDeeds } = await supabase
     .from('deed_submissions')
-    .select('id')
+    .select('id, status')
     .eq('user_id', user.id)
-    .gte('created_at', `${todayStr}T00:00:00.000Z`);
+    .eq('local_date', todayStr);
 
-  const hasLoggedDeedToday = todayDeeds && todayDeeds.length > 0;
+  const hasLoggedDeedToday = todayDeeds && todayDeeds.some(d => d.status === 'approved' || d.status === 'pending');
 
   let flashcardState: 'course_progress' | 'streak_warning' | 'upcoming_event' = 'course_progress';
   let flashcardEventTitle = "";
@@ -94,16 +94,39 @@ export default async function UserDashboard() {
   let progressPercentage = 0;
   let activeCourseTitle = "Ethics & Character Building";
   let activeCourseId = "";
+  let isCourseCompleted = false;
 
   try {
     const courses = await getCourses();
     if (courses && courses.length > 0) {
-      const firstCourse = courses[0];
-      activeCourseTitle = firstCourse.title;
-      activeCourseId = firstCourse.id;
-      const completedLessons = await getProgress(user.id, firstCourse.id);
-      const totalLessons = firstCourse.modules?.length || 1;
-      progressPercentage = Math.round((completedLessons.length / totalLessons) * 100);
+      let selectedCourse = courses[0];
+      let selectedProgress = 0;
+      let foundIncomplete = false;
+
+      for (const course of courses) {
+        const completedLessons = await getProgress(user.id, course.id);
+        const totalLessons = course.modules?.length || 1;
+        const pct = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
+        
+        if (pct < 100) {
+          selectedCourse = course;
+          selectedProgress = pct;
+          foundIncomplete = true;
+          break;
+        }
+      }
+
+      // If all are completed, show the first course as completed
+      if (!foundIncomplete) {
+        const completedLessons = await getProgress(user.id, courses[0].id);
+        const totalLessons = courses[0].modules?.length || 1;
+        selectedProgress = Math.min(100, Math.round((completedLessons.length / totalLessons) * 100));
+        isCourseCompleted = true;
+      }
+
+      activeCourseTitle = selectedCourse.title;
+      activeCourseId = selectedCourse.id;
+      progressPercentage = selectedProgress;
     }
   } catch (err) {
     console.error("Failed to fetch LMS progress:", err);
@@ -124,16 +147,21 @@ export default async function UserDashboard() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
       {/* HERO SECTION */}
-      <div className="relative pt-6 pb-32 px-4 bg-gradient-to-r from-[#DD0408] via-[#0A9EDE] to-[#0BA242] bg-[length:200%_100%] animate-[fluid-flow_15s_linear_infinite] rounded-b-[40px] shadow-lg overflow-hidden">
+      <div className="relative pt-6 pb-32 px-4 fluid-header-gradient rounded-b-[40px] shadow-lg overflow-hidden">
         <div className="absolute inset-0 z-0 flex items-center justify-center opacity-10 pointer-events-none mix-blend-overlay">
           <img src="/icontransparent.png" alt="" className="w-full max-w-[500px] h-auto scale-150" />
         </div>
 
         <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto">
-          <h1 className="text-white font-bold text-xl tracking-tight drop-shadow-sm">Dashboard</h1>
-          <Link href="/auth/login" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition">
-            <LogOut size={18} />
-          </Link>
+          <h1 className="text-white font-bold text-xl tracking-tight drop-shadow-sm font-coolvetica">Dashboard</h1>
+          <div className="flex items-center gap-2">
+            <Link href="/dashboard/settings" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition shadow-sm" title="Settings">
+              <Settings size={18} />
+            </Link>
+            <Link href="/auth/login" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition shadow-sm" title="Logout">
+              <LogOut size={18} />
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -187,10 +215,12 @@ export default async function UserDashboard() {
                 <BookOpen size={20} className="text-[#0A9EDE]" />
               </div>
               <div className="flex-1 pr-4">
-                <p className="text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5">Resume Course</p>
+                <p className="text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5">
+                  {isCourseCompleted ? "Course Completed! 🎉" : "Resume Course"}
+                </p>
                 <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 truncate">{activeCourseTitle}</h4>
                 <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-[#0A9EDE] h-full rounded-full" style={{ width: `${progressPercentage}%` }}></div>
+                  <div className={`h-full rounded-full ${isCourseCompleted ? 'bg-[#0BA242]' : 'bg-[#0A9EDE]'}`} style={{ width: `${progressPercentage}%` }}></div>
                 </div>
               </div>
             </div>
@@ -236,11 +266,11 @@ export default async function UserDashboard() {
         
         {/* Quick Stats Grid */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
-            <Coins size={20} className="text-yellow-500 mb-2" />
+          <Link href="/dashboard/wallet" className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-[#0A9EDE] hover:shadow-md transition cursor-pointer group">
+            <Coins size={20} className="text-yellow-500 mb-2 group-hover:scale-110 transition-transform" />
             <span className="text-xs text-[#555555] font-semibold">YDC Coins</span>
             <span className="font-bold text-lg">{coins}</span>
-          </div>
+          </Link>
           <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
             <MapPin size={20} className="text-[#0A9EDE] mb-2" />
             <span className="text-xs text-[#555555] font-semibold">Division</span>

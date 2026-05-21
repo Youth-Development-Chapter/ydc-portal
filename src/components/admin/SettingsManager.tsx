@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Coins, Save, Check, RefreshCw, AlertTriangle, BookOpen } from 'lucide-react'
+import { Coins, Save, Check, AlertTriangle, BookOpen } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -67,10 +67,10 @@ export default function SettingsManager({
         })
         setTimeout(() => setGlobalMessage(null), 3000)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setGlobalMessage({
         type: 'error',
-        text: err.message || 'An error occurred.',
+        text: err instanceof Error ? err.message : 'An error occurred.',
       })
     } finally {
       setIsSavingGlobal(false)
@@ -112,10 +112,10 @@ export default function SettingsManager({
           })
         }, 2000)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setCourseMessages((prev) => ({
         ...prev,
-        [courseId]: { type: 'error', text: err.message || 'Error occurred.' },
+        [courseId]: { type: 'error', text: err instanceof Error ? err.message : 'Error occurred.' },
       }))
     } finally {
       setSavingCourseId(null)

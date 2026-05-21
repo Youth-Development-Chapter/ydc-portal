@@ -14,8 +14,6 @@ import {
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Badge } from '@/components/ui/Badge'
 import { approveDeedSubmission, rejectDeedSubmission } from '@/app/admin/actions'
 
 interface MappedSubmission {
@@ -80,8 +78,8 @@ export default function ApprovalsQueue({
         setSubmissions(prev => prev.filter(s => s.id !== activeDeed.id))
         closeModal()
       }
-    } catch (err: any) {
-      setActionError(err.message || 'An error occurred during approval.')
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'An error occurred during approval.')
     } finally {
       setIsSubmitting(false)
     }
@@ -105,8 +103,8 @@ export default function ApprovalsQueue({
         setSubmissions(prev => prev.filter(s => s.id !== activeDeed.id))
         closeModal()
       }
-    } catch (err: any) {
-      setActionError(err.message || 'An error occurred during rejection.')
+    } catch (err: unknown) {
+      setActionError(err instanceof Error ? err.message : 'An error occurred during rejection.')
     } finally {
       setIsSubmitting(false)
     }

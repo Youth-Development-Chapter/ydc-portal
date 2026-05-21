@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle, ExternalLink, Flame } from "lucide-react";
+import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle, ExternalLink, Flame, Heart, Award, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LogDeedForm from "./LogDeedForm";
@@ -47,6 +47,12 @@ export default async function LogDeedPage() {
   const progressPercent = Math.min(100, Math.round((currentStreak / nextMilestone) * 100));
   const daysRemaining = nextMilestone - currentStreak;
 
+  // Determine if a deed has already been completed or submitted today
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const todaySubmission = (submissions || []).find(
+    sub => sub.local_date === todayStr && (sub.status === 'approved' || sub.status === 'pending')
+  );
+
   // Calculate rolling 7-day activity stepper data (inclusive of today)
   const last7Days = [];
   for (let i = 6; i >= 0; i--) {
@@ -61,14 +67,10 @@ export default async function LogDeedPage() {
     const dayNum = d.getDate();
     const isToday = i === 0;
 
-    // Check if a deed was submitted on this day (converting UTC database created_at to local date format)
-    const hasDeed = (submissions || []).some(sub => {
-      const subDate = new Date(sub.created_at);
-      const subY = subDate.getFullYear();
-      const subM = String(subDate.getMonth() + 1).padStart(2, '0');
-      const subD = String(subDate.getDate()).padStart(2, '0');
-      return `${subY}-${subM}-${subD}` === dateStr;
-    });
+    // Check if an approved or pending deed exists for this local date Str
+    const hasDeed = (submissions || []).some(
+      sub => sub.local_date === dateStr && (sub.status === 'approved' || sub.status === 'pending')
+    );
 
     last7Days.push({
       dateStr,
@@ -82,7 +84,7 @@ export default async function LogDeedPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
       {/* HEADER SECTION */}
-      <div className="relative pt-6 pb-20 px-4 bg-gradient-to-r from-[#DD0408] via-[#0A9EDE] to-[#0BA242] bg-[length:200%_100%] animate-[fluid-flow_15s_linear_infinite] rounded-b-[40px] shadow-lg overflow-hidden text-white">
+      <div className="relative pt-6 pb-20 px-4 fluid-header-gradient rounded-b-[40px] shadow-lg overflow-hidden text-white">
         <div className="absolute inset-0 z-0 flex items-center justify-center opacity-10 pointer-events-none mix-blend-overlay">
           <img src="/icontransparent.png" alt="" className="w-full max-w-[500px] h-auto scale-150" />
         </div>
@@ -185,8 +187,70 @@ export default async function LogDeedPage() {
           </div>
         </div>
 
-        {/* Client-Side Input Form */}
-        <LogDeedForm />
+        {/* Client-Side Input Form or Completed/Pending Alert Cards */}
+        {todaySubmission ? (
+          todaySubmission.status === 'approved' ? (
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0BA242] to-emerald-400"></div>
+              <div className="absolute -right-24 -top-24 w-48 h-48 bg-[#0BA242]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-[#0BA242]/10 flex items-center justify-center text-[#0BA242]">
+                  <CheckCircle2 size={24} className="fill-[#0BA242]/20" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#0BA242] flex items-center gap-1.5">
+                    Deed Completed! <Sparkles size={16} className="text-amber-500 fill-amber-400" />
+                  </h2>
+                  <p className="text-xs text-[#555555]">Your daily streak is locked in and protected.</p>
+                </div>
+              </div>
+
+              <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
+                <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Your Deed Today</p>
+                <p className="text-sm font-semibold text-[#1D1D1D] italic">&ldquo;{todaySubmission.description}&rdquo;</p>
+                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 flex items-center gap-2">
+                  <Award size={16} className="text-green-600" />
+                  <span>Credited **+{(todaySubmission.coin_reward ?? 10) + (todaySubmission.bonus_coins ?? 0)} YDC Coins** to your wallet</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
+                Limit one submission per day. Check back tomorrow to log your next deed and keep your fire active!
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 to-orange-400"></div>
+              <div className="absolute -right-24 -top-24 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 animate-pulse">
+                  <Clock size={24} className="text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-amber-600">Deed Under Review</h2>
+                  <p className="text-xs text-[#555555]">Submitted successfully! Pending administrator verification.</p>
+                </div>
+              </div>
+
+              <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
+                <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Your Submission Today</p>
+                <p className="text-sm font-semibold text-[#1D1D1D] italic">&ldquo;{todaySubmission.description}&rdquo;</p>
+                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
+                  <AlertCircle size={16} className="text-amber-600" />
+                  <span>Your streak is safe! Once approved, +10 Coins (and any bonuses) will be credited.</span>
+                </div>
+              </div>
+
+              <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
+                Limit one active submission per day. Administrators will review your proof picture shortly.
+              </p>
+            </div>
+          )
+        ) : (
+          <LogDeedForm />
+        )}
 
         {/* Deed History Card */}
         <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
@@ -263,20 +327,32 @@ export default async function LogDeedPage() {
                     )}
 
                     {/* Admin Feedback Notes */}
-                    {submission.status === 'rejected' && submission.admin_notes && (
-                      <div className="bg-red-50/70 border border-red-100 rounded-xl p-3 text-xs text-red-800">
+                    {submission.admin_notes && (
+                      <div className={`border rounded-xl p-3 text-xs ${
+                        submission.status === 'approved' 
+                          ? "bg-green-50/50 border-green-200/60 text-green-800" 
+                          : submission.status === 'rejected'
+                            ? "bg-red-50/70 border-red-100 text-red-800"
+                            : "bg-amber-50/50 border-amber-100 text-amber-800"
+                      }`}>
                         <p className="font-bold flex items-center gap-1 mb-0.5">
-                          <AlertCircle size={12} />
+                          {submission.status === 'approved' ? (
+                            <CheckCircle2 size={12} className="text-green-600" />
+                          ) : submission.status === 'rejected' ? (
+                            <XCircle size={12} className="text-red-600" />
+                          ) : (
+                            <AlertCircle size={12} className="text-amber-600" />
+                          )}
                           Admin Feedback:
                         </p>
-                        <p className="italic">"{submission.admin_notes}"</p>
+                        <p className="italic">&ldquo;{submission.admin_notes}&rdquo;</p>
                       </div>
                     )}
 
                     {submission.status === 'approved' && (
                       <div className="bg-green-50/40 border border-green-200 rounded-xl p-2 text-[10px] text-green-800 flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
-                        <span>Credited **+10 YDC Coins** to wallet</span>
+                        <span>Credited **+{(submission.coin_reward ?? 10) + (submission.bonus_coins ?? 0)} YDC Coins** to wallet</span>
                       </div>
                     )}
                   </div>
