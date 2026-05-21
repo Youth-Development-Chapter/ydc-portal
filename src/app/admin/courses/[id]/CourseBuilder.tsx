@@ -48,6 +48,7 @@ export interface CourseBuilderData {
     author: string
     description: string
     imageUrl: string
+    rewardPoints: number
   }
   modules: ModuleNode[]
 }
@@ -137,6 +138,7 @@ function CourseInfoEditor({
   const [author, setAuthor] = useState(course.author)
   const [description, setDescription] = useState(course.description)
   const [imageUrl, setImageUrl] = useState(course.imageUrl)
+  const [rewardPoints, setRewardPoints] = useState<number>(course.rewardPoints)
 
   function handleSave() {
     onError(null)
@@ -146,6 +148,7 @@ function CourseInfoEditor({
         author,
         description,
         imageUrl,
+        rewardPoints,
       })
       if ('error' in result && result.error) {
         onError(result.error)
@@ -175,6 +178,19 @@ function CourseInfoEditor({
         <input
           value={imageUrl}
           onChange={(e) => setImageUrl(e.target.value)}
+          className={inputStyle}
+        />
+      </Field>
+      <Field
+        label="Reward Coins"
+        hint="Coins awarded to a user when they complete every chapter of this course. The database grants them automatically — only once per user per course."
+      >
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={rewardPoints}
+          onChange={(e) => setRewardPoints(parseInt(e.target.value, 10) || 0)}
           className={inputStyle}
         />
       </Field>

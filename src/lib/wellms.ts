@@ -26,6 +26,25 @@ export interface Lesson {
   mcq: MCQ[]
 }
 
+/**
+ * Learner-facing MCQ. NEVER includes correctAnswerIndex — the answer key
+ * stays on the server, so users can't bypass the quiz via DevTools.
+ */
+export interface LearnerMCQ {
+  question: string
+  options: string[]
+}
+
+export interface LearnerLesson {
+  id: string
+  moduleId: string
+  courseId: string
+  title: string
+  videoUrl?: string
+  textContent: string
+  mcq: LearnerMCQ[]
+}
+
 export interface Course {
   id: string
   title: string

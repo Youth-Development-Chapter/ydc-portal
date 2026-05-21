@@ -44,6 +44,7 @@ export async function createCourse(data: {
   author: string
   description: string
   imageUrl: string
+  rewardPoints: number
 }) {
   const ctx = await requireCourseAdmin()
   if (ctx.error) return { error: ctx.error }
@@ -56,6 +57,9 @@ export async function createCourse(data: {
   if (!/^[a-z0-9_-]+$/i.test(trimmedId)) {
     return { error: 'Course id must contain only letters, digits, dashes, or underscores.' }
   }
+  if (!Number.isInteger(data.rewardPoints) || data.rewardPoints < 0) {
+    return { error: 'Reward points must be a non-negative integer.' }
+  }
 
   const { error } = await supabase!.from('courses').insert({
     id: trimmedId,
@@ -63,6 +67,7 @@ export async function createCourse(data: {
     author: data.author,
     description: data.description,
     image_url: data.imageUrl || null,
+    reward_points: data.rewardPoints,
   })
 
   if (error) return { error: error.message }
@@ -72,11 +77,21 @@ export async function createCourse(data: {
 
 export async function updateCourse(
   id: string,
-  data: { title: string; author: string; description: string; imageUrl: string },
+  data: {
+    title: string
+    author: string
+    description: string
+    imageUrl: string
+    rewardPoints: number
+  },
 ) {
   const ctx = await requireCourseAdmin()
   if (ctx.error) return { error: ctx.error }
   const { supabase } = ctx
+
+  if (!Number.isInteger(data.rewardPoints) || data.rewardPoints < 0) {
+    return { error: 'Reward points must be a non-negative integer.' }
+  }
 
   const { error } = await supabase!
     .from('courses')
@@ -85,6 +100,7 @@ export async function updateCourse(
       author: data.author,
       description: data.description,
       image_url: data.imageUrl || null,
+      reward_points: data.rewardPoints,
     })
     .eq('id', id)
 

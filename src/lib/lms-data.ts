@@ -10,7 +10,7 @@
 // a server context.
 
 import { createClient } from '@/utils/supabase/server'
-import type { Course, Lesson } from './wellms'
+import type { Course, Lesson, LearnerLesson, LearnerMCQ } from './wellms'
 
 export async function getCourses(): Promise<Course[]> {
   const supabase = await createClient()
@@ -107,6 +107,31 @@ export async function getProgress(userId: string, courseId: string): Promise<str
     return []
   }
   return (data || []).map((row) => row.lesson_id as string)
+}
+
+/**
+ * Learner-facing lesson fetcher. Returns the lesson WITHOUT the
+ * correct_answer_index on each MCQ — the answer key must never leave
+ * the server. Use this for /lms/lessons/[id] and any user-visible page.
+ *
+ * Admin code paths that need the full data should use getLessonById.
+ */
+export async function getLessonForLearner(lessonId: string): Promise<LearnerLesson | undefined> {
+  const full = await getLessonById(lessonId)
+  if (!full) return undefined
+  const safeMcq: LearnerMCQ[] = full.mcq.map((m) => ({
+    question: m.question,
+    options: m.options,
+  }))
+  return {
+    id: full.id,
+    moduleId: full.moduleId,
+    courseId: full.courseId,
+    title: full.title,
+    videoUrl: full.videoUrl,
+    textContent: full.textContent,
+    mcq: safeMcq,
+  }
 }
 
 export async function getLessonById(lessonId: string): Promise<Lesson | undefined> {

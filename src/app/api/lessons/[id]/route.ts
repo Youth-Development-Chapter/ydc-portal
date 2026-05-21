@@ -38,10 +38,12 @@ export async function GET(
       return NextResponse.json({ error: moduleError.message }, { status: 500 })
     }
 
-    // Fetch the MCQs for this lesson
+    // Fetch the MCQs for this lesson — answer key is intentionally omitted
+    // so it never leaves the server. Quiz grading goes through the
+    // submitQuiz server action.
     const { data: mcqs, error: mcqsError } = await supabase
       .from('mcqs')
-      .select('question, options, correct_answer_index')
+      .select('question, options')
       .eq('lesson_id', id)
 
     if (mcqsError) {
@@ -53,7 +55,6 @@ export async function GET(
     const mappedMcqs = (mcqs || []).map((m: any) => ({
       question: m.question,
       options: typeof m.options === 'string' ? JSON.parse(m.options) : m.options,
-      correctAnswerIndex: m.correct_answer_index,
     }))
 
     const response = {

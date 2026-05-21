@@ -28,7 +28,7 @@ export default async function AdminCoursesPage() {
   // Fetch courses + module counts
   const { data: courses } = await supabase
     .from('courses')
-    .select('id, title, author, description, image_url, created_at')
+    .select('id, title, author, description, image_url, reward_points, created_at')
     .order('created_at', { ascending: true })
 
   const { data: modules } = await supabase.from('modules').select('id, course_id')
@@ -44,6 +44,7 @@ export default async function AdminCoursesPage() {
     author: c.author,
     description: c.description || '',
     imageUrl: c.image_url || '',
+    rewardPoints: c.reward_points ?? 50,
     moduleCount: moduleCountByCourse[c.id] || 0,
   }))
 

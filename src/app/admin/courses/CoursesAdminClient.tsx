@@ -13,6 +13,7 @@ export interface CourseRow {
   author: string
   description: string
   imageUrl: string
+  rewardPoints: number
   moduleCount: number
 }
 
@@ -32,6 +33,7 @@ export default function CoursesAdminClient({
   const [newAuthor, setNewAuthor] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
+  const [newReward, setNewReward] = useState<number>(50)
 
   function resetForm() {
     setNewId('')
@@ -39,6 +41,7 @@ export default function CoursesAdminClient({
     setNewAuthor('')
     setNewDescription('')
     setNewImageUrl('')
+    setNewReward(50)
     setError(null)
   }
 
@@ -51,6 +54,7 @@ export default function CoursesAdminClient({
         author: newAuthor,
         description: newDescription,
         imageUrl: newImageUrl,
+        rewardPoints: newReward,
       })
       if ('error' in result && result.error) {
         setError(result.error)
@@ -146,6 +150,19 @@ export default function CoursesAdminClient({
                 className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
               />
             </FormField>
+            <FormField
+              label="Reward Coins"
+              hint="Awarded to a user when they complete every chapter of this course."
+            >
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={newReward}
+                onChange={(e) => setNewReward(parseInt(e.target.value, 10) || 0)}
+                className="w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+            </FormField>
             <div className="md:col-span-2">
               <FormField label="Description">
                 <textarea
@@ -184,6 +201,7 @@ export default function CoursesAdminClient({
                 <th className="text-left px-4 py-3 font-semibold">Course</th>
                 <th className="text-left px-4 py-3 font-semibold">Author</th>
                 <th className="text-left px-4 py-3 font-semibold">Modules</th>
+                <th className="text-left px-4 py-3 font-semibold">Reward</th>
                 <th className="text-right px-4 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
@@ -200,6 +218,9 @@ export default function CoursesAdminClient({
                       <BookOpen size={12} />
                       {c.moduleCount}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm font-semibold text-zinc-900">
+                    {c.rewardPoints} <span className="text-xs font-normal text-zinc-500">coins</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">

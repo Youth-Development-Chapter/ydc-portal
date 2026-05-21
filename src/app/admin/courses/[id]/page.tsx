@@ -40,7 +40,7 @@ export default async function AdminCourseEditPage({
   // Fetch course
   const { data: course } = await supabase
     .from('courses')
-    .select('id, title, author, description, image_url')
+    .select('id, title, author, description, image_url, reward_points')
     .eq('id', id)
     .single()
 
@@ -136,6 +136,7 @@ export default async function AdminCourseEditPage({
       author: course.author,
       description: course.description || '',
       imageUrl: course.image_url || '',
+      rewardPoints: course.reward_points ?? 50,
     },
     modules: moduleTree,
   }
