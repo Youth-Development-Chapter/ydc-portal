@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
-export const dynamic = 'force-dynamic'
+// Kept for backward compatibility. In-app pages use `lib/lms-data.ts`.
 
 export async function GET(
   request: NextRequest,

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { BookOpen, ChevronRight, Award } from "lucide-react";
-import { getCourses } from "@/lib/wellms";
+import { getCourses } from "@/lib/lms-data";
 
 export const dynamic = "force-dynamic";
 

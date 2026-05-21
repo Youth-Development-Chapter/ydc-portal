@@ -4,7 +4,7 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { getCourses, getProgress } from "@/lib/wellms";
+import { getCourses, getProgress } from "@/lib/lms-data";
 
 export default async function UserDashboard() {
   const supabase = await createClient();

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
-export const dynamic = 'force-dynamic'
+// Note: This route is kept for backward compatibility / external callers.
+// In-app pages query Supabase directly via `lib/lms-data.ts` to avoid an
+// extra server-to-server HTTP hop on Vercel.
 
 export async function GET() {
   try {

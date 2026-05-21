@@ -1,5 +1,5 @@
 import React from "react";
-import { getLessonById } from "@/lib/wellms";
+import { getLessonById } from "@/lib/lms-data";
 import InteractiveLesson from "@/components/lms/InteractiveLesson";
 
 export const dynamic = "force-dynamic";

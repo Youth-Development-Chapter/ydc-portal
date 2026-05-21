@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { getCourseById } from "@/lib/wellms";
+import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
 import { ChevronLeft } from "lucide-react";
 

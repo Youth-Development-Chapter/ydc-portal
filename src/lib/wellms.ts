@@ -1,108 +1,86 @@
+// Shared LMS types + browser-only data calls.
+//
+// Server-side fetchers (used by Server Components) live in `./lms-data.ts`
+// and query Supabase directly. The functions in this file are safe to call
+// from client components — they use the Supabase browser client, which
+// authenticates as the logged-in user via cookies.
+//
+// We intentionally do not import 'server-only' here so this file can be
+// pulled into client bundles.
+
+import { createClient as createBrowserSupabase } from '@/utils/supabase/client'
+
 export interface MCQ {
-  question: string;
-  options: string[];
-  correctAnswerIndex: number;
+  question: string
+  options: string[]
+  correctAnswerIndex: number
 }
 
 export interface Lesson {
-  id: string;
-  moduleId: string;
-  courseId: string;
-  title: string;
-  videoUrl?: string;
-  textContent: string;
-  mcq: MCQ[];
+  id: string
+  moduleId: string
+  courseId: string
+  title: string
+  videoUrl?: string
+  textContent: string
+  mcq: MCQ[]
 }
 
 export interface Course {
-  id: string;
-  title: string;
-  author: string;
-  description: string;
-  imageUrl: string;
-  modules: { id: string; title: string; duration: string }[];
+  id: string
+  title: string
+  author: string
+  description: string
+  imageUrl: string
+  modules: { id: string; title: string; duration: string }[]
 }
 
-// Server-side fetches need an absolute URL; client-side fetches can be relative.
-const API_BASE_URL =
-  typeof window === 'undefined'
-    ? `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api`
-    : '/api';
-
-export async function getCourses(): Promise<Course[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/courses`, {
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      console.error("Failed to fetch courses, status:", res.status);
-      return [];
-    }
-    return await res.json();
-  } catch (err) {
-    console.error("Error in getCourses:", err);
-    return [];
-  }
-}
-
-export async function getCourseById(courseId: string): Promise<Course | undefined> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/courses/${courseId}`, {
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      return undefined;
-    }
-    return await res.json();
-  } catch (err) {
-    console.error(`Error in getCourseById(${courseId}):`, err);
-    return undefined;
-  }
-}
-
-export async function getLessonById(lessonId: string): Promise<Lesson | undefined> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/lessons/${lessonId}`, {
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      return undefined;
-    }
-    return await res.json();
-  } catch (err) {
-    console.error(`Error in getLessonById(${lessonId}):`, err);
-    return undefined;
-  }
-}
-
+/**
+ * Fetch the lesson IDs the user has completed in a given course.
+ * Safe to call from Client Components.
+ */
 export async function getProgress(userId: string, courseId: string): Promise<string[]> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/progress/${userId}/${courseId}`, {
-      cache: 'no-store'
-    });
-    if (!res.ok) {
-      return [];
-    }
-    return await res.json();
-  } catch (err) {
-    console.error(`Error in getProgress(${userId}, ${courseId}):`, err);
-    return [];
+  const supabase = createBrowserSupabase()
+  const { data, error } = await supabase
+    .from('user_progress')
+    .select('lesson_id')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .eq('completed', true)
+
+  if (error) {
+    console.error(`Error in getProgress(${userId}, ${courseId}):`, error)
+    return []
   }
+  return (data || []).map((row) => row.lesson_id as string)
 }
 
-export async function saveProgress(userId: string, courseId: string, lessonId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/progress`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+/**
+ * Mark a lesson as completed for the current user.
+ * Safe to call from Client Components.
+ */
+export async function saveProgress(
+  userId: string,
+  courseId: string,
+  lessonId: string,
+): Promise<boolean> {
+  const supabase = createBrowserSupabase()
+  const { error } = await supabase
+    .from('user_progress')
+    .upsert(
+      {
+        user_id: userId,
+        course_id: courseId,
+        lesson_id: lessonId,
+        completed: true,
+        completed_at: new Date().toISOString(),
       },
-      body: JSON.stringify({ userId, courseId, lessonId }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("Error in saveProgress:", err);
-    return false;
-  }
-}
+      { onConflict: 'user_id,course_id,lesson_id' },
+    )
 
+  if (error) {
+    console.error('Error in saveProgress:', error)
+    return false
+  }
+  return true
+}
