@@ -9,8 +9,31 @@
 // `@/utils/supabase/server` pulls in `next/headers`, which throws outside
 // a server context.
 
+import sanitizeHtml from 'sanitize-html'
 import { createClient } from '@/utils/supabase/server'
 import type { Course, Lesson, LearnerLesson, LearnerMCQ } from './wellms'
+
+/** Allowed HTML tags and attributes for lesson text content. */
+const LESSON_HTML_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'p', 'br', 'hr',
+    'ul', 'ol', 'li',
+    'strong', 'em', 'b', 'i', 'u', 's',
+    'a', 'blockquote', 'pre', 'code',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+    'div', 'span',
+  ],
+  allowedAttributes: {
+    a: ['href', 'target', 'rel'],
+    '*': ['class'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+}
+
+function sanitizeLessonContent(html: string): string {
+  return sanitizeHtml(html, LESSON_HTML_OPTIONS)
+}
 
 export async function getCourses(): Promise<Course[]> {
   const supabase = await createClient()
@@ -177,7 +200,9 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
     courseId: moduleRow.course_id,
     title: lesson.title,
     videoUrl: lesson.video_url || undefined,
-    textContent: lesson.text_content || '',
+    // Sanitize HTML to prevent XSS — admins write lesson content which is
+    // rendered with dangerouslySetInnerHTML on the client.
+    textContent: sanitizeLessonContent(lesson.text_content || ''),
     mcq: (mcqs || []).map((m) => ({
       question: m.question,
       options: Array.isArray(m.options)

@@ -3,8 +3,22 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { randomBytes } from 'crypto'
 import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { r2Client, R2_BUCKET_NAME } from '@/lib/r2'
+
+/** 5 MB upload limit for proof images */
+const MAX_FILE_SIZE = 5 * 1024 * 1024
+
+/** Accepted image MIME types */
+const ALLOWED_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+])
 
 export async function claimTicket(eventId: string) {
   const supabase = await createClient()
@@ -15,8 +29,8 @@ export async function claimTicket(eventId: string) {
     return { error: 'You must be logged in to claim a ticket.' }
   }
 
-  // Generate a random unique ticket code
-  const randomHex = Math.random().toString(36).substring(2, 8).toUpperCase()
+  // Generate a cryptographically random unique ticket code
+  const randomHex = randomBytes(3).toString('hex').toUpperCase()
   const ticketCode = `TKT-${eventId.substring(0, 4).toUpperCase()}-${randomHex}`
 
   const { error } = await supabase
@@ -60,6 +74,14 @@ export async function logDeed(prevState: unknown, formData: FormData) {
     return { error: 'Invalid or missing local date.' }
   }
 
+  // Server-side file validation
+  if (proofPic.size > MAX_FILE_SIZE) {
+    return { error: 'Proof image must be smaller than 5 MB.' }
+  }
+  if (!ALLOWED_MIME_TYPES.has(proofPic.type)) {
+    return { error: 'Proof image must be a JPEG, PNG, WEBP, GIF, or HEIC file.' }
+  }
+
   const userId = user.id
 
   // Enforce one submission per day (approved or pending status only)
@@ -98,8 +120,11 @@ export async function logDeed(prevState: unknown, formData: FormData) {
     : publicBaseUrl
 
   // Upload proof picture to Cloudflare R2
-  const fileExt = proofPic.name.split('.').pop()
-  const fileName = `${userId}-${Math.random()}.${fileExt}`
+  const fileExt = proofPic.name.split('.').pop()?.toLowerCase() || 'jpg'
+  // Use a cryptographically random UUID for the file name to prevent
+  // enumeration of uploaded files.
+  const { randomUUID } = await import('crypto')
+  const fileName = `deeds/${userId}/${randomUUID()}.${fileExt}`
 
   try {
     const arrayBuffer = await proofPic.arrayBuffer()

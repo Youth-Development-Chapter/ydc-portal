@@ -11,6 +11,16 @@ export async function GET(
     const { userId, courseId } = await params
     const supabase = await createClient()
 
+    // Verify the caller is the same user whose progress is being requested.
+    // Admins who need any user's progress should use a server action instead.
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (user.id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     // Fetch progress for this user and course
     const { data: progress, error: progressError } = await supabase
       .from('user_progress')
