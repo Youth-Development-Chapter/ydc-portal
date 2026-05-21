@@ -120,28 +120,28 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex">
-      {/* SIDEBAR FOR DESKTOP */}
-      <aside className="w-64 bg-zinc-900 border-r border-zinc-800 text-zinc-300 flex flex-col fixed inset-y-0 left-0 z-30 shrink-0">
+    <div className="min-h-screen bg-zinc-100 flex">
+      {/* DESKTOP SIDEBAR */}
+      <aside className="hidden w-72 bg-[#0E1320] border-r border-[#1F2937] text-zinc-300 lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:z-30 lg:shrink-0">
         {/* Brand Logo Header */}
-        <div className="h-16 px-6 border-b border-zinc-800 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-extrabold shadow-md shadow-red-950/50">
+        <div className="h-16 px-6 border-b border-[#1F2937] flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-fuchsia-500 flex items-center justify-center text-white font-extrabold shadow-md shadow-rose-950/50">
             Y
           </div>
           <div>
             <span className="font-bold text-white tracking-wide text-sm block">YDC Portal</span>
-            <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Admin Panel</span>
+            <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Admin Console</span>
           </div>
         </div>
 
         {/* User Card */}
-        <div className="p-4 mx-3 my-4 bg-zinc-800/40 rounded-xl border border-zinc-800/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-zinc-300 shadow-inner">
+        <div className="p-4 mx-3 my-4 bg-[#141B2D] rounded-xl border border-[#1F2937] flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#202A40] flex items-center justify-center text-zinc-300 shadow-inner">
             <User size={18} />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-white truncate" title={adminName}>{adminName}</p>
-            <div className="flex items-center gap-1 mt-0.5 text-red-500 font-bold text-[10px] uppercase tracking-wider">
+            <div className="flex items-center gap-1 mt-0.5 text-cyan-300 font-bold text-[10px] uppercase tracking-wider">
               <Shield size={10} />
               <span>{roleLabels[role] || 'Admin'}</span>
             </div>
@@ -156,9 +156,9 @@ export default async function AdminLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800/80 hover:text-white transition-all duration-150 group"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-[#1A2338] hover:text-white transition-all duration-150 group"
               >
-                <Icon size={18} className="text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                <Icon size={18} className="text-zinc-500 group-hover:text-cyan-300 transition-colors" />
                 <span>{item.name}</span>
               </Link>
             )
@@ -166,10 +166,10 @@ export default async function AdminLayout({
         </nav>
 
         {/* Footer Actions */}
-        <div className="p-3 border-t border-zinc-800">
+        <div className="p-3 border-t border-[#1F2937]">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all duration-150"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-zinc-400 hover:bg-[#1A2338] hover:text-white transition-all duration-150"
           >
             <ArrowLeft size={18} />
             <span>Volunteer Portal</span>
@@ -178,24 +178,48 @@ export default async function AdminLayout({
       </aside>
 
       {/* MAIN CONTAINER */}
-      <div className="pl-64 flex-1 flex flex-col min-h-screen">
+      <div className="lg:pl-72 flex-1 flex flex-col min-h-screen">
         {/* TOP NAVBAR */}
-        <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-8 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 bg-white/90 backdrop-blur border-b border-zinc-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-zinc-900 tracking-tight">
-              YDC Administration System
+              YDC Admin Control Center
             </h2>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-red-50 border border-red-100 rounded-full text-[11px] font-extrabold text-red-600">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse"></span>
-              <span>LIVE ADMIN MODE</span>
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-cyan-50 border border-cyan-100 rounded-full text-[11px] font-extrabold text-cyan-700">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-600 animate-pulse"></span>
+              <span>LIVE OPERATIONS</span>
             </div>
           </div>
         </header>
 
         {/* PAGE CONTENT CONTAINER */}
-        <main className="flex-1 p-8 bg-zinc-50">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-zinc-100 space-y-4">
+          <div className="lg:hidden overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-2">
+              {filteredNavItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm"
+                  >
+                    <Icon size={14} />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+              <Link
+                href="/dashboard"
+                className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm"
+              >
+                <ArrowLeft size={14} />
+                <span>Volunteer Portal</span>
+              </Link>
+            </div>
+          </div>
           {children}
         </main>
       </div>
