@@ -47,7 +47,7 @@ export default function ResetPasswordPage() {
               type="password"
               label="New Password"
               required
-              placeholder="Enter at least 6 characters"
+              placeholder="Enter at least 8 characters"
               leftIcon={<Lock size={18} />}
             />
 

@@ -7,12 +7,31 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useActionState } from "react";
+import { useState } from "react";
 import { signup } from "../actions";
 import { createClient } from "@/utils/supabase/client";
 
 export default function SignupPage() {
-  const [state, action, pending] = useActionState(signup, null);
+  const [pending, setPending] = useState(false);
+  const [state, setState] = useState<{ success?: string; error?: string } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPending(true);
+    setState(null);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const res = await signup(null, formData);
+      setState(res);
+      if (res?.success) {
+        (e.target as HTMLFormElement).reset();
+      }
+    } catch (err: any) {
+      setState({ error: err?.message || "An unexpected error occurred." });
+    } finally {
+      setPending(false);
+    }
+  };
 
   const handleOAuthLogin = async (provider: "google" | "facebook") => {
     const supabase = createClient();
@@ -73,7 +92,7 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form className="space-y-6" action={action}>
+          <form className="space-y-6" onSubmit={handleSubmit}>
             
             <Input
               id="fullname"
@@ -102,7 +121,7 @@ export default function SignupPage() {
               type="password"
               label="Password"
               required
-              placeholder="Create password (min 6 characters)"
+              placeholder="Create password (min 8 characters)"
               leftIcon={<Lock size={18} />}
             />
 

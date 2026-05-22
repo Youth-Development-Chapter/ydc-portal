@@ -4,11 +4,30 @@ import Link from "next/link";
 import { ArrowLeft, Mail, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { useActionState } from "react";
+import { useState } from "react";
 import { resetPassword } from "../actions";
 
 export default function ForgotPasswordPage() {
-  const [state, action, pending] = useActionState(resetPassword, null);
+  const [pending, setPending] = useState(false);
+  const [state, setState] = useState<{ success?: string; error?: string } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setPending(true);
+    setState(null);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const res = await resetPassword(null, formData);
+      setState(res);
+      if (res?.success) {
+        (e.target as HTMLFormElement).reset();
+      }
+    } catch (err: any) {
+      setState({ error: err?.message || "An unexpected error occurred." });
+    } finally {
+      setPending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white text-[#1D1D1D] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative selection:bg-[#1D1D1D] selection:text-white overflow-hidden">
@@ -66,7 +85,7 @@ export default function ForgotPasswordPage() {
                 </div>
               )}
 
-              <form className="space-y-6" action={action}>
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <Input
                   id="email"
                   name="email"
