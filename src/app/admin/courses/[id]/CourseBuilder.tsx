@@ -480,7 +480,6 @@ function LessonsEditor({
 }) {
   const [isPending, startTransition] = useTransition()
   const [showAdd, setShowAdd] = useState(false)
-  const [newId, setNewId] = useState('')
   const [newTitle, setNewTitle] = useState('')
 
   function handleAdd() {
@@ -489,7 +488,7 @@ function LessonsEditor({
       lessons.length > 0 ? Math.max(...lessons.map((l) => l.orderIndex)) + 1 : 1
     startTransition(async () => {
       const result = await createLesson({
-        id: newId,
+        id: moduleId,
         moduleId,
         courseId,
         title: newTitle,
@@ -501,12 +500,14 @@ function LessonsEditor({
         onError(result.error)
         return
       }
-      setNewId('')
       setNewTitle('')
       setShowAdd(false)
       onChanged()
     })
   }
+
+  // Each module maps to exactly one lesson in the LMS design.
+  const hasLesson = lessons.length > 0
 
   return (
     <div className="space-y-3 pl-2 border-l-2 border-zinc-100">
@@ -514,29 +515,24 @@ function LessonsEditor({
         <div className="text-xs uppercase tracking-wider font-semibold text-zinc-500">
           Lessons
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          leftIcon={<Plus size={12} />}
-          onClick={() => {
-            setShowAdd((s) => !s)
-            onError(null)
-          }}
-        >
-          {showAdd ? 'Cancel' : 'Add Lesson'}
-        </Button>
+        {!hasLesson && (
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={<Plus size={12} />}
+            onClick={() => {
+              setShowAdd((s) => !s)
+              onError(null)
+            }}
+          >
+            {showAdd ? 'Cancel' : 'Add Lesson'}
+          </Button>
+        )}
       </div>
 
       {showAdd && (
         <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="Lesson ID" hint="Must be unique across all lessons.">
-              <input
-                value={newId}
-                onChange={(e) => setNewId(e.target.value)}
-                className={inputStyle}
-              />
-            </Field>
+          <div className="grid grid-cols-1 gap-3">
             <Field label="Title">
               <input
                 value={newTitle}

@@ -38,16 +38,16 @@ All IDs (`id` fields for course, module, and lesson) must contain only **lowerca
 | **module.title** | string | Yes | The title of this module/unit. |
 | **module.duration** | string | No | Duration label (e.g., `45 mins`, `2 hours`). |
 | **module.orderIndex** | integer | Yes | Sorting order (1, 2, 3...). |
-| **module.lessons** | array | No | Nested lessons within this module. |
+| **module.lessons** | array | Yes | Array containing exactly **one** lesson. |
 
 ### Lesson Fields
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| **lesson.id** | string | Yes | Unique ID slug within the course (e.g. `d_m1_l1`). |
+| **lesson.id** | string | Yes | Temporary placeholder slug (e.g. `d_m1_l1`). **Note:** The importer overrides this to match `module.id` for routing and progress compatibility. |
 | **lesson.title** | string | Yes | The title of this lesson chapter. |
 | **lesson.videoUrl** | string | No | Direct video MP4 link or YouTube watch link. |
 | **lesson.textContent** | string | Yes | Rich HTML lesson content. |
-| **lesson.orderIndex** | integer | Yes | Sorting order within the module (1, 2, 3...). |
+| **lesson.orderIndex** | integer | Yes | Sorting order within the module (always `1` since there is only one lesson). |
 | **lesson.mcqs** | array | No | Multiple-choice quiz questions for this lesson. |
 
 ### MCQ Quiz Fields
@@ -126,12 +126,12 @@ Generate the entire course content in a single, strictly valid JSON format confo
 
 JSON Schema Requirements:
 1. "id", "title", "author", "description", "imageUrl", and "rewardPoints" (integer) at the course root.
-2. "modules" is an array of objects. Each module has "id", "title", "duration" (e.g. "30 mins"), "orderIndex" (integer starting at 1), and "lessons" (array).
-3. Each lesson has "id", "title", "videoUrl" (YouTube watch url or empty string/null), "textContent" (detailed lesson content formatted as HTML string with paragraphs, bold, lists, etc.), "orderIndex" (integer), and "mcqs" (array of quizzes).
+2. "modules" is an array of objects. Each module has "id", "title", "duration" (e.g. "30 mins"), "orderIndex" (integer starting at 1), and "lessons" (array containing exactly ONE lesson object).
+3. Each lesson has "id" (can be a placeholder like `moduleid_l1`, as the importer automatically overrides this to match the parent module ID), "title", "videoUrl" (YouTube watch url or empty string/null), "textContent" (detailed lesson content formatted as HTML string with paragraphs, bold, lists, etc.), "orderIndex" (always 1), and "mcqs" (array of quizzes).
 4. Each MCQ has "question", "options" (array of strings), and "correctAnswerIndex" (0-based integer matching the index of the correct option in the options array).
 
 Strict Constraint:
-All "id" fields (course.id, module.id, lesson.id) must be unique slugs containing ONLY lowercase letters, numbers, dashes, or underscores.
+All "id" fields (course.id, module.id, lesson.id) must be unique slugs containing ONLY lowercase letters, numbers, dashes, or underscores. Each module must contain exactly one lesson.
 
 Topic of the course: [INSERT TOPIC/TITLE HERE]
 Number of modules: [INSERT MODULE COUNT]

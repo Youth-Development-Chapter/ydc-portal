@@ -204,12 +204,12 @@ export async function createLesson(data: {
   if (ctx.error) return { error: ctx.error }
   const { supabase } = ctx
 
-  const trimmedId = data.id.trim()
+  const trimmedId = data.moduleId.trim()
   if (!trimmedId || !data.title.trim()) {
-    return { error: 'id and title are required.' }
+    return { error: 'moduleId and title are required.' }
   }
   if (!/^[a-z0-9_-]+$/i.test(trimmedId)) {
-    return { error: 'Lesson id must contain only letters, digits, dashes, or underscores.' }
+    return { error: 'Module id must contain only letters, digits, dashes, or underscores.' }
   }
 
   const { error } = await supabase!.from('lessons').insert({
@@ -377,7 +377,9 @@ const moduleImportSchema = z.object({
   title: z.string().min(1, 'Module title cannot be empty'),
   duration: z.string().optional().default(''),
   orderIndex: z.number().int().default(0),
-  lessons: z.array(lessonImportSchema).optional().default([]),
+  lessons: z.array(lessonImportSchema)
+    .min(1, 'Each module must have at least one lesson')
+    .max(1, 'Each module must have exactly one lesson in this version of the LMS'),
 })
 
 const courseImportSchema = z.object({
@@ -457,34 +459,38 @@ export async function importCourseFromJson(jsonText: string) {
         throw new Error(`Failed to insert module "${mod.title}" (${mod.id}): ${modError.message}`)
       }
 
-      for (const les of mod.lessons) {
-        const { error: lesError } = await supabase!.from('lessons').insert({
-          id: les.id,
-          module_id: mod.id,
-          title: les.title,
-          video_url: les.videoUrl || null,
-          text_content: les.textContent,
-          order_index: les.orderIndex,
+      // Since each module has exactly one lesson, we map the lesson's ID to match the module ID.
+      // This is required to satisfy the LMS's 1-to-1 routing (/lms/lessons/[id] where id is the module ID)
+      // and progress tracking (module completion check).
+      const les = mod.lessons[0]
+      const lessonId = mod.id
+
+      const { error: lesError } = await supabase!.from('lessons').insert({
+        id: lessonId,
+        module_id: mod.id,
+        title: les.title,
+        video_url: les.videoUrl || null,
+        text_content: les.textContent,
+        order_index: les.orderIndex,
+      })
+
+      if (lesError) {
+        throw new Error(`Failed to insert lesson "${les.title}" (${lessonId}): ${lesError.message}`)
+      }
+
+      for (const mcq of les.mcqs) {
+        if (mcq.correctAnswerIndex < 0 || mcq.correctAnswerIndex >= mcq.options.length) {
+          throw new Error(`Lesson "${les.title}" quiz: correctAnswerIndex ${mcq.correctAnswerIndex} is out of bounds for options array of size ${mcq.options.length}.`)
+        }
+        const { error: mcqError } = await supabase!.from('mcqs').insert({
+          lesson_id: lessonId,
+          question: mcq.question,
+          options: mcq.options,
+          correct_answer_index: mcq.correctAnswerIndex,
         })
 
-        if (lesError) {
-          throw new Error(`Failed to insert lesson "${les.title}" (${les.id}): ${lesError.message}`)
-        }
-
-        for (const mcq of les.mcqs) {
-          if (mcq.correctAnswerIndex < 0 || mcq.correctAnswerIndex >= mcq.options.length) {
-            throw new Error(`Lesson "${les.title}" quiz: correctAnswerIndex ${mcq.correctAnswerIndex} is out of bounds for options array of size ${mcq.options.length}.`)
-          }
-          const { error: mcqError } = await supabase!.from('mcqs').insert({
-            lesson_id: les.id,
-            question: mcq.question,
-            options: mcq.options,
-            correct_answer_index: mcq.correctAnswerIndex,
-          })
-
-          if (mcqError) {
-            throw new Error(`Failed to insert MCQ for lesson "${les.title}": ${mcqError.message}`)
-          }
+        if (mcqError) {
+          throw new Error(`Failed to insert MCQ for lesson "${les.title}": ${mcqError.message}`)
         }
       }
     }
