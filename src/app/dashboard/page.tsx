@@ -95,6 +95,7 @@ export default async function UserDashboard() {
   let activeCourseTitle = "Ethics & Character Building";
   let activeCourseId = "";
   let isCourseCompleted = false;
+  const lockedLanguages = new Map<string, 'en' | 'ur'>();
 
   try {
     const supabaseForLms = await createClient();
@@ -102,22 +103,35 @@ export default async function UserDashboard() {
     if (courses && courses.length > 0) {
       const courseIds = courses.map(c => c.id);
 
+      // Fetch locked course settings
+      const { data: settings } = await supabaseForLms
+        .from('user_course_settings')
+        .select('course_id, language')
+        .eq('user_id', user.id);
+
+      for (const row of settings || []) {
+        lockedLanguages.set(row.course_id, row.language as 'en' | 'ur');
+      }
+
       // Fetch ALL progress for this user across all courses in ONE query
       // instead of N sequential queries (N+1 elimination).
       const { data: allProgress } = await supabaseForLms
         .from('user_progress')
-        .select('course_id, lesson_id')
+        .select('course_id, lesson_id, language')
         .eq('user_id', user.id)
         .in('course_id', courseIds)
         .eq('completed', true);
 
-      // Build a per-course set of completed lesson ids
+      // Build a per-course set of completed lesson ids matching the locked language
       const progressByCourse = new Map<string, Set<string>>();
       for (const row of allProgress || []) {
-        if (!progressByCourse.has(row.course_id)) {
-          progressByCourse.set(row.course_id, new Set());
+        const lockedLang = lockedLanguages.get(row.course_id) || 'en';
+        if (row.language === lockedLang) {
+          if (!progressByCourse.has(row.course_id)) {
+            progressByCourse.set(row.course_id, new Set());
+          }
+          progressByCourse.get(row.course_id)!.add(row.lesson_id);
         }
-        progressByCourse.get(row.course_id)!.add(row.lesson_id);
       }
 
       let selectedCourse = courses[0];
@@ -145,7 +159,8 @@ export default async function UserDashboard() {
         isCourseCompleted = true;
       }
 
-      activeCourseTitle = selectedCourse.title;
+      const activeLockedLang = lockedLanguages.get(selectedCourse.id) || 'en';
+      activeCourseTitle = (activeLockedLang === 'ur' && selectedCourse.titleUr) ? selectedCourse.titleUr : selectedCourse.title;
       activeCourseId = selectedCourse.id;
       progressPercentage = selectedProgress;
     }
@@ -229,25 +244,36 @@ export default async function UserDashboard() {
 
       {/* DYNAMIC FLASHCARD ALERT */}
       <div className="max-w-lg mx-auto px-4 mt-6">
-        {flashcardState === 'course_progress' && (
-          <Link href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"} className="block bg-gradient-to-r from-[#0A9EDE]/10 to-blue-500/5 border border-[#0A9EDE]/20 rounded-2xl p-4 flex items-center justify-between group hover:border-[#0A9EDE]/40 transition-colors shadow-sm cursor-pointer">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="w-12 h-12 rounded-full bg-[#0A9EDE]/10 flex items-center justify-center shrink-0">
-                <BookOpen size={20} className="text-[#0A9EDE]" />
-              </div>
-              <div className="flex-1 pr-4">
-                <p className="text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5">
-                  {isCourseCompleted ? "Course Completed! 🎉" : "Resume Course"}
-                </p>
-                <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 truncate">{activeCourseTitle}</h4>
-                <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full ${isCourseCompleted ? 'bg-[#0BA242]' : 'bg-[#0A9EDE]'}`} style={{ width: `${progressPercentage}%` }}></div>
+        {flashcardState === 'course_progress' && (() => {
+          const courseLang = lockedLanguages.get(activeCourseId) || 'en';
+          const isUrduCourse = courseLang === 'ur';
+          return (
+            <Link 
+              href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"} 
+              className={`block bg-gradient-to-r from-[#0A9EDE]/10 to-blue-500/5 border border-[#0A9EDE]/20 rounded-2xl p-4 flex items-center justify-between group hover:border-[#0A9EDE]/40 transition-colors shadow-sm cursor-pointer ${isUrduCourse ? "flex-row-reverse text-right" : ""}`}
+            >
+              <div className={`flex items-center gap-4 flex-1 ${isUrduCourse ? "flex-row-reverse" : ""}`}>
+                <div className="w-12 h-12 rounded-full bg-[#0A9EDE]/10 flex items-center justify-center shrink-0">
+                  <BookOpen size={20} className="text-[#0A9EDE]" />
+                </div>
+                <div className={`flex-1 ${isUrduCourse ? "pl-4 text-right" : "pr-4"}`}>
+                  <p className={`text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5 ${isUrduCourse ? "font-nastaliq" : ""}`}>
+                    {isCourseCompleted 
+                      ? (isUrduCourse ? "کورس مکمل ہو گیا! 🎉" : "Course Completed! 🎉") 
+                      : (isUrduCourse ? "کورس جاری رکھیں" : "Resume Course")}
+                  </p>
+                  <h4 className={`font-bold text-sm text-[#1D1D1D] mb-2 truncate ${isUrduCourse ? "font-nastaliq text-base leading-relaxed" : ""}`} dir={isUrduCourse ? "rtl" : "ltr"}>
+                    {activeCourseTitle}
+                  </h4>
+                  <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${isCourseCompleted ? 'bg-[#0BA242]' : 'bg-[#0A9EDE]'}`} style={{ width: `${progressPercentage}%` }}></div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <ChevronRight size={18} className="text-[#A3A3A3] group-hover:text-[#0A9EDE] transition-colors" />
-          </Link>
-        )}
+              <ChevronRight size={18} className={`text-[#A3A3A3] group-hover:text-[#0A9EDE] transition-colors ${isUrduCourse ? "rotate-180" : ""}`} />
+            </Link>
+          );
+        })()}
 
         {flashcardState === 'streak_warning' && (
           <Link href="/dashboard/log-deed" className="block bg-gradient-to-r from-[#DD0408]/10 to-red-500/5 border border-[#DD0408]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#DD0408]/40 transition-colors">

@@ -16,6 +16,7 @@ export interface MCQ {
   options: string[]
   optionsUr?: string[]
   correctAnswerIndex: number
+  difficulty: 'beginner' | 'advanced' | 'expert'
 }
 
 export interface Lesson {
@@ -23,6 +24,7 @@ export interface Lesson {
   moduleId: string
   courseId: string
   title: string
+  titleUr?: string
   videoUrl?: string
   videoUrlUr?: string
   textContent: string
@@ -39,6 +41,7 @@ export interface LearnerMCQ {
   questionUr?: string
   options: string[]
   optionsUr?: string[]
+  difficulty: 'beginner' | 'advanced' | 'expert'
 }
 
 export interface LearnerLesson {
@@ -46,6 +49,7 @@ export interface LearnerLesson {
   moduleId: string
   courseId: string
   title: string
+  titleUr?: string
   videoUrl?: string
   videoUrlUr?: string
   textContent: string
@@ -56,30 +60,40 @@ export interface LearnerLesson {
 export interface Course {
   id: string
   title: string
+  titleUr?: string
   author: string
   description: string
+  descriptionUr?: string
   imageUrl: string
-  modules: { id: string; title: string; duration: string }[]
+  modules: { id: string; title: string; titleUr?: string; duration: string }[]
 }
 
 /**
  * Fetch the lesson IDs the user has completed in a given course.
  * Safe to call from Client Components.
  */
-export async function getProgress(userId: string, courseId: string): Promise<string[]> {
+export async function getProgress(
+  userId: string,
+  courseId: string,
+  language: 'en' | 'ur',
+): Promise<{ lessonId: string; difficulty: string }[]> {
   const supabase = createBrowserSupabase()
   const { data, error } = await supabase
     .from('user_progress')
-    .select('lesson_id')
+    .select('lesson_id, difficulty')
     .eq('user_id', userId)
     .eq('course_id', courseId)
+    .eq('language', language)
     .eq('completed', true)
 
   if (error) {
-    console.error(`Error in getProgress(${userId}, ${courseId}):`, error)
+    console.error(`Error in getProgress(${userId}, ${courseId}, ${language}):`, error)
     return []
   }
-  return (data || []).map((row) => row.lesson_id as string)
+  return (data || []).map((row) => ({
+    lessonId: row.lesson_id as string,
+    difficulty: row.difficulty as string,
+  }))
 }
 
 /**
@@ -90,6 +104,8 @@ export async function saveProgress(
   userId: string,
   courseId: string,
   lessonId: string,
+  language: 'en' | 'ur',
+  difficulty: 'beginner' | 'advanced' | 'expert',
 ): Promise<boolean> {
   const supabase = createBrowserSupabase()
   const { error } = await supabase
@@ -99,10 +115,12 @@ export async function saveProgress(
         user_id: userId,
         course_id: courseId,
         lesson_id: lessonId,
+        language: language,
+        difficulty: difficulty,
         completed: true,
         completed_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id,course_id,lesson_id' },
+      { onConflict: 'user_id,course_id,lesson_id,language,difficulty' },
     )
 
   if (error) {

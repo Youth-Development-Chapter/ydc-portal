@@ -7,6 +7,7 @@ import { BookOpen, ChevronRight, Award, Flame, CheckCircle2 } from "lucide-react
 interface Course {
   id: string;
   title: string;
+  titleUr?: string;
   author: string;
   description: string;
   imageUrl: string;
@@ -17,12 +18,14 @@ interface CoursesClientProps {
   courses: Course[];
   completedCourseIds: string[];
   courseProgressMap: Record<string, { completed: number; total: number; percent: number }>;
+  lockedLanguages?: Record<string, "en" | "ur">;
 }
 
 export default function CoursesClient({
   courses,
   completedCourseIds,
   courseProgressMap,
+  lockedLanguages = {},
 }: CoursesClientProps) {
   const [activeTab, setActiveTab] = useState<"active" | "completed">("active");
 
@@ -101,6 +104,8 @@ export default function CoursesClient({
             {listToRender.map((course) => {
               const progress = courseProgressMap[course.id] || { completed: 0, total: 0, percent: 0 };
               const isDone = completedSet.has(course.id);
+              const isUrdu = lockedLanguages[course.id] === "ur";
+              const displayTitle = isUrdu && course.titleUr ? course.titleUr : course.title;
               
               return (
                 <Link key={course.id} href={`/lms/courses/${course.id}`} className="block">
@@ -110,7 +115,7 @@ export default function CoursesClient({
                       style={{ backgroundImage: `url(${course.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
                     />
                     
-                    <div className="relative z-10 flex gap-4">
+                    <div className={`relative z-10 flex gap-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
                       {/* Course Cover Image */}
                       <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 shadow-md relative">
                         <div 
@@ -127,26 +132,37 @@ export default function CoursesClient({
                       {/* Course Metadata */}
                       <div className="flex-1 flex flex-col justify-between py-1">
                         <div>
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className={`flex items-center gap-1.5 mb-1 ${isUrdu ? "flex-row-reverse" : ""}`}>
                             <BookOpen size={13} className="text-[#DD0408]" />
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
-                              {course.modules.length} Chapters
+                              {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Chapters`}
                             </span>
                             {isDone && (
                               <span className="text-[9px] font-extrabold uppercase bg-[#0BA242]/10 text-[#0BA242] px-2 py-0.5 rounded-full border border-[#0BA242]/20 flex items-center gap-1">
-                                <Award size={10} /> Completed
+                                <Award size={10} /> {isUrdu ? "مکمل" : "Completed"}
                               </span>
                             )}
                           </div>
-                          <h3 className="font-bold text-[#1D1D1D] text-base leading-tight mb-0.5">{course.title}</h3>
-                          <p className="text-xs text-[#0A9EDE] font-semibold">{course.author}</p>
+                          <h3 
+                            className={`font-bold text-[#1D1D1D] text-base leading-tight mb-0.5 ${
+                              isUrdu ? "font-nastaliq text-right text-lg" : ""
+                            }`}
+                            dir={isUrdu ? "rtl" : "ltr"}
+                          >
+                            {displayTitle}
+                          </h3>
+                          <p className={`text-xs text-[#0A9EDE] font-semibold ${isUrdu ? "text-right" : ""}`}>{course.author}</p>
                         </div>
 
                         {/* Visual Progress Bar */}
                         <div className="mt-3 space-y-1">
-                          <div className="flex justify-between text-[10px] font-semibold text-[#555555]">
-                            <span>Progress</span>
-                            <span>{progress.percent}% ({progress.completed}/{progress.total} lessons)</span>
+                          <div className={`flex justify-between text-[10px] font-semibold text-[#555555] ${isUrdu ? "flex-row-reverse" : ""}`}>
+                            <span>{isUrdu ? "پیش رفت" : "Progress"}</span>
+                            <span dir={isUrdu ? "rtl" : "ltr"}>
+                              {isUrdu 
+                                ? `${progress.percent}% (${progress.completed}/${progress.total} اسباق)`
+                                : `${progress.percent}% (${progress.completed}/${progress.total} lessons)`}
+                            </span>
                           </div>
                           <div className="w-full h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden border border-[#E5E5E5]">
                             <div
@@ -162,7 +178,7 @@ export default function CoursesClient({
                       {/* Chevron Action */}
                       <div className="flex items-center justify-center pl-2">
                         <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#0A9EDE] transition-colors">
-                          <ChevronRight size={16} className="text-[#555555] group-hover:text-white" />
+                          <ChevronRight size={16} className={`text-[#555555] group-hover:text-white ${isUrdu ? "rotate-180" : ""}`} />
                         </div>
                       </div>
                     </div>

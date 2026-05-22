@@ -40,7 +40,7 @@ export async function getCourses(): Promise<Course[]> {
 
   const { data: coursesData, error: coursesError } = await supabase
     .from('courses')
-    .select('id, title, author, description, image_url')
+    .select('id, title, title_ur, author, description, description_ur, image_url')
     .order('created_at', { ascending: true })
 
   if (coursesError) {
@@ -51,7 +51,7 @@ export async function getCourses(): Promise<Course[]> {
 
   const { data: modulesData, error: modulesError } = await supabase
     .from('modules')
-    .select('id, course_id, title, duration')
+    .select('id, course_id, title, title_ur, duration')
     .order('order_index', { ascending: true })
 
   if (modulesError) {
@@ -59,17 +59,24 @@ export async function getCourses(): Promise<Course[]> {
     return []
   }
 
-  const modulesByCourse: Record<string, { id: string; title: string; duration: string }[]> = {}
+  const modulesByCourse: Record<string, { id: string; title: string; titleUr?: string; duration: string }[]> = {}
   for (const m of modulesData || []) {
     if (!modulesByCourse[m.course_id]) modulesByCourse[m.course_id] = []
-    modulesByCourse[m.course_id].push({ id: m.id, title: m.title, duration: m.duration })
+    modulesByCourse[m.course_id].push({
+      id: m.id,
+      title: m.title,
+      titleUr: m.title_ur || undefined,
+      duration: m.duration
+    })
   }
 
   return coursesData.map((c) => ({
     id: c.id,
     title: c.title,
+    titleUr: c.title_ur || undefined,
     author: c.author,
     description: c.description || '',
+    descriptionUr: c.description_ur || undefined,
     imageUrl: c.image_url || '',
     modules: modulesByCourse[c.id] || [],
   }))
@@ -80,7 +87,7 @@ export async function getCourseById(courseId: string): Promise<Course | undefine
 
   const { data: course, error: courseError } = await supabase
     .from('courses')
-    .select('id, title, author, description, image_url')
+    .select('id, title, title_ur, author, description, description_ur, image_url')
     .eq('id', courseId)
     .single()
 
@@ -93,7 +100,7 @@ export async function getCourseById(courseId: string): Promise<Course | undefine
 
   const { data: modules, error: modulesError } = await supabase
     .from('modules')
-    .select('id, title, duration')
+    .select('id, title, title_ur, duration')
     .eq('course_id', courseId)
     .order('order_index', { ascending: true })
 
@@ -105,39 +112,51 @@ export async function getCourseById(courseId: string): Promise<Course | undefine
   return {
     id: course.id,
     title: course.title,
+    titleUr: course.title_ur || undefined,
     author: course.author,
     description: course.description || '',
+    descriptionUr: course.description_ur || undefined,
     imageUrl: course.image_url || '',
-    modules: modules || [],
+    modules: (modules || []).map((m) => ({
+      id: m.id,
+      title: m.title,
+      titleUr: m.title_ur || undefined,
+      duration: m.duration
+    })),
   }
 }
 
 /**
- * Server-side version of getProgress: returns the lesson IDs the user has
- * completed in a course. RLS uses the authenticated cookie session.
+ * Server-side version of getProgress: returns the lesson IDs and their difficulty
+ * completed in a course for a given language.
  */
-export async function getProgress(userId: string, courseId: string): Promise<string[]> {
+export async function getProgress(
+  userId: string,
+  courseId: string,
+  language: 'en' | 'ur',
+): Promise<{ lessonId: string; difficulty: string }[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('user_progress')
-    .select('lesson_id')
+    .select('lesson_id, difficulty')
     .eq('user_id', userId)
     .eq('course_id', courseId)
+    .eq('language', language)
     .eq('completed', true)
 
   if (error) {
-    console.error(`Error in getProgress(${userId}, ${courseId}):`, error)
+    console.error(`Error in getProgress(${userId}, ${courseId}, ${language}):`, error)
     return []
   }
-  return (data || []).map((row) => row.lesson_id as string)
+  return (data || []).map((row) => ({
+    lessonId: row.lesson_id as string,
+    difficulty: row.difficulty as string,
+  }))
 }
 
 /**
  * Learner-facing lesson fetcher. Returns the lesson WITHOUT the
- * correct_answer_index on each MCQ — the answer key must never leave
- * the server. Use this for /lms/lessons/[id] and any user-visible page.
- *
- * Admin code paths that need the full data should use getLessonById.
+ * correct_answer_index on each MCQ.
  */
 export async function getLessonForLearner(lessonId: string): Promise<LearnerLesson | undefined> {
   const full = await getLessonById(lessonId)
@@ -147,12 +166,14 @@ export async function getLessonForLearner(lessonId: string): Promise<LearnerLess
     questionUr: m.questionUr,
     options: m.options,
     optionsUr: m.optionsUr,
+    difficulty: m.difficulty,
   }))
   return {
     id: full.id,
     moduleId: full.moduleId,
     courseId: full.courseId,
     title: full.title,
+    titleUr: full.titleUr,
     videoUrl: full.videoUrl,
     videoUrlUr: full.videoUrlUr,
     textContent: full.textContent,
@@ -166,7 +187,7 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
 
   const { data: lesson, error: lessonError } = await supabase
     .from('lessons')
-    .select('id, module_id, title, video_url, video_url_ur, text_content, text_content_ur')
+    .select('id, module_id, title, title_ur, video_url, video_url_ur, text_content, text_content_ur')
     .eq('id', lessonId)
     .single()
 
@@ -190,7 +211,7 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
 
   const { data: mcqs, error: mcqsError } = await supabase
     .from('mcqs')
-    .select('question, question_ur, options, options_ur, correct_answer_index')
+    .select('question, question_ur, options, options_ur, correct_answer_index, difficulty')
     .eq('lesson_id', lessonId)
 
   if (mcqsError) {
@@ -203,10 +224,10 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
     moduleId: moduleRow.id,
     courseId: moduleRow.course_id,
     title: lesson.title,
+    titleUr: lesson.title_ur || undefined,
     videoUrl: lesson.video_url || undefined,
     videoUrlUr: lesson.video_url_ur || undefined,
-    // Sanitize HTML to prevent XSS — admins write lesson content which is
-    // rendered with dangerouslySetInnerHTML on the client.
+    // Sanitize HTML to prevent XSS
     textContent: sanitizeLessonContent(lesson.text_content || ''),
     textContentUr: lesson.text_content_ur ? sanitizeLessonContent(lesson.text_content_ur) : undefined,
     mcq: (mcqs || []).map((m) => ({
@@ -221,6 +242,7 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
         ? (Array.isArray(m.options_ur) ? (m.options_ur as string[]) : typeof m.options_ur === 'string' ? (JSON.parse(m.options_ur) as string[]) : undefined)
         : undefined,
       correctAnswerIndex: m.correct_answer_index,
+      difficulty: (m.difficulty || 'beginner') as 'beginner' | 'advanced' | 'expert',
     })),
   }
 }

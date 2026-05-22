@@ -49,6 +49,8 @@ export interface SubmitQuizError {
 export async function submitQuiz(
   lessonId: string,
   answers: number[],
+  difficulty: 'beginner' | 'advanced' | 'expert',
+  language: 'en' | 'ur',
 ): Promise<SubmitQuizResult | SubmitQuizError> {
   const supabase = await createClient()
 
@@ -60,34 +62,31 @@ export async function submitQuiz(
     return { ok: false, error: 'Invalid submission.' }
   }
 
-  // 2. Fetch the answer key + the lesson's course (for completion detection).
+  // 2. Fetch the answer key + the lesson's course (for completion detection) matching difficulty
   const { data: mcqs, error: mcqsError } = await supabase
     .from('mcqs')
     .select('correct_answer_index')
     .eq('lesson_id', lessonId)
+    .eq('difficulty', difficulty)
+    .order('created_at', { ascending: true }) // ensure stable order
 
   if (mcqsError) {
     console.error('submitQuiz: failed to load mcqs', mcqsError)
     return { ok: false, error: 'Could not load quiz.' }
   }
   if (!mcqs || mcqs.length === 0) {
-    return { ok: false, error: 'This lesson has no quiz.' }
+    return { ok: false, error: `This lesson has no quiz for the selected difficulty level (${difficulty}).` }
   }
 
   if (answers.length !== mcqs.length) {
     return { ok: false, error: 'Answered question count does not match the quiz.' }
   }
 
-  // 3. Grade — order in `mcqs` must match the order the client saw. We
-  // rely on Supabase returning rows in insertion order for a given lesson.
-  // (If we ever add reorderable MCQs we will need an explicit order column.)
+  // 3. Grade — order in `mcqs` must match the order the client saw.
   let allCorrect = true
   for (let i = 0; i < mcqs.length; i++) {
     if (answers[i] !== mcqs[i].correct_answer_index) {
       allCorrect = false
-      // No early return — we never tell the user which one was wrong,
-      // but exhausting the loop also doesn't help an attacker since we
-      // only ever return the total + pass/fail bit.
     }
   }
 
@@ -125,10 +124,12 @@ export async function submitQuiz(
           user_id: user.id,
           course_id: courseId,
           lesson_id: lessonId,
+          language: language,
+          difficulty: difficulty,
           completed: true,
           completed_at: new Date().toISOString(),
         },
-        { onConflict: 'user_id,course_id,lesson_id' },
+        { onConflict: 'user_id,course_id,lesson_id,language,difficulty' },
       )
 
     if (progressError) {
@@ -136,10 +137,9 @@ export async function submitQuiz(
       return { ok: false, error: 'Could not save your progress.' }
     }
 
-    // Run these three independent queries in parallel to reduce latency.
-    const [attemptsResult, allModulesResult, completedCountResult] = await Promise.all([
-      // Read existing attempts so we can report failedAttempts honestly
-      // even on a winning attempt.
+    // Run queries in parallel
+    const [attemptsResult, allModulesResult, progressRowsResult] = await Promise.all([
+      // Read attempts
       supabase
         .from('quiz_attempts')
         .select('failed_attempts')
@@ -147,24 +147,27 @@ export async function submitQuiz(
         .eq('lesson_id', lessonId)
         .maybeSingle(),
 
-      // 6. Get all module ids in this course to count total lessons.
+      // Get all modules
       supabase
         .from('modules')
         .select('id')
         .eq('course_id', courseId),
 
-      // 7. Count how many lessons this user has completed in this course.
+      // Get all progress for this language to count unique completed lessons
       supabase
         .from('user_progress')
-        .select('*', { count: 'exact', head: true })
+        .select('lesson_id')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
+        .eq('language', language)
         .eq('completed', true),
     ])
 
     const attemptsRow = attemptsResult.data
     const allModules = allModulesResult.data
-    const completedLessonsCount = completedCountResult.count
+    const progressRows = progressRowsResult.data
+
+    const completedLessonsCount = new Set((progressRows || []).map(r => r.lesson_id)).size
 
     const moduleIds = allModules?.map(m => m.id) || []
     let totalLessonsCount = 0
@@ -176,7 +179,7 @@ export async function submitQuiz(
       totalLessonsCount = count || 0
     }
 
-    const isCourseCompleted = completedLessonsCount !== null && totalLessonsCount !== 0 && completedLessonsCount >= totalLessonsCount
+    const isCourseCompleted = totalLessonsCount !== 0 && completedLessonsCount >= totalLessonsCount
 
     let completedCourseId: string | null = null
     let rewardCoins = 0
@@ -184,7 +187,7 @@ export async function submitQuiz(
     if (isCourseCompleted) {
       completedCourseId = courseId
       
-      const completionReason = `course_completion:${courseId}`
+      const completionReason = `course_completion:${courseId}:${language}`
       const { data: completionTxn } = await supabase
         .from('coin_transactions')
         .select('amount')
@@ -218,8 +221,7 @@ export async function submitQuiz(
     }
   }
 
-  // 6. On fail: increment the attempt counter. Upsert handles the
-  // first-attempt case where no row exists yet.
+  // 6. On fail: increment the attempt counter.
   const { data: existing } = await supabase
     .from('quiz_attempts')
     .select('failed_attempts')
@@ -242,8 +244,6 @@ export async function submitQuiz(
     )
 
   if (attemptError) {
-    // Non-fatal — log but still tell the user they failed so they don't
-    // get stuck on the test.
     console.error('submitQuiz: failed to record attempt', attemptError)
   }
 

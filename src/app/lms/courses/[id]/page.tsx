@@ -2,7 +2,9 @@ import React from "react";
 import Link from "next/link";
 import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
+import LanguageSelectModal from "@/components/lms/LanguageSelectModal";
 import { ChevronLeft } from "lucide-react";
+import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,29 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
   if (!course) {
     return <div className="p-4 text-center">Course not found.</div>;
   }
-  
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let lockedLanguage: "en" | "ur" | null = null;
+
+  if (user) {
+    const { data: setting } = await supabase
+      .from("user_course_settings")
+      .select("language")
+      .eq("user_id", user.id)
+      .eq("course_id", id)
+      .maybeSingle();
+
+    if (setting) {
+      lockedLanguage = setting.language as "en" | "ur";
+    }
+  }
+
+  const isUrdu = lockedLanguage === "ur";
+  const displayTitle = isUrdu && course.titleUr ? course.titleUr : course.title;
+  const displayDesc = isUrdu && course.descriptionUr ? course.descriptionUr : course.description;
+
   return (
     <div className="animate-in fade-in duration-500 pb-12">
       {/* Course Hero */}
@@ -30,23 +54,43 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
             <ChevronLeft size={16} /> Back to Catalog
           </Link>
           
-          <h1 className="text-3xl font-coolvetica leading-tight mb-2">{course.title}</h1>
-          <p className="text-sm font-semibold text-[#0A9EDE] mb-4">By {course.author}</p>
-          <p className="text-sm text-white/80 leading-relaxed">
-            {course.description}
+          <h1 className={`text-3xl font-coolvetica leading-tight mb-2 ${isUrdu ? "font-nastaliq text-right text-4xl" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
+            {displayTitle}
+          </h1>
+          <p className={`text-sm font-semibold text-[#0A9EDE] mb-4 ${isUrdu ? "text-right" : ""}`}>
+            {isUrdu ? `بذریعہ ${course.author}` : `By ${course.author}`}
+          </p>
+          <p className={`text-sm text-white/80 leading-relaxed ${isUrdu ? "font-nastaliq text-right text-lg" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
+            {displayDesc}
           </p>
         </div>
       </div>
 
       {/* Course Content / Syllabus */}
       <div className="px-4 mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-[#1D1D1D]">Course Chapters</h2>
-          <span className="text-xs font-bold text-[#555555] bg-[#E5E5E5] px-2 py-1 rounded-full">{course.modules.length} Modules</span>
+        <div className={`flex items-center justify-between mb-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
+          <h2 className={`text-lg font-bold text-[#1D1D1D] ${isUrdu ? "font-nastaliq text-right text-xl" : ""}`}>
+            {isUrdu ? "نصاب کے اسباق" : "Course Chapters"}
+          </h2>
+          <span className="text-xs font-bold text-[#555555] bg-[#E5E5E5] px-2 py-1 rounded-full">
+            {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Modules`}
+          </span>
         </div>
         
-        <CourseModulesList courseId={course.id} modules={course.modules} />
+        <CourseModulesList 
+          courseId={course.id} 
+          modules={course.modules} 
+          lockedLanguage={lockedLanguage || "en"} 
+        />
       </div>
+
+      {!lockedLanguage && (
+        <LanguageSelectModal 
+          courseId={course.id} 
+          courseTitle={course.title} 
+          courseTitleUr={course.titleUr} 
+        />
+      )}
     </div>
   );
 }

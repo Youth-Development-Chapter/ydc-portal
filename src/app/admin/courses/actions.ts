@@ -35,8 +35,10 @@ function revalidateCourse(courseId?: string) {
 export async function createCourse(data: {
   id: string
   title: string
+  titleUr?: string
   author: string
   description: string
+  descriptionUr?: string
   imageUrl: string
   rewardPoints: number
 }) {
@@ -58,8 +60,10 @@ export async function createCourse(data: {
   const { error } = await supabase!.from('courses').insert({
     id: trimmedId,
     title: data.title,
+    title_ur: data.titleUr || null,
     author: data.author,
     description: data.description,
+    description_ur: data.descriptionUr || null,
     image_url: data.imageUrl || null,
     reward_points: data.rewardPoints,
   })
@@ -73,8 +77,10 @@ export async function updateCourse(
   id: string,
   data: {
     title: string
+    titleUr?: string
     author: string
     description: string
+    descriptionUr?: string
     imageUrl: string
     rewardPoints: number
   },
@@ -91,8 +97,10 @@ export async function updateCourse(
     .from('courses')
     .update({
       title: data.title,
+      title_ur: data.titleUr || null,
       author: data.author,
       description: data.description,
+      description_ur: data.descriptionUr || null,
       image_url: data.imageUrl || null,
       reward_points: data.rewardPoints,
     })
@@ -108,7 +116,6 @@ export async function deleteCourse(id: string) {
   if (ctx.error) return { error: ctx.error }
   const { supabase } = ctx
 
-  // ON DELETE CASCADE on modules→lessons→mcqs handles the cleanup.
   const { error } = await supabase!.from('courses').delete().eq('id', id)
   if (error) return { error: error.message }
   revalidateCourse()
@@ -121,6 +128,7 @@ export async function createModule(data: {
   id: string
   courseId: string
   title: string
+  titleUr?: string
   duration: string
   orderIndex: number
 }) {
@@ -140,6 +148,7 @@ export async function createModule(data: {
     id: trimmedId,
     course_id: data.courseId,
     title: data.title,
+    title_ur: data.titleUr || null,
     duration: data.duration || '',
     order_index: data.orderIndex,
   })
@@ -151,7 +160,7 @@ export async function createModule(data: {
 
 export async function updateModule(
   id: string,
-  data: { title: string; duration: string; orderIndex: number; courseId: string },
+  data: { title: string; titleUr?: string; duration: string; orderIndex: number; courseId: string },
 ) {
   const ctx = await requireCourseAdmin()
   if (ctx.error) return { error: ctx.error }
@@ -161,6 +170,7 @@ export async function updateModule(
     .from('modules')
     .update({
       title: data.title,
+      title_ur: data.titleUr || null,
       duration: data.duration,
       order_index: data.orderIndex,
     })
@@ -189,8 +199,11 @@ export async function createLesson(data: {
   moduleId: string
   courseId: string
   title: string
+  titleUr?: string
   videoUrl: string
+  videoUrlUr?: string
   textContent: string
+  textContentUr?: string
   orderIndex: number
 }) {
   const ctx = await requireCourseAdmin()
@@ -209,8 +222,11 @@ export async function createLesson(data: {
     id: trimmedId,
     module_id: data.moduleId,
     title: data.title,
+    title_ur: data.titleUr || null,
     video_url: data.videoUrl || null,
+    video_url_ur: data.videoUrlUr || null,
     text_content: data.textContent || '',
+    text_content_ur: data.textContentUr || null,
     order_index: data.orderIndex,
   })
 
@@ -223,8 +239,11 @@ export async function updateLesson(
   id: string,
   data: {
     title: string
+    titleUr?: string
     videoUrl: string
+    videoUrlUr?: string
     textContent: string
+    textContentUr?: string
     orderIndex: number
     courseId: string
   },
@@ -237,8 +256,11 @@ export async function updateLesson(
     .from('lessons')
     .update({
       title: data.title,
+      title_ur: data.titleUr || null,
       video_url: data.videoUrl || null,
+      video_url_ur: data.videoUrlUr || null,
       text_content: data.textContent || '',
+      text_content_ur: data.textContentUr || null,
       order_index: data.orderIndex,
     })
     .eq('id', id)
@@ -265,8 +287,11 @@ export async function createMcq(data: {
   lessonId: string
   courseId: string
   question: string
+  questionUr?: string
   options: string[]
+  optionsUr?: string[]
   correctAnswerIndex: number
+  difficulty: 'beginner' | 'advanced' | 'expert'
 }) {
   const ctx = await requireCourseAdmin()
   if (ctx.error) return { error: ctx.error }
@@ -288,8 +313,11 @@ export async function createMcq(data: {
     .insert({
       lesson_id: data.lessonId,
       question: data.question,
+      question_ur: data.questionUr || null,
       options: data.options,
+      options_ur: data.optionsUr || null,
       correct_answer_index: data.correctAnswerIndex,
+      difficulty: data.difficulty,
     })
     .select('id')
     .single()
@@ -304,8 +332,11 @@ export async function updateMcq(
   data: {
     courseId: string
     question: string
+    questionUr?: string
     options: string[]
+    optionsUr?: string[]
     correctAnswerIndex: number
+    difficulty: 'beginner' | 'advanced' | 'expert'
   },
 ) {
   const ctx = await requireCourseAdmin()
@@ -327,8 +358,11 @@ export async function updateMcq(
     .from('mcqs')
     .update({
       question: data.question,
+      question_ur: data.questionUr || null,
       options: data.options,
+      options_ur: data.optionsUr || null,
       correct_answer_index: data.correctAnswerIndex,
+      difficulty: data.difficulty,
     })
     .eq('id', id)
 
@@ -348,19 +382,61 @@ export async function deleteMcq(id: string, courseId: string) {
   return { success: true as const }
 }
 
+// ─────────────────────────── Cover Image Uploader ───────────────────────────
+
+export async function uploadCourseCover(formData: FormData) {
+  const ctx = await requireCourseAdmin()
+  if (ctx.error) return { error: ctx.error }
+  const { supabase } = ctx
+
+  const file = formData.get('file') as File
+  if (!file) {
+    return { error: 'No file provided.' }
+  }
+
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`
+  const filePath = `covers/${fileName}`
+
+  const { error } = await supabase!
+    .storage
+    .from('courses')
+    .upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+
+  if (error) {
+    return { error: `Upload failed: ${error.message}` }
+  }
+
+  const { data: { publicUrl } } = supabase!
+    .storage
+    .from('courses')
+    .getPublicUrl(filePath)
+
+  return { success: true as const, imageUrl: publicUrl }
+}
+
 // ─────────────────────────── JSON Import Schema & Action ───────────────────────────
 
 const mcqImportSchema = z.object({
   question: z.string().min(1, 'MCQ question cannot be empty'),
+  questionUr: z.string().optional(),
   options: z.array(z.string()).min(2, 'MCQ must have at least 2 options'),
+  optionsUr: z.array(z.string()).optional(),
   correctAnswerIndex: z.number().int().nonnegative('correctAnswerIndex must be non-negative'),
+  difficulty: z.enum(['beginner', 'advanced', 'expert']).default('beginner'),
 })
 
 const lessonImportSchema = z.object({
   id: z.string().regex(/^[a-z0-9_-]+$/i, 'Lesson ID must contain only letters, numbers, dashes, or underscores'),
   title: z.string().min(1, 'Lesson title cannot be empty'),
+  titleUr: z.string().optional(),
   videoUrl: z.string().url('Invalid URL').or(z.string().length(0)).or(z.null()).optional(),
+  videoUrlUr: z.string().url('Invalid URL').or(z.string().length(0)).or(z.null()).optional(),
   textContent: z.string().optional().default(''),
+  textContentUr: z.string().optional().default(''),
   orderIndex: z.number().int().default(0),
   mcqs: z.array(mcqImportSchema).optional().default([]),
 })
@@ -368,6 +444,7 @@ const lessonImportSchema = z.object({
 const moduleImportSchema = z.object({
   id: z.string().regex(/^[a-z0-9_-]+$/i, 'Module ID must contain only letters, numbers, dashes, or underscores'),
   title: z.string().min(1, 'Module title cannot be empty'),
+  titleUr: z.string().optional(),
   duration: z.string().optional().default(''),
   orderIndex: z.number().int().default(0),
   lessons: z.array(lessonImportSchema)
@@ -378,8 +455,10 @@ const moduleImportSchema = z.object({
 const courseImportSchema = z.object({
   id: z.string().regex(/^[a-z0-9_-]+$/i, 'Course ID must contain only letters, numbers, dashes, or underscores'),
   title: z.string().min(1, 'Course title cannot be empty'),
+  titleUr: z.string().optional(),
   author: z.string().min(1, 'Author cannot be empty'),
   description: z.string().optional().default(''),
+  descriptionUr: z.string().optional().default(''),
   imageUrl: z.string().url('Invalid URL').or(z.string().length(0)).or(z.null()).optional(),
   rewardPoints: z.number().int().nonnegative().default(50),
   modules: z.array(moduleImportSchema).optional().default([]),
@@ -427,8 +506,10 @@ export async function importCourseFromJson(jsonText: string) {
   const { error: courseError } = await supabase!.from('courses').insert({
     id: courseId,
     title: courseData.title,
+    title_ur: courseData.titleUr || null,
     author: courseData.author,
     description: courseData.description,
+    description_ur: courseData.descriptionUr || null,
     image_url: courseData.imageUrl || null,
     reward_points: courseData.rewardPoints,
   })
@@ -444,6 +525,7 @@ export async function importCourseFromJson(jsonText: string) {
         id: mod.id,
         course_id: courseId,
         title: mod.title,
+        title_ur: mod.titleUr || null,
         duration: mod.duration,
         order_index: mod.orderIndex,
       })
@@ -452,9 +534,6 @@ export async function importCourseFromJson(jsonText: string) {
         throw new Error(`Failed to insert module "${mod.title}" (${mod.id}): ${modError.message}`)
       }
 
-      // Since each module has exactly one lesson, we map the lesson's ID to match the module ID.
-      // This is required to satisfy the LMS's 1-to-1 routing (/lms/lessons/[id] where id is the module ID)
-      // and progress tracking (module completion check).
       const les = mod.lessons[0]
       const lessonId = mod.id
 
@@ -462,8 +541,11 @@ export async function importCourseFromJson(jsonText: string) {
         id: lessonId,
         module_id: mod.id,
         title: les.title,
+        title_ur: les.titleUr || null,
         video_url: les.videoUrl || null,
+        video_url_ur: les.videoUrlUr || null,
         text_content: les.textContent,
+        text_content_ur: les.textContentUr || null,
         order_index: les.orderIndex,
       })
 
@@ -478,8 +560,11 @@ export async function importCourseFromJson(jsonText: string) {
         const { error: mcqError } = await supabase!.from('mcqs').insert({
           lesson_id: lessonId,
           question: mcq.question,
+          question_ur: mcq.questionUr || null,
           options: mcq.options,
+          options_ur: mcq.optionsUr || null,
           correct_answer_index: mcq.correctAnswerIndex,
+          difficulty: mcq.difficulty,
         })
 
         if (mcqError) {
@@ -488,7 +573,6 @@ export async function importCourseFromJson(jsonText: string) {
       }
     }
   } catch (err) {
-    // Rollback completely
     await rollback()
     const errMsg = err instanceof Error ? err.message : String(err)
     return { error: errMsg }

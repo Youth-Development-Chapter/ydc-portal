@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Save, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Save, ChevronDown, Image as ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import {
   updateCourse,
@@ -15,20 +15,27 @@ import {
   createMcq,
   updateMcq,
   deleteMcq,
+  uploadCourseCover,
 } from '../actions'
 
 export interface McqNode {
   id: string
   question: string
+  questionUr?: string
   options: string[]
+  optionsUr?: string[]
   correctAnswerIndex: number
+  difficulty: 'beginner' | 'advanced' | 'expert'
 }
 
 export interface LessonNode {
   id: string
   title: string
+  titleUr?: string
   videoUrl: string
+  videoUrlUr?: string
   textContent: string
+  textContentUr?: string
   orderIndex: number
   mcqs: McqNode[]
 }
@@ -36,6 +43,7 @@ export interface LessonNode {
 export interface ModuleNode {
   id: string
   title: string
+  titleUr?: string
   duration: string
   orderIndex: number
   lessons: LessonNode[]
@@ -45,8 +53,10 @@ export interface CourseBuilderData {
   course: {
     id: string
     title: string
+    titleUr?: string
     author: string
     description: string
+    descriptionUr?: string
     imageUrl: string
     rewardPoints: number
   }
@@ -135,18 +145,23 @@ function CourseInfoEditor({
 }) {
   const [isPending, startTransition] = useTransition()
   const [title, setTitle] = useState(course.title)
+  const [titleUr, setTitleUr] = useState(course.titleUr || '')
   const [author, setAuthor] = useState(course.author)
   const [description, setDescription] = useState(course.description)
+  const [descriptionUr, setDescriptionUr] = useState(course.descriptionUr || '')
   const [imageUrl, setImageUrl] = useState(course.imageUrl)
   const [rewardPoints, setRewardPoints] = useState<number>(course.rewardPoints)
+  const [isUploading, setIsUploading] = useState(false)
 
   function handleSave() {
     onError(null)
     startTransition(async () => {
       const result = await updateCourse(course.id, {
         title,
+        titleUr: titleUr.trim() || undefined,
         author,
         description,
+        descriptionUr: descriptionUr.trim() || undefined,
         imageUrl,
         rewardPoints,
       })
@@ -160,48 +175,135 @@ function CourseInfoEditor({
 
   return (
     <div className="bg-white border border-zinc-200 rounded-xl p-5 space-y-4 max-w-3xl">
-      <Field label="Title">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className={inputStyle}
-        />
-      </Field>
-      <Field label="Author">
-        <input
-          value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-          className={inputStyle}
-        />
-      </Field>
-      <Field label="Image URL" hint="Paste a public image URL.">
-        <input
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className={inputStyle}
-        />
-      </Field>
-      <Field
-        label="Reward Coins"
-        hint="Coins awarded to a user when they complete every chapter of this course. The database grants them automatically — only once per user per course."
-      >
-        <input
-          type="number"
-          min={0}
-          step={1}
-          value={rewardPoints}
-          onChange={(e) => setRewardPoints(parseInt(e.target.value, 10) || 0)}
-          className={inputStyle}
-        />
-      </Field>
-      <Field label="Description">
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={4}
-          className={inputStyle}
-        />
-      </Field>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Title (English)">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className={inputStyle}
+            placeholder="Course Title in English"
+          />
+        </Field>
+        <Field label="Title (Urdu)">
+          <input
+            value={titleUr}
+            onChange={(e) => setTitleUr(e.target.value)}
+            className={`${inputStyle} font-nastaliq text-right text-lg`}
+            dir="rtl"
+            placeholder="اردو میں کورس کا عنوان"
+          />
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Author">
+          <input
+            value={author}
+            onChange={(e) => setAuthor(e.target.value)}
+            className={inputStyle}
+            placeholder="Author name"
+          />
+        </Field>
+        <Field
+          label="Reward Coins"
+          hint="Coins awarded to a user when they complete every chapter of this course."
+        >
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={rewardPoints}
+            onChange={(e) => setRewardPoints(parseInt(e.target.value, 10) || 0)}
+            className={inputStyle}
+          />
+        </Field>
+      </div>
+
+      <div className="space-y-1.5">
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+          Cover Photo
+        </span>
+        <div className="flex gap-4 items-start">
+          {imageUrl && (
+            <div className="w-24 h-32 rounded-lg border border-zinc-200 overflow-hidden bg-zinc-50 shrink-0 relative group shadow-md">
+              <img src={imageUrl} alt="Cover Preview" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => setImageUrl('')}
+                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold"
+              >
+                Remove
+              </button>
+            </div>
+          )}
+          <label className={`flex-1 border-2 border-dashed border-zinc-300 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-zinc-400 hover:bg-zinc-50/50 transition relative ${isUploading ? 'pointer-events-none opacity-60' : ''}`}>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                setIsUploading(true)
+                onError(null)
+                try {
+                  const fd = new FormData()
+                  fd.append('file', file)
+                  const res = await uploadCourseCover(fd)
+                  if ('error' in res && res.error) {
+                    onError(res.error)
+                  } else if (res.imageUrl) {
+                    setImageUrl(res.imageUrl)
+                  }
+                } catch (err) {
+                  onError(err instanceof Error ? err.message : String(err))
+                } finally {
+                  setIsUploading(false)
+                }
+              }}
+            />
+            {isUploading ? (
+              <div className="flex flex-col items-center gap-2 py-2">
+                <div className="w-6 h-6 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-zinc-500 font-medium">Uploading cover photo...</span>
+              </div>
+            ) : (
+              <>
+                <ImageIcon size={20} className="text-zinc-400" />
+                <div className="text-xs font-semibold text-zinc-700">
+                  Click to select or drag and drop image here
+                </div>
+                <div className="text-[10px] text-zinc-400">
+                  Recommended size: 3:4 ratio (e.g. 600x800)
+                </div>
+              </>
+            )}
+          </label>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field label="Description (English)">
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            className={inputStyle}
+            placeholder="Course details and summary in English"
+          />
+        </Field>
+        <Field label="Description (Urdu)">
+          <textarea
+            value={descriptionUr}
+            onChange={(e) => setDescriptionUr(e.target.value)}
+            rows={4}
+            className={`${inputStyle} font-nastaliq text-right text-base`}
+            dir="rtl"
+            placeholder="اردو میں کورس کی تفصیل اور خلاصہ"
+          />
+        </Field>
+      </div>
+
       <div className="flex justify-end">
         <Button
           variant="primary"
@@ -233,6 +335,7 @@ function ModulesEditor({
   const [showAdd, setShowAdd] = useState(false)
   const [newId, setNewId] = useState('')
   const [newTitle, setNewTitle] = useState('')
+  const [newTitleUr, setNewTitleUr] = useState('')
   const [newDuration, setNewDuration] = useState('')
 
   function handleAdd() {
@@ -244,6 +347,7 @@ function ModulesEditor({
         id: newId,
         courseId,
         title: newTitle,
+        titleUr: newTitleUr.trim() || undefined,
         duration: newDuration,
         orderIndex,
       })
@@ -253,6 +357,7 @@ function ModulesEditor({
       }
       setNewId('')
       setNewTitle('')
+      setNewTitleUr('')
       setNewDuration('')
       setShowAdd(false)
       onChanged()
@@ -280,19 +385,13 @@ function ModulesEditor({
       {showAdd && (
         <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3">
           <h3 className="font-bold text-sm text-zinc-900">New Module</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Field label="Module ID" hint="Slug, e.g. 'd_m5'.">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="Module ID" hint="Slug, e.g. 'm1'. Only letters/numbers/dashes/underscores.">
               <input
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
                 className={inputStyle}
-              />
-            </Field>
-            <Field label="Title">
-              <input
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                className={inputStyle}
+                placeholder="slug-id"
               />
             </Field>
             <Field label="Duration" hint="Free text, e.g. '30 mins'.">
@@ -300,6 +399,26 @@ function ModulesEditor({
                 value={newDuration}
                 onChange={(e) => setNewDuration(e.target.value)}
                 className={inputStyle}
+                placeholder="30 mins"
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="Title (English)">
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className={inputStyle}
+                placeholder="Module Title (English)"
+              />
+            </Field>
+            <Field label="Title (Urdu)">
+              <input
+                value={newTitleUr}
+                onChange={(e) => setNewTitleUr(e.target.value)}
+                className={`${inputStyle} font-nastaliq text-right`}
+                dir="rtl"
+                placeholder="اردو میں عنوان"
               />
             </Field>
           </div>
@@ -349,6 +468,7 @@ function ModuleCard({
 }) {
   const [isPending, startTransition] = useTransition()
   const [title, setTitle] = useState(mod.title)
+  const [titleUr, setTitleUr] = useState(mod.titleUr || '')
   const [duration, setDuration] = useState(mod.duration)
   const [orderIndex, setOrderIndex] = useState(mod.orderIndex)
 
@@ -357,6 +477,7 @@ function ModuleCard({
     startTransition(async () => {
       const result = await updateModule(mod.id, {
         title,
+        titleUr: titleUr.trim() || undefined,
         duration,
         orderIndex,
         courseId,
@@ -389,14 +510,21 @@ function ModuleCard({
   }
 
   return (
-    <details className="bg-white border border-zinc-200 rounded-xl group" open>
-      <summary className="cursor-pointer list-none px-4 py-3 flex items-center gap-3 hover:bg-zinc-50">
+    <details className="bg-white border border-zinc-200 rounded-xl group animate-in fade-in" open>
+      <summary className="cursor-pointer list-none px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 select-none">
         <ChevronDown
           size={16}
           className="text-zinc-500 transition-transform group-open:rotate-0 -rotate-90"
         />
         <div className="flex-1">
-          <div className="font-semibold text-zinc-900">{mod.title}</div>
+          <div className="font-semibold text-zinc-900 flex items-center gap-2">
+            <span>{mod.title}</span>
+            {mod.titleUr && (
+              <span className="text-zinc-400 text-xs font-nastaliq" dir="rtl">
+                ({mod.titleUr})
+              </span>
+            )}
+          </div>
           <div className="text-xs text-zinc-500 font-mono">
             {mod.id} · {mod.duration || '—'} · order {mod.orderIndex}
           </div>
@@ -407,14 +535,24 @@ function ModuleCard({
       </summary>
       <div className="border-t border-zinc-200 p-4 space-y-4">
         {/* Edit module */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-          <Field label="Title">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Title (English)">
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className={inputStyle}
             />
           </Field>
+          <Field label="Title (Urdu)">
+            <input
+              value={titleUr}
+              onChange={(e) => setTitleUr(e.target.value)}
+              className={`${inputStyle} font-nastaliq text-right`}
+              dir="rtl"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
           <Field label="Duration">
             <input
               value={duration}
@@ -430,7 +568,7 @@ function ModuleCard({
               className={inputStyle}
             />
           </Field>
-          <div className="flex gap-2">
+          <div className="flex gap-2 justify-end pb-0.5">
             <Button
               variant="outline"
               size="sm"
@@ -438,7 +576,7 @@ function ModuleCard({
               onClick={handleSave}
               isLoading={isPending}
             >
-              Save
+              Save Module
             </Button>
             <Button
               variant="ghost"
@@ -481,6 +619,7 @@ function LessonsEditor({
   const [isPending, startTransition] = useTransition()
   const [showAdd, setShowAdd] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [newTitleUr, setNewTitleUr] = useState('')
 
   function handleAdd() {
     onError(null)
@@ -488,10 +627,11 @@ function LessonsEditor({
       lessons.length > 0 ? Math.max(...lessons.map((l) => l.orderIndex)) + 1 : 1
     startTransition(async () => {
       const result = await createLesson({
-        id: moduleId,
+        id: moduleId, // In this LMS structure, lessonId = moduleId
         moduleId,
         courseId,
         title: newTitle,
+        titleUr: newTitleUr.trim() || undefined,
         videoUrl: '',
         textContent: '',
         orderIndex,
@@ -501,6 +641,7 @@ function LessonsEditor({
         return
       }
       setNewTitle('')
+      setNewTitleUr('')
       setShowAdd(false)
       onChanged()
     })
@@ -532,12 +673,22 @@ function LessonsEditor({
 
       {showAdd && (
         <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-3">
-          <div className="grid grid-cols-1 gap-3">
-            <Field label="Title">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="Title (English)">
               <input
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 className={inputStyle}
+                placeholder="Lesson Title (English)"
+              />
+            </Field>
+            <Field label="Title (Urdu)">
+              <input
+                value={newTitleUr}
+                onChange={(e) => setNewTitleUr(e.target.value)}
+                className={`${inputStyle} font-nastaliq text-right`}
+                dir="rtl"
+                placeholder="اردو میں سبق کا عنوان"
               />
             </Field>
           </div>
@@ -586,8 +737,11 @@ function LessonCard({
 }) {
   const [isPending, startTransition] = useTransition()
   const [title, setTitle] = useState(lesson.title)
+  const [titleUr, setTitleUr] = useState(lesson.titleUr || '')
   const [videoUrl, setVideoUrl] = useState(lesson.videoUrl)
+  const [videoUrlUr, setVideoUrlUr] = useState(lesson.videoUrlUr || '')
   const [textContent, setTextContent] = useState(lesson.textContent)
+  const [textContentUr, setTextContentUr] = useState(lesson.textContentUr || '')
   const [orderIndex, setOrderIndex] = useState(lesson.orderIndex)
 
   function handleSave() {
@@ -595,8 +749,11 @@ function LessonCard({
     startTransition(async () => {
       const result = await updateLesson(lesson.id, {
         title,
+        titleUr: titleUr.trim() || undefined,
         videoUrl,
+        videoUrlUr: videoUrlUr.trim() || undefined,
         textContent,
+        textContentUr: textContentUr.trim() || undefined,
         orderIndex,
         courseId,
       })
@@ -629,13 +786,20 @@ function LessonCard({
 
   return (
     <details className="bg-white border border-zinc-200 rounded-lg group">
-      <summary className="cursor-pointer list-none px-3 py-2 flex items-center gap-2 hover:bg-zinc-50">
+      <summary className="cursor-pointer list-none px-3 py-2 flex items-center gap-2 hover:bg-zinc-50 select-none">
         <ChevronDown
           size={14}
           className="text-zinc-500 transition-transform group-open:rotate-0 -rotate-90"
         />
         <div className="flex-1">
-          <div className="text-sm font-semibold text-zinc-900">{lesson.title}</div>
+          <div className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+            <span>{lesson.title}</span>
+            {lesson.titleUr && (
+              <span className="text-zinc-400 text-xs font-nastaliq" dir="rtl">
+                ({lesson.titleUr})
+              </span>
+            )}
+          </div>
           <div className="text-[11px] text-zinc-500 font-mono">
             {lesson.id} · order {lesson.orderIndex}
           </div>
@@ -646,14 +810,24 @@ function LessonCard({
       </summary>
 
       <div className="border-t border-zinc-200 p-3 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="Title">
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className={inputStyle}
-            />
-          </Field>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="Title (English)">
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className={inputStyle}
+              />
+            </Field>
+            <Field label="Title (Urdu)">
+              <input
+                value={titleUr}
+                onChange={(e) => setTitleUr(e.target.value)}
+                className={`${inputStyle} font-nastaliq text-right`}
+                dir="rtl"
+              />
+            </Field>
+          </div>
           <Field label="Order">
             <input
               type="number"
@@ -662,28 +836,51 @@ function LessonCard({
               className={inputStyle}
             />
           </Field>
-          <div className="md:col-span-2">
-            <Field label="Video URL" hint="Optional. Direct .mp4 or hosted URL.">
-              <input
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                className={inputStyle}
-              />
-            </Field>
-          </div>
-          <div className="md:col-span-2">
-            <Field
-              label="Lesson Content (HTML)"
-              hint="Raw HTML — rendered with dangerouslySetInnerHTML."
-            >
-              <textarea
-                value={textContent}
-                onChange={(e) => setTextContent(e.target.value)}
-                rows={6}
-                className={`${inputStyle} font-mono text-xs`}
-              />
-            </Field>
-          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="Video URL (English)" hint="Optional. Direct .mp4 or YouTube.">
+            <input
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              className={inputStyle}
+              placeholder="https://..."
+            />
+          </Field>
+          <Field label="Video URL (Urdu)" hint="Optional. Leave blank to fallback to English video.">
+            <input
+              value={videoUrlUr}
+              onChange={(e) => setVideoUrlUr(e.target.value)}
+              className={inputStyle}
+              placeholder="https://..."
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field
+            label="Lesson Content HTML (English)"
+            hint="Raw HTML — rendered with dangerouslySetInnerHTML."
+          >
+            <textarea
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              rows={8}
+              className={`${inputStyle} font-mono text-xs`}
+            />
+          </Field>
+          <Field
+            label="Lesson Content HTML (Urdu)"
+            hint="Raw HTML in Urdu — rendered with dangerouslySetInnerHTML."
+          >
+            <textarea
+              value={textContentUr}
+              onChange={(e) => setTextContentUr(e.target.value)}
+              rows={8}
+              className={`${inputStyle} font-nastaliq text-right text-base`}
+              dir="rtl"
+            />
+          </Field>
         </div>
 
         <div className="flex gap-2 justify-end">
@@ -736,13 +933,17 @@ function McqsEditor({
   const [isPending, startTransition] = useTransition()
   const [showAdd, setShowAdd] = useState(false)
   const [question, setQuestion] = useState('')
+  const [questionUr, setQuestionUr] = useState('')
   const [options, setOptions] = useState<string[]>(['', '', '', ''])
+  const [optionsUr, setOptionsUr] = useState<string[]>(['', '', '', ''])
   const [correctIdx, setCorrectIdx] = useState(0)
+  const [difficulty, setDifficulty] = useState<'beginner' | 'advanced' | 'expert'>('beginner')
 
   function handleAdd() {
     onError(null)
     startTransition(async () => {
       const cleaned = options.map((o) => o.trim()).filter((o) => o.length > 0)
+      const cleanedUr = optionsUr.map((o) => o.trim()).filter((o) => o.length > 0)
       if (correctIdx >= cleaned.length) {
         onError('Correct answer index is out of range after empty options were removed.')
         return
@@ -751,16 +952,22 @@ function McqsEditor({
         lessonId,
         courseId,
         question,
+        questionUr: questionUr.trim() || undefined,
         options: cleaned,
+        optionsUr: cleanedUr.length > 0 ? cleanedUr : undefined,
         correctAnswerIndex: correctIdx,
+        difficulty,
       })
       if ('error' in result && result.error) {
         onError(result.error)
         return
       }
       setQuestion('')
+      setQuestionUr('')
       setOptions(['', '', '', ''])
+      setOptionsUr(['', '', '', ''])
       setCorrectIdx(0)
+      setDifficulty('beginner')
       setShowAdd(false)
       onChanged()
     })
@@ -789,10 +996,16 @@ function McqsEditor({
         <McqForm
           question={question}
           setQuestion={setQuestion}
+          questionUr={questionUr}
+          setQuestionUr={setQuestionUr}
           options={options}
           setOptions={setOptions}
+          optionsUr={optionsUr}
+          setOptionsUr={setOptionsUr}
           correctIdx={correctIdx}
           setCorrectIdx={setCorrectIdx}
+          difficulty={difficulty}
+          setDifficulty={setDifficulty}
           submitLabel="Create MCQ"
           onSubmit={handleAdd}
           isPending={isPending}
@@ -831,16 +1044,23 @@ function McqCard({
 }) {
   const [isPending, startTransition] = useTransition()
   const [editing, setEditing] = useState(false)
-  // Pad to at least 4 inputs for editing convenience
   const paddedOptions = [...mcq.options, ...Array(Math.max(0, 4 - mcq.options.length)).fill('')]
+  const paddedOptionsUr = mcq.optionsUr
+    ? [...mcq.optionsUr, ...Array(Math.max(0, paddedOptions.length - mcq.optionsUr.length)).fill('')]
+    : Array(paddedOptions.length).fill('')
+
   const [question, setQuestion] = useState(mcq.question)
+  const [questionUr, setQuestionUr] = useState(mcq.questionUr || '')
   const [options, setOptions] = useState<string[]>(paddedOptions)
+  const [optionsUr, setOptionsUr] = useState<string[]>(paddedOptionsUr)
   const [correctIdx, setCorrectIdx] = useState(mcq.correctAnswerIndex)
+  const [difficulty, setDifficulty] = useState<'beginner' | 'advanced' | 'expert'>(mcq.difficulty)
 
   function handleSave() {
     onError(null)
     startTransition(async () => {
       const cleaned = options.map((o) => o.trim()).filter((o) => o.length > 0)
+      const cleanedUr = optionsUr.map((o) => o.trim()).filter((o) => o.length > 0)
       if (correctIdx >= cleaned.length) {
         onError('Correct answer index is out of range after empty options were removed.')
         return
@@ -848,8 +1068,11 @@ function McqCard({
       const result = await updateMcq(mcq.id, {
         courseId,
         question,
+        questionUr: questionUr.trim() || undefined,
         options: cleaned,
+        optionsUr: cleanedUr.length > 0 ? cleanedUr : undefined,
         correctAnswerIndex: correctIdx,
+        difficulty,
       })
       if ('error' in result && result.error) {
         onError(result.error)
@@ -874,21 +1097,48 @@ function McqCard({
   }
 
   if (!editing) {
+    const diffColor = mcq.difficulty === 'expert'
+      ? 'bg-red-50 text-red-700 border-red-200'
+      : mcq.difficulty === 'advanced'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-green-50 text-green-700 border-green-200'
+
     return (
-      <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1.5">
+      <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 space-y-1.5 animate-in fade-in">
+        <div className="flex items-center justify-between">
+          <div className="text-[10px] text-zinc-400 font-mono">
+            {mcq.id}
+          </div>
+          <span className={`text-[10px] font-extrabold uppercase border px-2 py-0.5 rounded-full ${diffColor}`}>
+            {mcq.difficulty}
+          </span>
+        </div>
         <div className="text-sm font-medium text-zinc-900">{mcq.question}</div>
-        <ul className="text-xs text-zinc-700 space-y-0.5 pl-1">
-          {mcq.options.map((opt, i) => (
-            <li
-              key={i}
-              className={i === mcq.correctAnswerIndex ? 'font-semibold text-green-700' : ''}
-            >
-              {i === mcq.correctAnswerIndex ? '✓ ' : '· '}
-              {opt}
-            </li>
-          ))}
+        {mcq.questionUr && (
+          <div className="text-base font-medium text-zinc-700 font-nastaliq text-right" dir="rtl">
+            {mcq.questionUr}
+          </div>
+        )}
+        <ul className="text-xs text-zinc-700 space-y-1 pl-1 mt-2">
+          {mcq.options.map((opt, i) => {
+            const optUr = mcq.optionsUr?.[i]
+            return (
+              <li
+                key={i}
+                className={`py-0.5 px-1.5 rounded ${i === mcq.correctAnswerIndex ? 'bg-green-50 font-semibold text-green-700 border border-green-200/50' : ''}`}
+              >
+                <span className="font-mono text-zinc-400 mr-1">{i + 1}.</span>
+                <span>{opt}</span>
+                {optUr && (
+                  <span className="font-nastaliq text-zinc-500 float-right" dir="rtl">
+                    {optUr}
+                  </span>
+                )}
+              </li>
+            )
+          })}
         </ul>
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-end mt-2 pt-1 border-t border-zinc-200/50">
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             Edit
           </Button>
@@ -910,10 +1160,16 @@ function McqCard({
     <McqForm
       question={question}
       setQuestion={setQuestion}
+      questionUr={questionUr}
+      setQuestionUr={setQuestionUr}
       options={options}
       setOptions={setOptions}
+      optionsUr={optionsUr}
+      setOptionsUr={setOptionsUr}
       correctIdx={correctIdx}
       setCorrectIdx={setCorrectIdx}
+      difficulty={difficulty}
+      setDifficulty={setDifficulty}
       submitLabel="Save MCQ"
       onSubmit={handleSave}
       onCancel={() => setEditing(false)}
@@ -925,10 +1181,16 @@ function McqCard({
 function McqForm({
   question,
   setQuestion,
+  questionUr,
+  setQuestionUr,
   options,
   setOptions,
+  optionsUr,
+  setOptionsUr,
   correctIdx,
   setCorrectIdx,
+  difficulty,
+  setDifficulty,
   submitLabel,
   onSubmit,
   onCancel,
@@ -936,77 +1198,141 @@ function McqForm({
 }: {
   question: string
   setQuestion: (s: string) => void
+  questionUr: string
+  setQuestionUr: (s: string) => void
   options: string[]
   setOptions: (s: string[]) => void
+  optionsUr: string[]
+  setOptionsUr: (s: string[]) => void
   correctIdx: number
   setCorrectIdx: (n: number) => void
+  difficulty: 'beginner' | 'advanced' | 'expert'
+  setDifficulty: (d: 'beginner' | 'advanced' | 'expert') => void
   submitLabel: string
   onSubmit: () => void
   onCancel?: () => void
   isPending: boolean
 }) {
   return (
-    <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-3">
-      <Field label="Question">
+    <div className="bg-white border border-zinc-200 rounded-lg p-3 space-y-3 shadow-inner">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2">
+          <Field label="Question (English)">
+            <textarea
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              rows={2}
+              className={inputStyle}
+              placeholder="What is..."
+            />
+          </Field>
+        </div>
+        <Field label="Difficulty">
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as 'beginner' | 'advanced' | 'expert')}
+            className={inputStyle}
+          >
+            <option value="beginner">Beginner</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+          </select>
+        </Field>
+      </div>
+
+      <Field label="Question (Urdu)">
         <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
+          value={questionUr}
+          onChange={(e) => setQuestionUr(e.target.value)}
           rows={2}
-          className={inputStyle}
+          className={`${inputStyle} font-nastaliq text-right text-base`}
+          dir="rtl"
+          placeholder="سوال یہاں درج کریں..."
         />
       </Field>
-      <div className="space-y-2">
+
+      <div className="space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
-          Options (mark the correct one)
+          Options (mark the correct option on the left radio button)
         </div>
         {options.map((opt, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <input
-              type="radio"
-              name="correctIdx"
-              checked={correctIdx === i}
-              onChange={() => setCorrectIdx(i)}
-              className="shrink-0"
-            />
-            <input
-              value={opt}
-              onChange={(e) => {
-                const next = [...options]
-                next[i] = e.target.value
-                setOptions(next)
-              }}
-              placeholder={`Option ${i + 1}`}
-              className={inputStyle + ' flex-1'}
-            />
-            {options.length > 2 && (
-              <button
-                type="button"
-                onClick={() => {
-                  const next = options.filter((_, idx) => idx !== i)
+          <div key={i} className="bg-zinc-50 border border-zinc-100 rounded-lg p-2 space-y-2 relative">
+            <div className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="correctIdx"
+                checked={correctIdx === i}
+                onChange={() => setCorrectIdx(i)}
+                className="shrink-0 accent-zinc-950 w-4 h-4 cursor-pointer"
+              />
+              <span className="text-[10px] font-mono font-bold text-zinc-400 w-12 shrink-0">
+                EN {i + 1}
+              </span>
+              <input
+                value={opt}
+                onChange={(e) => {
+                  const next = [...options]
+                  next[i] = e.target.value
                   setOptions(next)
-                  if (correctIdx >= next.length) setCorrectIdx(0)
-                  else if (correctIdx === i) setCorrectIdx(0)
-                  else if (correctIdx > i) setCorrectIdx(correctIdx - 1)
                 }}
-                className="text-zinc-400 hover:text-red-600"
-                aria-label="Remove option"
-              >
-                <Trash2 size={14} />
-              </button>
-            )}
+                placeholder={`English option ${i + 1}`}
+                className={inputStyle + ' flex-1'}
+              />
+              {options.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = options.filter((_, idx) => idx !== i)
+                    setOptions(next)
+                    const nextUr = optionsUr.filter((_, idx) => idx !== i)
+                    setOptionsUr(nextUr)
+                    if (correctIdx >= next.length) setCorrectIdx(0)
+                    else if (correctIdx === i) setCorrectIdx(0)
+                    else if (correctIdx > i) setCorrectIdx(correctIdx - 1)
+                  }}
+                  className="text-zinc-400 hover:text-red-600 shrink-0"
+                  aria-label="Remove option"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 pl-6">
+              <span className="text-[10px] font-mono font-bold text-zinc-400 w-12 shrink-0">
+                UR {i + 1}
+              </span>
+              <input
+                value={optionsUr[i] || ''}
+                onChange={(e) => {
+                  const next = [...optionsUr]
+                  next[i] = e.target.value
+                  setOptionsUr(next)
+                }}
+                placeholder={`اردو آپشن ${i + 1}`}
+                className={`${inputStyle} flex-1 font-nastaliq text-right`}
+                dir="rtl"
+              />
+            </div>
           </div>
         ))}
-        {options.length < 6 && (
-          <button
-            type="button"
-            onClick={() => setOptions([...options, ''])}
-            className="text-xs text-zinc-600 hover:text-zinc-900 font-semibold"
-          >
-            + Add option
-          </button>
-        )}
+        
+        <div className="flex gap-2">
+          {options.length < 6 && (
+            <button
+              type="button"
+              onClick={() => {
+                setOptions([...options, ''])
+                setOptionsUr([...optionsUr, ''])
+              }}
+              className="text-xs text-zinc-600 hover:text-zinc-900 font-semibold"
+            >
+              + Add option
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex gap-2 justify-end">
+
+      <div className="flex gap-2 justify-end pt-2 border-t border-zinc-100">
         {onCancel && (
           <Button variant="ghost" size="sm" onClick={onCancel} disabled={isPending}>
             Cancel
@@ -1023,7 +1349,7 @@ function McqForm({
 // ─────────────────────────── Shared ───────────────────────────
 
 const inputStyle =
-  'w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
+  'w-full border border-zinc-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white'
 
 function Field({
   label,
