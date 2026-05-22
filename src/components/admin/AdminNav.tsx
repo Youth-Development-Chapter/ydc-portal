@@ -40,7 +40,7 @@ const NAV_ITEMS = [
     exact: true,
   },
   {
-    name: 'Deed Approvals',
+    name: 'Streaks',
     href: '/admin/approvals',
     icon: CheckSquare,
     permission: 'can_approve_deeds',
