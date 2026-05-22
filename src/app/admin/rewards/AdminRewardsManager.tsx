@@ -21,7 +21,7 @@ type PendingRedemption = {
   coin_cost: number;
   status: "pending" | "fulfilled" | "cancelled";
   redeemed_at: string;
-  profiles?: { full_name?: string | null } | null;
+  profiles?: Array<{ full_name?: string | null }> | null;
 };
 
 export default function AdminRewardsManager({
@@ -203,7 +203,7 @@ export default function AdminRewardsManager({
             <div key={row.id} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <p className="font-semibold text-zinc-900 truncate">
-                  {row.profiles?.full_name || "Member"} → {rewardNameById.get(row.reward_id) || "Reward"}
+                  {row.profiles?.[0]?.full_name || "Member"} → {rewardNameById.get(row.reward_id) || "Reward"}
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
                   {row.coin_cost} coins • {new Date(row.redeemed_at).toLocaleDateString("en-US")}
