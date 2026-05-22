@@ -1,8 +1,9 @@
 -- YDC Database Schema Initialization
 -- Execute this script in your Supabase SQL Editor to set up the necessary tables, policies, and triggers.
 
--- Ensure Profiles table has Role column for Access Control
+-- Ensure Profiles table has Role and updated_at columns
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'volunteer' NOT NULL CHECK (role IN ('volunteer', 'admin'));
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- 1. Events Table
 CREATE TABLE IF NOT EXISTS public.events (

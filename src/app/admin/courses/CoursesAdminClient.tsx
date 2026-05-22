@@ -3,9 +3,9 @@
 import React, { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Pencil, BookOpen } from 'lucide-react'
+import { Plus, Trash2, Pencil, BookOpen, FileJson } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { createCourse, deleteCourse } from './actions'
+import { createCourse, deleteCourse, importCourseFromJson } from './actions'
 
 export interface CourseRow {
   id: string
@@ -25,6 +25,7 @@ export default function CoursesAdminClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showCreate, setShowCreate] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Create form state
@@ -34,6 +35,7 @@ export default function CoursesAdminClient({
   const [newDescription, setNewDescription] = useState('')
   const [newImageUrl, setNewImageUrl] = useState('')
   const [newReward, setNewReward] = useState<number>(50)
+  const [jsonText, setJsonText] = useState('')
 
   function resetForm() {
     setNewId('')
@@ -42,6 +44,7 @@ export default function CoursesAdminClient({
     setNewDescription('')
     setNewImageUrl('')
     setNewReward(50)
+    setJsonText('')
     setError(null)
   }
 
@@ -62,6 +65,20 @@ export default function CoursesAdminClient({
       }
       resetForm()
       setShowCreate(false)
+      router.refresh()
+    })
+  }
+
+  function handleImport() {
+    setError(null)
+    startTransition(async () => {
+      const result = await importCourseFromJson(jsonText)
+      if ('error' in result && result.error) {
+        setError(result.error)
+        return
+      }
+      resetForm()
+      setShowImport(false)
       router.refresh()
     })
   }
@@ -92,21 +109,86 @@ export default function CoursesAdminClient({
         <div className="text-sm text-zinc-600">
           {initialCourses.length} course{initialCourses.length === 1 ? '' : 's'}
         </div>
-        <Button
-          variant="primary"
-          leftIcon={<Plus size={16} />}
-          onClick={() => {
-            setShowCreate((s) => !s)
-            setError(null)
-          }}
-        >
-          {showCreate ? 'Cancel' : 'Add Course'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            leftIcon={<FileJson size={16} />}
+            onClick={() => {
+              setShowImport((s) => !s)
+              setShowCreate(false)
+              setError(null)
+            }}
+          >
+            {showImport ? 'Cancel Import' : 'Import JSON'}
+          </Button>
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={16} />}
+            onClick={() => {
+              setShowCreate((s) => !s)
+              setShowImport(false)
+              setError(null)
+            }}
+          >
+            {showCreate ? 'Cancel' : 'Add Course'}
+          </Button>
+        </div>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
           {error}
+        </div>
+      )}
+
+      {/* Import JSON form */}
+      {showImport && (
+        <div className="bg-white border border-zinc-200 rounded-xl p-5 space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+            <div>
+              <h2 className="font-bold text-zinc-900">Import Course from JSON</h2>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Paste the AI-generated or custom JSON structure representing your course tree.
+              </p>
+            </div>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                alert("You can find the schema documentation and prompt at:\ndocs/course_import_schema.md in your repository root.");
+              }}
+              className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 bg-zinc-100 px-2 py-1 rounded transition-colors"
+            >
+              View Schema Guide
+            </a>
+          </div>
+
+          <FormField
+            label="Course JSON Structure"
+            hint="Paste the valid JSON structure matching our import schema."
+          >
+            <textarea
+              value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)}
+              placeholder={`{\n  "id": "islamic-history-101",\n  "title": "Introduction to Islamic History",\n  "author": "Dr. Tariq Mahmood",\n  "description": "An introductory course...",\n  "imageUrl": "",\n  "rewardPoints": 100,\n  "modules": []\n}`}
+              rows={12}
+              className="w-full font-mono text-xs border border-zinc-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-zinc-50"
+            />
+          </FormField>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => { resetForm(); setShowImport(false) }}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleImport}
+              isLoading={isPending}
+              disabled={!jsonText.trim()}
+            >
+              Save Import
+            </Button>
+          </div>
         </div>
       )}
 

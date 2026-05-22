@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
 
 // LMS RLS policies allow writes only when profiles.role = 'admin' literally.
 // Other admin roles (superadmin/president/tier-3) would be rejected at the
@@ -352,4 +353,148 @@ export async function deleteMcq(id: string, courseId: string) {
   if (error) return { error: error.message }
   revalidateCourse(courseId)
   return { success: true as const }
+}
+
+// ─────────────────────────── JSON Import Schema & Action ───────────────────────────
+
+const mcqImportSchema = z.object({
+  question: z.string().min(1, 'MCQ question cannot be empty'),
+  options: z.array(z.string()).min(2, 'MCQ must have at least 2 options'),
+  correctAnswerIndex: z.number().int().nonnegative('correctAnswerIndex must be non-negative'),
+})
+
+const lessonImportSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_-]+$/i, 'Lesson ID must contain only letters, numbers, dashes, or underscores'),
+  title: z.string().min(1, 'Lesson title cannot be empty'),
+  videoUrl: z.string().url('Invalid URL').or(z.string().length(0)).or(z.null()).optional(),
+  textContent: z.string().optional().default(''),
+  orderIndex: z.number().int().default(0),
+  mcqs: z.array(mcqImportSchema).optional().default([]),
+})
+
+const moduleImportSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_-]+$/i, 'Module ID must contain only letters, numbers, dashes, or underscores'),
+  title: z.string().min(1, 'Module title cannot be empty'),
+  duration: z.string().optional().default(''),
+  orderIndex: z.number().int().default(0),
+  lessons: z.array(lessonImportSchema).optional().default([]),
+})
+
+const courseImportSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_-]+$/i, 'Course ID must contain only letters, numbers, dashes, or underscores'),
+  title: z.string().min(1, 'Course title cannot be empty'),
+  author: z.string().min(1, 'Author cannot be empty'),
+  description: z.string().optional().default(''),
+  imageUrl: z.string().url('Invalid URL').or(z.string().length(0)).or(z.null()).optional(),
+  rewardPoints: z.number().int().nonnegative().default(50),
+  modules: z.array(moduleImportSchema).optional().default([]),
+})
+
+export async function importCourseFromJson(jsonText: string) {
+  const ctx = await requireCourseAdmin()
+  if (ctx.error) return { error: ctx.error }
+  const { supabase } = ctx
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(jsonText)
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return { error: `Invalid JSON syntax: ${errMsg}` }
+  }
+
+  const result = courseImportSchema.safeParse(parsed)
+  if (!result.success) {
+    const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+    return { error: `Schema validation failed: ${issues}` }
+  }
+
+  const courseData = result.data
+  const courseId = courseData.id
+
+  // 1. Check if course exists
+  const { data: existing } = await supabase!
+    .from('courses')
+    .select('id')
+    .eq('id', courseId)
+    .maybeSingle()
+
+  if (existing) {
+    return { error: `A course with ID "${courseId}" already exists.` }
+  }
+
+  // Helper cleanup in case of nested failure
+  const rollback = async () => {
+    await supabase!.from('courses').delete().eq('id', courseId)
+  }
+
+  // 2. Insert Course
+  const { error: courseError } = await supabase!.from('courses').insert({
+    id: courseId,
+    title: courseData.title,
+    author: courseData.author,
+    description: courseData.description,
+    image_url: courseData.imageUrl || null,
+    reward_points: courseData.rewardPoints,
+  })
+
+  if (courseError) {
+    return { error: `Failed to insert course: ${courseError.message}` }
+  }
+
+  // 3. Insert Modules, Lessons, MCQs
+  try {
+    for (const mod of courseData.modules) {
+      const { error: modError } = await supabase!.from('modules').insert({
+        id: mod.id,
+        course_id: courseId,
+        title: mod.title,
+        duration: mod.duration,
+        order_index: mod.orderIndex,
+      })
+
+      if (modError) {
+        throw new Error(`Failed to insert module "${mod.title}" (${mod.id}): ${modError.message}`)
+      }
+
+      for (const les of mod.lessons) {
+        const { error: lesError } = await supabase!.from('lessons').insert({
+          id: les.id,
+          module_id: mod.id,
+          title: les.title,
+          video_url: les.videoUrl || null,
+          text_content: les.textContent,
+          order_index: les.orderIndex,
+        })
+
+        if (lesError) {
+          throw new Error(`Failed to insert lesson "${les.title}" (${les.id}): ${lesError.message}`)
+        }
+
+        for (const mcq of les.mcqs) {
+          if (mcq.correctAnswerIndex < 0 || mcq.correctAnswerIndex >= mcq.options.length) {
+            throw new Error(`Lesson "${les.title}" quiz: correctAnswerIndex ${mcq.correctAnswerIndex} is out of bounds for options array of size ${mcq.options.length}.`)
+          }
+          const { error: mcqError } = await supabase!.from('mcqs').insert({
+            lesson_id: les.id,
+            question: mcq.question,
+            options: mcq.options,
+            correct_answer_index: mcq.correctAnswerIndex,
+          })
+
+          if (mcqError) {
+            throw new Error(`Failed to insert MCQ for lesson "${les.title}": ${mcqError.message}`)
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Rollback completely
+    await rollback()
+    const errMsg = err instanceof Error ? err.message : String(err)
+    return { error: errMsg }
+  }
+
+  revalidateCourse(courseId)
+  return { success: true, id: courseId }
 }

@@ -1,8 +1,9 @@
 -- YDC Admin Schema (Patched)
 -- Same as admin_schema.sql but skips LMS tables (courses, user_progress) which
 -- don't exist in this DB — the LMS lives in Wellms, not Supabase.
-
--- 1. Update Profiles Role Check Constraint
+-- 1. Update Profiles Table
+-- Ensure profiles table has updated_at column and role check constraint for access control
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
     CHECK (role IN ('volunteer', 'admin', 'superadmin', 'president', 'tier-3'));

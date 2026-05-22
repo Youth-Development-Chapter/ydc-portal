@@ -28,6 +28,25 @@ type ViewState =
   | { kind: "result-pass"; total: number; completedCourseId: string | null; rewardCoins: number }
   | { kind: "result-fail"; total: number; failedAttempts: number };
 
+function getYouTubeEmbedUrl(url?: string): string | null {
+  if (!url) return null;
+  if (url.includes("youtube.com/embed/")) {
+    return url;
+  }
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  if (match && match[2].length === 11) {
+    return `https://www.youtube.com/embed/${match[2]}`;
+  }
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    const matchSimple = url.match(/(?:v=|\/embed\/|\/v\/|youtu\.be\/|\/watch\?v=)?([a-zA-Z0-9_-]{11})/);
+    if (matchSimple && matchSimple[1]) {
+      return `https://www.youtube.com/embed/${matchSimple[1]}`;
+    }
+  }
+  return null;
+}
+
 export default function InteractiveLesson({
   lesson,
   courseId,
@@ -283,14 +302,26 @@ export default function InteractiveLesson({
   // ───────────────────────── Content view ─────────────────────────
   return (
     <div className="pb-24 animate-in fade-in duration-500">
-      {lesson.videoUrl && (
-        <div className="w-full aspect-video bg-black sticky top-0 z-40 flex items-center justify-center">
-          <video controls className="w-full h-full object-cover">
-            <source src={lesson.videoUrl} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-        </div>
-      )}
+      {lesson.videoUrl && (() => {
+        const embedUrl = getYouTubeEmbedUrl(lesson.videoUrl);
+        return (
+          <div className="w-full aspect-video bg-black sticky top-0 z-40 flex items-center justify-center">
+            {embedUrl ? (
+              <iframe
+                src={embedUrl}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video controls className="w-full h-full object-cover">
+                <source src={lesson.videoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            )}
+          </div>
+        );
+      })()}
 
       <div className="p-4 mt-2">
         <h1 className="text-2xl font-bold font-coolvetica mb-6">{lesson.title}</h1>
