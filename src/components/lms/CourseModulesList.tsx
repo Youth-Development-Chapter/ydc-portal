@@ -2,7 +2,7 @@
  
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Lock, CheckCircle, PlayCircle } from "lucide-react";
+import { Lock, CheckCircle, PlayCircle, Globe } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getProgress } from "@/lib/wellms";
  
@@ -15,6 +15,7 @@ interface Module {
 export default function CourseModulesList({ courseId, modules }: { courseId: string, modules: Module[] }) {
   const [completedModules, setCompletedModules] = useState<string[]>([]);
   const [mounted, setMounted] = useState(false);
+  const [language, setLanguage] = useState<"en" | "ur">("en");
   const supabase = createClient();
  
   useEffect(() => {
@@ -32,12 +33,52 @@ export default function CourseModulesList({ courseId, modules }: { courseId: str
       }
     }
     loadProgress();
+
+    const savedLang = localStorage.getItem("ydc_course_language");
+    if (savedLang === "ur") {
+      setLanguage("ur");
+    }
   }, [courseId, supabase]);
 
   if (!mounted) return null;
  
+  const handleLanguageChange = (lang: "en" | "ur") => {
+    setLanguage(lang);
+    localStorage.setItem("ydc_course_language", lang);
+  };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between bg-white border border-[#E5E5E5] rounded-2xl p-3 shadow-sm">
+        <div className="flex items-center gap-2 text-[#555555]">
+          <Globe size={18} />
+          <span className="text-sm font-semibold">Course Language</span>
+        </div>
+        <div className="flex items-center gap-1 bg-[#F5F5F5] p-1 rounded-xl">
+          <button
+            onClick={() => handleLanguageChange("en")}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+              language === "en" 
+                ? "bg-white text-[#1D1D1D] shadow-sm" 
+                : "text-[#A3A3A3] hover:text-[#555555]"
+            }`}
+          >
+            English
+          </button>
+          <button
+            onClick={() => handleLanguageChange("ur")}
+            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+              language === "ur" 
+                ? "bg-white text-[#1D1D1D] shadow-sm" 
+                : "text-[#A3A3A3] hover:text-[#555555]"
+            }`}
+          >
+            اردو
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
       {modules.map((module, index) => {
         // A module is unlocked if it's the first one, or if the PREVIOUS module is completed.
         const isFirst = index === 0;
@@ -80,6 +121,7 @@ export default function CourseModulesList({ courseId, modules }: { courseId: str
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

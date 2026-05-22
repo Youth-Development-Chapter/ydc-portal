@@ -306,7 +306,9 @@ CREATE TABLE IF NOT EXISTS public.lessons (
     module_id TEXT REFERENCES public.modules(id) ON DELETE CASCADE NOT NULL,
     title TEXT NOT NULL,
     video_url TEXT,
+    video_url_ur TEXT,
     text_content TEXT NOT NULL,
+    text_content_ur TEXT,
     order_index INTEGER NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
@@ -329,7 +331,9 @@ CREATE TABLE IF NOT EXISTS public.mcqs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     lesson_id TEXT REFERENCES public.lessons(id) ON DELETE CASCADE NOT NULL,
     question TEXT NOT NULL,
+    question_ur TEXT,
     options JSONB NOT NULL, -- JSON array of strings
+    options_ur JSONB, -- JSON array of strings in Urdu
     correct_answer_index INTEGER NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );

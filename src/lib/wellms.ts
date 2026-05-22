@@ -12,7 +12,9 @@ import { createClient as createBrowserSupabase } from '@/utils/supabase/client'
 
 export interface MCQ {
   question: string
+  questionUr?: string
   options: string[]
+  optionsUr?: string[]
   correctAnswerIndex: number
 }
 
@@ -22,7 +24,9 @@ export interface Lesson {
   courseId: string
   title: string
   videoUrl?: string
+  videoUrlUr?: string
   textContent: string
+  textContentUr?: string
   mcq: MCQ[]
 }
 
@@ -32,7 +36,9 @@ export interface Lesson {
  */
 export interface LearnerMCQ {
   question: string
+  questionUr?: string
   options: string[]
+  optionsUr?: string[]
 }
 
 export interface LearnerLesson {
@@ -41,7 +47,9 @@ export interface LearnerLesson {
   courseId: string
   title: string
   videoUrl?: string
+  videoUrlUr?: string
   textContent: string
+  textContentUr?: string
   mcq: LearnerMCQ[]
 }
 

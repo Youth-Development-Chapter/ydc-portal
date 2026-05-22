@@ -8,14 +8,18 @@ import { submitQuiz, type SubmitQuizResult } from "@/app/lms/lessons/actions";
 
 interface LearnerMCQ {
   question: string;
+  questionUr?: string;
   options: string[];
+  optionsUr?: string[];
 }
 
 interface Lesson {
   id: string;
   title: string;
   videoUrl?: string;
+  videoUrlUr?: string;
   textContent: string;
+  textContentUr?: string;
   mcq: LearnerMCQ[];
 }
 
@@ -58,6 +62,16 @@ export default function InteractiveLesson({
   const [view, setView] = useState<ViewState>({ kind: "content" });
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [language, setLanguage] = useState<"en" | "ur">("en");
+
+  React.useEffect(() => {
+    const savedLang = localStorage.getItem("ydc_course_language");
+    if (savedLang === "ur") setLanguage("ur");
+  }, []);
+
+  const isUrdu = language === "ur";
+  const currentVideoUrl = (isUrdu && lesson.videoUrlUr) ? lesson.videoUrlUr : lesson.videoUrl;
+  const currentTextContent = (isUrdu && lesson.textContentUr) ? lesson.textContentUr : lesson.textContent;
 
   // One answer slot per question. `null` means unanswered.
   const [answers, setAnswers] = useState<(number | null)[]>(
@@ -236,7 +250,11 @@ export default function InteractiveLesson({
         )}
 
         <div className="space-y-6">
-          {lesson.mcq.map((q, qIdx) => (
+          {lesson.mcq.map((q, qIdx) => {
+            const qText = isUrdu && q.questionUr ? q.questionUr : q.question;
+            const qOptions = isUrdu && q.optionsUr && q.optionsUr.length > 0 ? q.optionsUr : q.options;
+
+            return (
             <div
               key={qIdx}
               className="bg-white rounded-2xl p-5 shadow-sm border border-[#E5E5E5]"
@@ -251,12 +269,15 @@ export default function InteractiveLesson({
                   </span>
                 )}
               </div>
-              <h3 className="text-base font-bold text-[#1D1D1D] mb-4">
-                {q.question}
+              <h3 
+                className={`text-base font-bold text-[#1D1D1D] mb-4 ${isUrdu ? "font-nastaliq text-right text-lg" : ""}`}
+                dir={isUrdu ? "rtl" : "ltr"}
+              >
+                {qText}
               </h3>
 
               <div className="space-y-2">
-                {q.options.map((option, optIdx) => {
+                {qOptions.map((option, optIdx) => {
                   const isSelected = answers[qIdx] === optIdx;
                   // Deliberately neutral styling — selected vs unselected
                   // only. NEVER hint at correctness here.
@@ -278,13 +299,18 @@ export default function InteractiveLesson({
                             : "border-[#A3A3A3]"
                         }`}
                       />
-                      <span className="text-sm">{option}</span>
+                      <span 
+                        className={`text-sm flex-1 ${isUrdu ? "font-nastaliq text-right text-base" : ""}`}
+                        dir={isUrdu ? "rtl" : "ltr"}
+                      >
+                        {option}
+                      </span>
                     </button>
                   );
                 })}
               </div>
             </div>
-          ))}
+          )})}
         </div>
 
         <Button
@@ -302,8 +328,8 @@ export default function InteractiveLesson({
   // ───────────────────────── Content view ─────────────────────────
   return (
     <div className="pb-24 animate-in fade-in duration-500">
-      {lesson.videoUrl && (() => {
-        const embedUrl = getYouTubeEmbedUrl(lesson.videoUrl);
+      {currentVideoUrl && (() => {
+        const embedUrl = getYouTubeEmbedUrl(currentVideoUrl);
         return (
           <div className="w-full aspect-video bg-black sticky top-0 z-40 flex items-center justify-center">
             {embedUrl ? (
@@ -315,7 +341,7 @@ export default function InteractiveLesson({
               />
             ) : (
               <video controls className="w-full h-full object-cover">
-                <source src={lesson.videoUrl} type="video/mp4" />
+                <source src={currentVideoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             )}
@@ -327,8 +353,9 @@ export default function InteractiveLesson({
         <h1 className="text-2xl font-bold font-coolvetica mb-6">{lesson.title}</h1>
 
         <div
-          className="prose prose-sm text-[#1D1D1D] leading-relaxed max-w-none"
-          dangerouslySetInnerHTML={{ __html: lesson.textContent }}
+          className={`prose prose-sm text-[#1D1D1D] leading-relaxed max-w-none ${isUrdu ? "font-nastaliq text-right text-lg" : ""}`}
+          dir={isUrdu ? "rtl" : "ltr"}
+          dangerouslySetInnerHTML={{ __html: currentTextContent }}
         />
 
         {lesson.mcq.length > 0 && (

@@ -144,7 +144,9 @@ export async function getLessonForLearner(lessonId: string): Promise<LearnerLess
   if (!full) return undefined
   const safeMcq: LearnerMCQ[] = full.mcq.map((m) => ({
     question: m.question,
+    questionUr: m.questionUr,
     options: m.options,
+    optionsUr: m.optionsUr,
   }))
   return {
     id: full.id,
@@ -152,7 +154,9 @@ export async function getLessonForLearner(lessonId: string): Promise<LearnerLess
     courseId: full.courseId,
     title: full.title,
     videoUrl: full.videoUrl,
+    videoUrlUr: full.videoUrlUr,
     textContent: full.textContent,
+    textContentUr: full.textContentUr,
     mcq: safeMcq,
   }
 }
@@ -162,7 +166,7 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
 
   const { data: lesson, error: lessonError } = await supabase
     .from('lessons')
-    .select('id, module_id, title, video_url, text_content')
+    .select('id, module_id, title, video_url, video_url_ur, text_content, text_content_ur')
     .eq('id', lessonId)
     .single()
 
@@ -186,7 +190,7 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
 
   const { data: mcqs, error: mcqsError } = await supabase
     .from('mcqs')
-    .select('question, options, correct_answer_index')
+    .select('question, question_ur, options, options_ur, correct_answer_index')
     .eq('lesson_id', lessonId)
 
   if (mcqsError) {
@@ -200,16 +204,22 @@ export async function getLessonById(lessonId: string): Promise<Lesson | undefine
     courseId: moduleRow.course_id,
     title: lesson.title,
     videoUrl: lesson.video_url || undefined,
+    videoUrlUr: lesson.video_url_ur || undefined,
     // Sanitize HTML to prevent XSS — admins write lesson content which is
     // rendered with dangerouslySetInnerHTML on the client.
     textContent: sanitizeLessonContent(lesson.text_content || ''),
+    textContentUr: lesson.text_content_ur ? sanitizeLessonContent(lesson.text_content_ur) : undefined,
     mcq: (mcqs || []).map((m) => ({
       question: m.question,
+      questionUr: m.question_ur || undefined,
       options: Array.isArray(m.options)
         ? (m.options as string[])
         : typeof m.options === 'string'
           ? (JSON.parse(m.options) as string[])
           : [],
+      optionsUr: m.options_ur 
+        ? (Array.isArray(m.options_ur) ? (m.options_ur as string[]) : typeof m.options_ur === 'string' ? (JSON.parse(m.options_ur) as string[]) : undefined)
+        : undefined,
       correctAnswerIndex: m.correct_answer_index,
     })),
   }

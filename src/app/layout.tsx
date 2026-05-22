@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
+
+const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-noto-nastaliq",
+});
 
 const coolveticaRg = localFont({
   src: './fonts/Coolvetica Rg.otf',
@@ -33,7 +40,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${coolveticaRg.variable} ${coolveticaComp.variable} ${coolveticaCond.variable} h-full antialiased`}
+      className={`${coolveticaRg.variable} ${coolveticaComp.variable} ${coolveticaCond.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col relative font-sans tracking-wide">
         {children}
