@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams, origin: requestOrigin } = new URL(request.url)
+  
+  // Reconstruct origin from forwarding headers if behind a reverse proxy
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const reconstructedOrigin = forwardedHost && forwardedProto 
+    ? `${forwardedProto}://${forwardedHost}` 
+    : null
+
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || reconstructedOrigin || requestOrigin
   const token = searchParams.get('token')
   const type = searchParams.get('type')
   

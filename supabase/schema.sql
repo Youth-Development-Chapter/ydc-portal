@@ -43,8 +43,25 @@ CREATE POLICY "Allow users to update their own profile"
     WITH CHECK (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Allow admins to manage all profiles" ON public.profiles;
-CREATE POLICY "Allow admins to manage all profiles"
-    ON public.profiles FOR ALL
+DROP POLICY IF EXISTS "Allow admins to insert profiles" ON public.profiles;
+CREATE POLICY "Allow admins to insert profiles"
+    ON public.profiles FOR INSERT
+    WITH CHECK (auth.uid() IN (
+        SELECT id FROM public.profiles
+        WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+    ));
+
+DROP POLICY IF EXISTS "Allow admins to update profiles" ON public.profiles;
+CREATE POLICY "Allow admins to update profiles"
+    ON public.profiles FOR UPDATE
+    USING (auth.uid() IN (
+        SELECT id FROM public.profiles
+        WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+    ));
+
+DROP POLICY IF EXISTS "Allow admins to delete profiles" ON public.profiles;
+CREATE POLICY "Allow admins to delete profiles"
+    ON public.profiles FOR DELETE
     USING (auth.uid() IN (
         SELECT id FROM public.profiles
         WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')

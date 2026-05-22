@@ -2,7 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams, origin: requestOrigin } = new URL(request.url)
+  
+  // Reconstruct origin from forwarding headers if behind a reverse proxy
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const reconstructedOrigin = forwardedHost && forwardedProto 
+    ? `${forwardedProto}://${forwardedHost}` 
+    : null
+
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || reconstructedOrigin || requestOrigin
   const code = searchParams.get('code')
   
   // if "next" is in param, use it as the redirect URL
