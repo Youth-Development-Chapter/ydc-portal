@@ -6,6 +6,7 @@
   --font-sans: var(--font-coolvetica), system-ui, -apple-system, sans-serif;
   --font-comp: var(--font-coolvetica-comp), system-ui, -apple-system, sans-serif;
   --font-cond: var(--font-coolvetica-cond), system-ui, -apple-system, sans-serif;
+  --font-noto-nastaliq: serif;
 }
 
 @theme inline {

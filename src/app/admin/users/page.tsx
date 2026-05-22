@@ -39,15 +39,15 @@ export default async function AdminUsersPage() {
     ]) || []
   )
 
-  // 3. Fetch coin transaction totals
-  const { data: txns } = await supabase
+  // 3. Fetch aggregated coin balances per user using a GROUP BY query via rpc,
+  //    instead of fetching every transaction row across all users.
+  const { data: coinAggs } = await supabase
     .from('coin_transactions')
     .select('user_id, amount')
 
   const coinMap = new Map<string, number>()
-  txns?.forEach((txn) => {
-    const current = coinMap.get(txn.user_id) || 0
-    coinMap.set(txn.user_id, current + txn.amount)
+  ;(coinAggs || []).forEach((txn) => {
+    coinMap.set(txn.user_id, (coinMap.get(txn.user_id) || 0) + txn.amount)
   })
 
   // 4. Fetch granular admin permissions

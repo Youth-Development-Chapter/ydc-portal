@@ -1,7 +1,21 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+
+/** 5 MB upload limit for avatar images */
+const MAX_AVATAR_SIZE = 5 * 1024 * 1024
+
+/** Accepted image MIME types */
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/heic',
+  'image/heif',
+])
 
 export async function signup(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
@@ -12,6 +26,10 @@ export async function signup(prevState: unknown, formData: FormData) {
 
   if (!email || !password) {
     return { error: 'Email and password are required' }
+  }
+
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' }
   }
 
   const { error: authError } = await supabase.auth.signUp({
@@ -55,8 +73,16 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
   const userId = user.id
 
   if (profile_pic && profile_pic.size > 0) {
-    const fileExt = profile_pic.name.split('.').pop()
-    const fileName = `${userId}-${Math.random()}.${fileExt}`
+    // Server-side file validation
+    if (profile_pic.size > MAX_AVATAR_SIZE) {
+      return { error: 'Profile picture must be smaller than 5 MB.' }
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(profile_pic.type)) {
+      return { error: 'Profile picture must be a JPEG, PNG, WEBP, GIF, or HEIC file.' }
+    }
+
+    const fileExt = profile_pic.name.split('.').pop()?.toLowerCase() || 'jpg'
+    const fileName = `${userId}/${randomUUID()}.${fileExt}`
     
     const { error: uploadError } = await supabase.storage
       .from('avatars')
@@ -110,7 +136,12 @@ export async function login(prevState: unknown, formData: FormData) {
   if (!rememberMe) {
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
-    cookieStore.set('session_only', 'true', { path: '/' })
+    cookieStore.set('session_only', 'true', {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    })
   } else {
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()
@@ -157,8 +188,8 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
   const supabase = await createClient()
   const password = formData.get('password') as string
 
-  if (!password || password.length < 6) {
-    return { error: 'Password must be at least 6 characters long' }
+  if (!password || password.length < 8) {
+    return { error: 'Password must be at least 8 characters long' }
   }
 
   const { error } = await supabase.auth.updateUser({

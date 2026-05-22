@@ -6,23 +6,31 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, courseId, lessonId } = body
+    const { courseId, lessonId } = body
 
-    if (!userId || !courseId || !lessonId) {
+    if (!courseId || !lessonId) {
       return NextResponse.json(
-        { error: 'userId, courseId, and lessonId are required' },
+        { error: 'courseId and lessonId are required' },
         { status: 400 }
       )
     }
 
     const supabase = await createClient()
 
+    // Always derive the userId from the authenticated session — never trust
+    // a client-supplied userId, as that would let any user forge progress
+    // for another account.
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     // Upsert into user_progress table
     const { data, error } = await supabase
       .from('user_progress')
       .upsert(
         {
-          user_id: userId,
+          user_id: user.id,
           course_id: courseId,
           lesson_id: lessonId,
           completed: true,

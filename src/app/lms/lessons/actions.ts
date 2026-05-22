@@ -136,23 +136,37 @@ export async function submitQuiz(
       return { ok: false, error: 'Could not save your progress.' }
     }
 
-    // Read existing attempts so we can report failedAttempts honestly
-    // even on a winning attempt.
-    const { data: attemptsRow } = await supabase
-      .from('quiz_attempts')
-      .select('failed_attempts')
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId)
-      .maybeSingle()
+    // Run these three independent queries in parallel to reduce latency.
+    const [attemptsResult, allModulesResult, completedCountResult] = await Promise.all([
+      // Read existing attempts so we can report failedAttempts honestly
+      // even on a winning attempt.
+      supabase
+        .from('quiz_attempts')
+        .select('failed_attempts')
+        .eq('user_id', user.id)
+        .eq('lesson_id', lessonId)
+        .maybeSingle(),
 
-    // 6. Check absolute course completion by counting lessons vs completed progress.
-    const { data: allModules } = await supabase
-      .from('modules')
-      .select('id')
-      .eq('course_id', courseId)
-    
+      // 6. Get all module ids in this course to count total lessons.
+      supabase
+        .from('modules')
+        .select('id')
+        .eq('course_id', courseId),
+
+      // 7. Count how many lessons this user has completed in this course.
+      supabase
+        .from('user_progress')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('course_id', courseId)
+        .eq('completed', true),
+    ])
+
+    const attemptsRow = attemptsResult.data
+    const allModules = allModulesResult.data
+    const completedLessonsCount = completedCountResult.count
+
     const moduleIds = allModules?.map(m => m.id) || []
-    
     let totalLessonsCount = 0
     if (moduleIds.length > 0) {
       const { count } = await supabase
@@ -161,13 +175,6 @@ export async function submitQuiz(
         .in('module_id', moduleIds)
       totalLessonsCount = count || 0
     }
-    
-    const { count: completedLessonsCount } = await supabase
-      .from('user_progress')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .eq('completed', true)
 
     const isCourseCompleted = completedLessonsCount !== null && totalLessonsCount !== 0 && completedLessonsCount >= totalLessonsCount
 

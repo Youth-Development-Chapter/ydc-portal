@@ -13,6 +13,8 @@ import {
   Shield,
   User,
   BookOpen,
+  Megaphone,
+  Gift,
 } from 'lucide-react'
 
 // Define the nav items with their corresponding permissions.
@@ -61,6 +63,18 @@ const NAV_ITEMS: Array<{
     name: 'Settings & Rewards',
     href: '/admin/settings',
     icon: Settings,
+    permission: 'can_manage_settings',
+  },
+  {
+    name: 'Announcements',
+    href: '/admin/announcements',
+    icon: Megaphone,
+    permission: 'can_manage_settings',
+  },
+  {
+    name: 'Reward Shop',
+    href: '/admin/rewards',
+    icon: Gift,
     permission: 'can_manage_settings',
   },
 ]
