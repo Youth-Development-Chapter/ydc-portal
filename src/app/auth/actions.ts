@@ -32,10 +32,12 @@ export async function signup(prevState: unknown, formData: FormData) {
     return { error: 'Password must be at least 8 characters long' }
   }
 
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const { error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      emailRedirectTo: `${origin}/auth/callback`,
       data: {
         full_name: fullname,
       }

@@ -31,7 +31,16 @@ interface AdminNavProps {
   desktopOnly?: boolean
 }
 
-const NAV_ITEMS = [
+interface NavItem {
+  name: string
+  href: string
+  icon: React.ComponentType<any>
+  permission?: string | null
+  exact?: boolean
+  requireExactRole?: string
+}
+
+const NAV_ITEMS: NavItem[] = [
   {
     name: 'Overview',
     href: '/admin',
@@ -62,7 +71,6 @@ const NAV_ITEMS = [
     href: '/admin/courses',
     icon: BookOpen,
     permission: 'can_manage_courses',
-    requireExactRole: 'admin',
   },
   {
     name: 'Settings & Rewards',

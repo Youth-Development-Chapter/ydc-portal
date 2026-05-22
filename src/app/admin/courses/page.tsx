@@ -2,6 +2,7 @@ import React from 'react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import CoursesAdminClient, { type CourseRow } from './CoursesAdminClient'
+import { hasAdminPermission } from '@/lib/admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,14 +15,9 @@ export default async function AdminCoursesPage() {
     redirect('/auth/login')
   }
 
-  // Authorize: LMS RLS requires literal profiles.role = 'admin'.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'admin') {
+  // Authorize
+  const hasPermission = await hasAdminPermission(user.id, 'can_manage_courses')
+  if (!hasPermission) {
     redirect('/admin')
   }
 

@@ -26,14 +26,10 @@ export default async function AdminCourseEditPage({
     redirect('/auth/login')
   }
 
-  // Authorize: LMS RLS requires literal profiles.role = 'admin'.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'admin') {
+  // Authorize
+  const { hasAdminPermission } = await import('@/lib/admin')
+  const hasPermission = await hasAdminPermission(user.id, 'can_manage_courses')
+  if (!hasPermission) {
     redirect('/admin')
   }
 

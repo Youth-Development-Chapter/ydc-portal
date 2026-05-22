@@ -4,8 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { randomBytes } from 'crypto'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { r2Client, R2_BUCKET_NAME } from '@/lib/r2'
+
 
 /** 5 MB upload limit for proof images */
 const MAX_FILE_SIZE = 5 * 1024 * 1024
@@ -102,47 +101,36 @@ export async function logDeed(prevState: unknown, formData: FormData) {
 
   let proofUrl = ''
 
-  // Resolve the public-read URL for R2 BEFORE the upload, so a missing
-  // env var fails loudly instead of silently writing a broken URL into
-  // the database. The R2 API endpoint (`*.r2.cloudflarestorage.com`)
-  // is not browser-readable — `CLOUDFLARE_R2_PUBLIC_URL` must point at
-  // an r2.dev subdomain or a custom domain that serves the bucket
-  // publicly.
-  const publicBaseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL
-  if (!publicBaseUrl || publicBaseUrl.includes('your-r2-public-url')) {
-    return {
-      error:
-        'Server misconfiguration: CLOUDFLARE_R2_PUBLIC_URL is not set to a real R2 public URL. Contact an admin.',
-    }
-  }
-  const cleanBaseUrl = publicBaseUrl.endsWith('/')
-    ? publicBaseUrl.slice(0, -1)
-    : publicBaseUrl
-
-  // Upload proof picture to Cloudflare R2
+  // Upload proof picture to local Supabase Storage (deeds bucket)
   const fileExt = proofPic.name.split('.').pop()?.toLowerCase() || 'jpg'
   // Use a cryptographically random UUID for the file name to prevent
   // enumeration of uploaded files.
   const { randomUUID } = await import('crypto')
-  const fileName = `deeds/${userId}/${randomUUID()}.${fileExt}`
+  const fileName = `${userId}/${randomUUID()}.${fileExt}`
 
   try {
     const arrayBuffer = await proofPic.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    await r2Client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: fileName,
-        Body: buffer,
-        ContentType: proofPic.type,
+    const { error: uploadError } = await supabase.storage
+      .from('deeds')
+      .upload(fileName, buffer, {
+        contentType: proofPic.type,
+        upsert: true,
       })
-    )
-  } catch (uploadError: unknown) {
-    return { error: `Failed to upload proof image to R2: ${uploadError instanceof Error ? uploadError.message : 'Unknown upload error'}` }
-  }
 
-  proofUrl = `${cleanBaseUrl}/${fileName}`
+    if (uploadError) {
+      return { error: `Failed to upload proof image to Supabase Storage: ${uploadError.message}` }
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('deeds')
+      .getPublicUrl(fileName)
+
+    proofUrl = publicUrlData.publicUrl
+  } catch (uploadError: unknown) {
+    return { error: `Failed to upload proof image: ${uploadError instanceof Error ? uploadError.message : 'Unknown upload error'}` }
+  }
 
   // Insert deed submission record
   const { error: insertError } = await supabase

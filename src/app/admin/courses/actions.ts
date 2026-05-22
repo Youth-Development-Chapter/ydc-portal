@@ -3,24 +3,17 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { hasAdminPermission } from '@/lib/admin'
 
-// LMS RLS policies allow writes only when profiles.role = 'admin' literally.
-// Other admin roles (superadmin/president/tier-3) would be rejected at the
-// database layer, so we mirror that gate here for a clean error message.
 async function requireCourseAdmin() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized. Please log in.' as const, supabase: null, user: null }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'admin') {
+  const hasPermission = await hasAdminPermission(user.id, 'can_manage_courses')
+  if (!hasPermission) {
     return {
-      error: "Permission denied. Only users with role='admin' can manage courses." as const,
+      error: "Permission denied. You do not have permission to manage courses." as const,
       supabase: null,
       user: null,
     }
