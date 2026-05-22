@@ -10,8 +10,6 @@ import {
   X, 
   QrCode, 
   UserCheck, 
-  AlertTriangle,
-  Sparkles,
   ClipboardList
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
@@ -19,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
 import { checkInTicket, createEvent, toggleManualAttendance } from '@/app/admin/actions'
+import { toast } from 'sonner'
 
 interface Registration {
   id: string
@@ -62,12 +61,6 @@ export default function EventsManager({
 
   // Scanner Tab States
   const [ticketInput, setTicketInput] = useState('')
-  const [scanResult, setScanResult] = useState<{
-    type: 'success' | 'error' | 'already'
-    message: string
-    userName?: string
-    coinsAwarded?: number
-  } | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
   // Create Event States
@@ -78,7 +71,6 @@ export default function EventsManager({
   const [newTime, setNewTime] = useState('')
   const [newLocation, setNewLocation] = useState('')
   const [newCapacity, setNewCapacity] = useState('100')
-  const [createError, setCreateError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
   // Manage Attendees States
@@ -91,29 +83,20 @@ export default function EventsManager({
     if (!ticketInput.trim()) return
 
     setIsScanning(true)
-    setScanResult(null)
 
     try {
       const res = await checkInTicket(ticketInput.trim())
       if (res?.error) {
         if (res.alreadyScanned) {
-          setScanResult({
-            type: 'already',
-            message: `Ticket was already scanned for user ${res.userName}.`,
-            userName: res.userName,
+          toast.warning(`Already Checked In`, {
+            description: `Ticket was already scanned for user ${res.userName}.`,
           })
         } else {
-          setScanResult({
-            type: 'error',
-            message: res.error,
-          })
+          toast.error(res.error)
         }
       } else {
-        setScanResult({
-          type: 'success',
-          message: `Check-in successful!`,
-          userName: res.userName,
-          coinsAwarded: res.coinsAwarded,
+        toast.success(`Check-In Complete!`, {
+          description: `Attendee: ${res.userName} | +${res.coinsAwarded} Coins Credited`,
         })
         
         // Update local attendance status
@@ -125,10 +108,7 @@ export default function EventsManager({
         setTicketInput('')
       }
     } catch (err: unknown) {
-      setScanResult({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'An error occurred during ticket scan.',
-      })
+      toast.error(err instanceof Error ? err.message : 'An error occurred during ticket scan.')
     } finally {
       setIsScanning(false)
     }
@@ -138,7 +118,6 @@ export default function EventsManager({
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
-    setCreateError(null)
 
     try {
       const capacityVal = parseInt(newCapacity, 10) || 100
@@ -152,8 +131,10 @@ export default function EventsManager({
       )
 
       if (res?.error) {
-        setCreateError(res.error)
+        toast.error(res.error)
       } else {
+        toast.success('Event scheduled successfully!')
+        
         // Close modal and reset fields
         setShowCreateModal(false)
         setNewTitle('')
@@ -163,10 +144,6 @@ export default function EventsManager({
         setNewLocation('')
         setNewCapacity('100')
 
-        // Fetch events again or update local state
-        // To be safe, let's create a temporary object or notify success
-        // In Next.js, actions run revalidatePath, so a soft refresh could work,
-        // but for immediate UI response let's append it locally
         const newEvt: EventItem = {
           id: Math.random().toString(36).substring(2, 9), // temp id, path will refresh
           title: newTitle,
@@ -179,7 +156,7 @@ export default function EventsManager({
         setEvents(prev => [newEvt, ...prev])
       }
     } catch (err: unknown) {
-      setCreateError(err instanceof Error ? err.message : 'An error occurred.')
+      toast.error(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsCreating(false)
     }
@@ -192,8 +169,13 @@ export default function EventsManager({
     try {
       const res = await toggleManualAttendance(regId, !currentStatus)
       if (res?.error) {
-        alert(res.error)
+        toast.error(res.error)
       } else {
+        const reg = registrations.find(r => r.id === regId)
+        const attendeeName = reg?.profiles.full_name || 'Attendee'
+        
+        toast.success(!currentStatus ? `${attendeeName} checked in successfully!` : `${attendeeName} checked out successfully!`)
+
         setRegistrations(prev =>
           prev.map(reg =>
             reg.id === regId ? { ...reg, attended: !currentStatus, attended_at: !currentStatus ? new Date().toISOString() : null } : reg
@@ -201,7 +183,7 @@ export default function EventsManager({
         )
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error occurred.')
+      toast.error(err instanceof Error ? err.message : 'Error occurred.')
     } finally {
       setIsTogglingAttendance(null)
     }
@@ -231,7 +213,7 @@ export default function EventsManager({
           <Button 
             onClick={() => setShowCreateModal(true)}
             size="sm"
-            className="bg-[#1D1D1D] hover:bg-black text-white"
+            className="bg-[#1D1D1D] hover:bg-black text-white py-2 rounded-lg font-semibold"
             leftIcon={<Plus size={16} />}
           >
             Create Event
@@ -263,51 +245,19 @@ export default function EventsManager({
                       placeholder="e.g. TKT-PION-XXXXXXXX"
                       value={ticketInput}
                       onChange={(e) => setTicketInput(e.target.value.toUpperCase())}
-                      className="text-center font-bold tracking-widest font-mono h-11 border-zinc-300 uppercase"
+                      className="text-center font-extrabold tracking-widest font-mono text-lg h-14 border-2 border-zinc-200 focus:border-[#0A9EDE] focus:ring-2 focus:ring-[#0A9EDE]/20 rounded-2xl bg-zinc-50/50 transition-all uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:font-normal"
                       disabled={isScanning}
                       required
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full bg-[#0BA242] border-[#0BA242] hover:bg-[#0BA242]/90 text-white font-bold h-11"
+                    className="w-full bg-[#0BA242] border-[#0BA242] hover:bg-[#0BA242]/90 text-white font-bold h-11 rounded-xl shadow-sm transition-all"
                     isLoading={isScanning}
                   >
                     Check In Ticket
                   </Button>
                 </form>
-
-                {/* Scan Results Panel */}
-                {scanResult && (
-                  <div className={`p-4 border rounded-2xl animate-in fade-in zoom-in-95 duration-200 ${
-                    scanResult.type === 'success' ? 'bg-[#0BA242]/5 border-[#0BA242]/20 text-[#0BA242]' :
-                    scanResult.type === 'already' ? 'bg-amber-50 border-amber-200 text-amber-800' :
-                    'bg-red-50 border-red-100 text-red-600'
-                  }`}>
-                    <div className="flex gap-3">
-                      {scanResult.type === 'success' && <Sparkles size={20} className="shrink-0 animate-bounce" />}
-                      {scanResult.type === 'already' && <AlertTriangle size={20} className="shrink-0" />}
-                      {scanResult.type === 'error' && <X size={20} className="shrink-0" />}
-                      <div className="space-y-1">
-                        <span className="font-extrabold text-sm block">
-                          {scanResult.type === 'success' ? 'Check-In Complete!' :
-                           scanResult.type === 'already' ? 'Already Checked In' : 'Error Occurred'}
-                        </span>
-                        <p className="text-xs">{scanResult.message}</p>
-                        {scanResult.userName && (
-                          <p className="text-xs font-semibold text-zinc-800 mt-1">
-                            Attendee: {scanResult.userName}
-                          </p>
-                        )}
-                        {scanResult.coinsAwarded && (
-                          <div className="inline-flex items-center gap-1 bg-[#0BA242]/10 border border-[#0BA242]/20 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-[#0BA242] mt-2">
-                            +{scanResult.coinsAwarded} Coins Credited
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Mock Ticket Codes For Testing */}
                 <div className="border-t border-zinc-150 pt-4 space-y-2">
@@ -318,14 +268,14 @@ export default function EventsManager({
                     {registrations.slice(0, 4).map(reg => (
                       <button
                         key={reg.id}
+                        type="button"
                         onClick={() => {
                           setTicketInput(reg.ticket_code)
-                          setScanResult(null)
                         }}
                         className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                           reg.attended 
-                            ? 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through' 
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:border-zinc-950'
+                            ? 'bg-zinc-100 border-zinc-250 text-zinc-400 line-through' 
+                            : 'bg-white border-zinc-250 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
                         }`}
                       >
                         {reg.ticket_code.slice(0, 12)}...
@@ -361,7 +311,7 @@ export default function EventsManager({
                     <CardContent className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="space-y-3 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 border border-zinc-255 text-zinc-700 font-extrabold tracking-wider uppercase">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold tracking-wider uppercase">
                             {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-600 font-extrabold tracking-wider uppercase">
@@ -385,7 +335,7 @@ export default function EventsManager({
                       </div>
 
                       <div className="shrink-0 flex md:flex-col items-stretch gap-2.5">
-                        <div className="text-left md:text-right px-2 py-1.5 bg-zinc-50 border border-zinc-150 rounded-xl">
+                        <div className="text-left md:text-right px-3 py-2 bg-zinc-50 border border-zinc-150 rounded-xl">
                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Attendance</span>
                           <span className="font-extrabold text-xs text-zinc-800">{attCount} checked in</span>
                         </div>
@@ -393,6 +343,7 @@ export default function EventsManager({
                           onClick={() => setSelectedEvent(event)}
                           variant="outline" 
                           size="sm"
+                          className="border-zinc-200 hover:bg-zinc-50"
                           leftIcon={<UserCheck size={14} />}
                         >
                           Manage Attendees
@@ -417,6 +368,7 @@ export default function EventsManager({
                     <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mt-0.5">Attendee Roster</p>
                   </div>
                   <button 
+                    type="button"
                     onClick={() => setSelectedEvent(null)}
                     className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
                   >
@@ -449,15 +401,22 @@ export default function EventsManager({
                             onClick={() => handleToggleAttendance(reg.id, reg.attended)}
                             variant={reg.attended ? 'primary' : 'outline'}
                             size="sm"
-                            className={`h-7 text-[10px] px-2.5 rounded-md font-bold uppercase tracking-wider shrink-0 ${
+                            className={`h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 ${
                               reg.attended 
-                                ? 'bg-[#0BA242] border-[#0BA242] hover:bg-[#DD0408] hover:border-[#DD0408] text-white hover:before:content-["Check_Out"] before:content-["Checked_In"] flex items-center justify-center w-24'
-                                : 'w-24'
+                                ? 'bg-[#0BA242] hover:bg-[#DD0408] border-[#0BA242] hover:border-[#DD0408] text-white w-24 group'
+                                : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24'
                             }`}
                             isLoading={isToggling}
-                            leftIcon={!isToggling && (reg.attended ? <Check size={10} /> : <Plus size={10} />)}
+                            leftIcon={!isToggling && (reg.attended ? <Check size={12} /> : <Plus size={12} />)}
                           >
-                            {reg.attended ? '' : 'Check In'}
+                            <span className={reg.attended ? "group-hover:hidden" : ""}>
+                              {reg.attended ? 'Checked In' : 'Check In'}
+                            </span>
+                            {reg.attended && (
+                              <span className="hidden group-hover:inline">
+                                Check Out
+                              </span>
+                            )}
                           </Button>
                         </div>
                       )
@@ -479,7 +438,7 @@ export default function EventsManager({
 
       {/* CREATE EVENT MODAL */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-zinc-200 overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-5 border-b border-zinc-150 flex justify-between items-center bg-zinc-50">
@@ -487,7 +446,11 @@ export default function EventsManager({
                 <Calendar size={18} className="text-zinc-950" />
                 Schedule New Event
               </h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer">
+              <button 
+                type="button"
+                onClick={() => setShowCreateModal(false)} 
+                className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -558,18 +521,11 @@ export default function EventsManager({
                     />
                   </div>
                 </div>
-
-                {createError && (
-                  <div className="flex gap-2 p-3 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-medium">
-                    <AlertTriangle size={16} className="shrink-0" />
-                    <span>{createError}</span>
-                  </div>
-                )}
               </div>
 
               {/* Footer */}
               <div className="px-6 py-4 border-t border-zinc-150 bg-zinc-50 flex justify-end gap-3">
-                <Button onClick={() => setShowCreateModal(false)} variant="outline" size="sm">
+                <Button type="button" onClick={() => setShowCreateModal(false)} variant="outline" size="sm">
                   Cancel
                 </Button>
                 <Button 

@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Coins, Save, Check, AlertTriangle, BookOpen } from 'lucide-react'
+import { Coins, Save, BookOpen } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { updateSystemSetting, updateCourseReward } from '@/app/admin/actions'
+import { toast } from 'sonner'
 
 interface SettingItem {
   key: string
@@ -40,38 +41,24 @@ export default function SettingsManager({
 
   // Saving states
   const [isSavingGlobal, setIsSavingGlobal] = useState(false)
-  const [globalMessage, setGlobalMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  
   const [savingCourseId, setSavingCourseId] = useState<string | null>(null)
-  const [courseMessages, setCourseMessages] = useState<Record<string, { type: 'success' | 'error'; text: string }>>({})
 
   // Handles saving global settings
   const handleSaveGlobal = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSavingGlobal(true)
-    setGlobalMessage(null)
 
     try {
       const res1 = await updateSystemSetting('daily_deed_reward', dailyDeedReward)
       const res2 = await updateSystemSetting('event_attendance_reward', eventReward)
 
       if (res1?.error || res2?.error) {
-        setGlobalMessage({
-          type: 'error',
-          text: res1?.error || res2?.error || 'Failed to update settings.',
-        })
+        toast.error(res1?.error || res2?.error || 'Failed to update settings.')
       } else {
-        setGlobalMessage({
-          type: 'success',
-          text: 'Global rewards settings saved successfully.',
-        })
-        setTimeout(() => setGlobalMessage(null), 3000)
+        toast.success('Global rewards settings saved successfully.')
       }
     } catch (err: unknown) {
-      setGlobalMessage({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'An error occurred.',
-      })
+      toast.error(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSavingGlobal(false)
     }
@@ -80,43 +67,20 @@ export default function SettingsManager({
   // Handles course-specific reward updates
   const handleSaveCourseReward = async (courseId: string, rewardVal: number) => {
     setSavingCourseId(courseId)
-    // Clear previous message for this course
-    setCourseMessages((prev) => {
-      const copy = { ...prev }
-      delete copy[courseId]
-      return copy
-    })
 
     try {
       const res = await updateCourseReward(courseId, rewardVal)
       if (res?.error) {
-        setCourseMessages((prev) => ({
-          ...prev,
-          [courseId]: { type: 'error', text: res.error || 'Failed to save.' },
-        }))
+        toast.error(res.error || 'Failed to save.')
       } else {
-        setCourseMessages((prev) => ({
-          ...prev,
-          [courseId]: { type: 'success', text: 'Saved!' },
-        }))
+        toast.success('Course reward points saved successfully!')
         // Refresh local state points representation
         setCourses((prev) =>
           prev.map((c) => (c.id === courseId ? { ...c, reward_points: rewardVal } : c))
         )
-        // Clear success message after delay
-        setTimeout(() => {
-          setCourseMessages((prev) => {
-            const copy = { ...prev }
-            delete copy[courseId]
-            return copy
-          })
-        }, 2000)
       }
     } catch (err: unknown) {
-      setCourseMessages((prev) => ({
-        ...prev,
-        [courseId]: { type: 'error', text: err instanceof Error ? err.message : 'Error occurred.' },
-      }))
+      toast.error(err instanceof Error ? err.message : 'Error occurred.')
     } finally {
       setSavingCourseId(null)
     }
@@ -153,7 +117,7 @@ export default function SettingsManager({
                       value={dailyDeedReward}
                       onChange={(e) => setDailyDeedReward(e.target.value)}
                       placeholder="e.g. 10"
-                      className="pl-10"
+                      className="pl-10 font-bold text-zinc-800"
                       min="0"
                       required
                     />
@@ -174,7 +138,7 @@ export default function SettingsManager({
                       value={eventReward}
                       onChange={(e) => setEventReward(e.target.value)}
                       placeholder="e.g. 50"
-                      className="pl-10"
+                      className="pl-10 font-bold text-zinc-800"
                       min="0"
                       required
                     />
@@ -186,26 +150,9 @@ export default function SettingsManager({
                 </div>
               </div>
 
-              {globalMessage && (
-                <div
-                  className={`p-3 rounded-lg text-xs flex gap-2 font-medium ${
-                    globalMessage.type === 'success'
-                      ? 'bg-[#0BA242]/10 border border-[#0BA242]/20 text-[#0BA242]'
-                      : 'bg-red-50 border border-red-100 text-red-600'
-                  }`}
-                >
-                  {globalMessage.type === 'success' ? (
-                    <Check size={16} className="shrink-0" />
-                  ) : (
-                    <AlertTriangle size={16} className="shrink-0" />
-                  )}
-                  <span>{globalMessage.text}</span>
-                </div>
-              )}
-
               <Button
                 type="submit"
-                className="w-full bg-[#1D1D1D] hover:bg-black text-white"
+                className="w-full bg-[#1D1D1D] hover:bg-black text-white py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-sm"
                 isLoading={isSavingGlobal}
                 leftIcon={<Save size={16} />}
               >
@@ -234,7 +181,6 @@ export default function SettingsManager({
             ) : (
               <div className="divide-y divide-zinc-200">
                 {courses.map((course) => {
-                  const msg = courseMessages[course.id]
                   const isSaving = savingCourseId === course.id
 
                   return (
@@ -253,17 +199,6 @@ export default function SettingsManager({
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        {/* Course feedback status message */}
-                        {msg && (
-                          <span
-                            className={`text-xs font-bold ${
-                              msg.type === 'success' ? 'text-[#0BA242]' : 'text-red-500'
-                            }`}
-                          >
-                            {msg.text}
-                          </span>
-                        )}
-
                         <div className="w-28 relative flex items-center">
                           <Input
                             type="number"
@@ -281,7 +216,7 @@ export default function SettingsManager({
                           onClick={() => handleSaveCourseReward(course.id, course.reward_points)}
                           variant="outline"
                           size="sm"
-                          className="h-9 px-3 shrink-0"
+                          className="h-9 px-3 shrink-0 border-zinc-200 hover:bg-zinc-50"
                           isLoading={isSaving}
                           leftIcon={!isSaving && <Save size={14} />}
                         >

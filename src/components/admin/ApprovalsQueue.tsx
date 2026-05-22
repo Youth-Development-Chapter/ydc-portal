@@ -15,6 +15,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { approveDeedSubmission, rejectDeedSubmission } from '@/app/admin/actions'
+import { toast } from 'sonner'
 
 interface MappedSubmission {
   id: string
@@ -46,14 +47,12 @@ export default function ApprovalsQueue({
   const [bonusCoins, setBonusCoins] = useState<number>(0)
   const [adminNotes, setAdminNotes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const openModal = (deed: MappedSubmission, type: 'approve' | 'reject' | 'image') => {
     setActiveDeed(deed)
     setModalType(type)
     setBonusCoins(0)
     setAdminNotes('')
-    setActionError(null)
   }
 
   const closeModal = () => {
@@ -61,25 +60,24 @@ export default function ApprovalsQueue({
     setModalType(null)
     setBonusCoins(0)
     setAdminNotes('')
-    setActionError(null)
   }
 
   const handleApprove = async () => {
     if (!activeDeed) return
     setIsSubmitting(true)
-    setActionError(null)
 
     try {
       const res = await approveDeedSubmission(activeDeed.id, bonusCoins, adminNotes)
       if (res?.error) {
-        setActionError(res.error)
+        toast.error(res.error)
       } else {
+        toast.success(`Approved deed for ${activeDeed.profiles.full_name}!`)
         // Success: remove from local list
         setSubmissions(prev => prev.filter(s => s.id !== activeDeed.id))
         closeModal()
       }
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'An error occurred during approval.')
+      toast.error(err instanceof Error ? err.message : 'An error occurred during approval.')
     } finally {
       setIsSubmitting(false)
     }
@@ -88,23 +86,23 @@ export default function ApprovalsQueue({
   const handleReject = async () => {
     if (!activeDeed) return
     if (!adminNotes.trim()) {
-      setActionError('A rejection reason is required.')
+      toast.error('A rejection reason is required.')
       return
     }
     setIsSubmitting(true)
-    setActionError(null)
 
     try {
       const res = await rejectDeedSubmission(activeDeed.id, adminNotes)
       if (res?.error) {
-        setActionError(res.error)
+        toast.error(res.error)
       } else {
+        toast.success(`Rejected deed for ${activeDeed.profiles.full_name}.`)
         // Success: remove from local list
         setSubmissions(prev => prev.filter(s => s.id !== activeDeed.id))
         closeModal()
       }
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'An error occurred during rejection.')
+      toast.error(err instanceof Error ? err.message : 'An error occurred during rejection.')
     } finally {
       setIsSubmitting(false)
     }
@@ -294,13 +292,6 @@ export default function ApprovalsQueue({
                   className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0A9EDE]"
                 />
               </div>
-
-              {actionError && (
-                <div className="flex gap-2 p-3 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-medium">
-                  <AlertTriangle size={16} className="shrink-0" />
-                  <span>{actionError}</span>
-                </div>
-              )}
             </div>
 
             {/* Actions */}
@@ -359,13 +350,6 @@ export default function ApprovalsQueue({
                   required
                 />
               </div>
-
-              {actionError && (
-                <div className="flex gap-2 p-3 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-medium">
-                  <AlertTriangle size={16} className="shrink-0" />
-                  <span>{actionError}</span>
-                </div>
-              )}
             </div>
 
             {/* Actions */}

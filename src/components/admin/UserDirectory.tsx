@@ -21,6 +21,7 @@ import { Switch } from '@/components/ui/Switch'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import { updateUserAdminRole, adjustUserCoins } from '@/app/admin/actions'
+import { toast } from 'sonner'
 
 interface GranularPermissions {
   can_scan_tickets: boolean
@@ -76,16 +77,12 @@ export default function UserDirectory({
   const [adjustmentReason, setAdjustmentReason] = useState<string>('')
   
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
   const openRoleModal = (user: DirectoryUser) => {
     setActiveUser(user)
     setTargetRole(user.role)
     setPerms({ ...user.permissions })
     setModalType('role')
-    setActionError(null)
-    setActionSuccess(null)
   }
 
   const openCoinModal = (user: DirectoryUser) => {
@@ -93,28 +90,23 @@ export default function UserDirectory({
     setCoinAdjustment('')
     setAdjustmentReason('')
     setModalType('coins')
-    setActionError(null)
-    setActionSuccess(null)
   }
 
   const closeModal = () => {
     setActiveUser(null)
     setModalType(null)
-    setActionError(null)
-    setActionSuccess(null)
   }
 
   const handleRoleUpdate = async () => {
     if (!activeUser) return
     setIsSubmitting(true)
-    setActionError(null)
 
     try {
       const res = await updateUserAdminRole(activeUser.id, targetRole, perms)
       if (res?.error) {
-        setActionError(res.error)
+        toast.error(res.error)
       } else {
-        setActionSuccess('Role and permissions updated successfully!')
+        toast.success(`Role and permissions updated for ${activeUser.full_name}!`)
         
         // Update local state
         setUsers(prev => 
@@ -125,10 +117,10 @@ export default function UserDirectory({
           )
         )
         
-        setTimeout(() => closeModal(), 1500)
+        closeModal()
       }
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'An error occurred.')
+      toast.error(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSubmitting(false)
     }
@@ -138,23 +130,22 @@ export default function UserDirectory({
     if (!activeUser) return
     const amount = parseInt(coinAdjustment, 10)
     if (isNaN(amount) || amount === 0) {
-      setActionError('Please enter a valid non-zero coin amount.')
+      toast.error('Please enter a valid non-zero coin amount.')
       return
     }
     if (!adjustmentReason.trim()) {
-      setActionError('Adjustment reason is required.')
+      toast.error('Adjustment reason is required.')
       return
     }
 
     setIsSubmitting(true)
-    setActionError(null)
 
     try {
       const res = await adjustUserCoins(activeUser.id, amount, adjustmentReason)
       if (res?.error) {
-        setActionError(res.error)
+        toast.error(res.error)
       } else {
-        setActionSuccess('Coins ledger entry recorded successfully!')
+        toast.success(`Adjusted balance by ${amount > 0 ? '+' : ''}${amount} coins for ${activeUser.full_name}!`)
         
         // Update local state
         setUsers(prev => 
@@ -165,10 +156,10 @@ export default function UserDirectory({
           )
         )
         
-        setTimeout(() => closeModal(), 1500)
+        closeModal()
       }
     } catch (err: unknown) {
-      setActionError(err instanceof Error ? err.message : 'An error occurred.')
+      toast.error(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSubmitting(false)
     }
@@ -280,9 +271,9 @@ export default function UserDirectory({
                               user.role === 'tier-3' ? 'outline' : 'default'
                             }
                             className={
-                              user.role === 'superadmin' ? 'bg-zinc-950 text-white' :
-                              user.role === 'president' ? 'bg-zinc-900 text-white border-zinc-700' :
-                              user.role === 'tier-3' ? 'border-[#0A9EDE] text-[#0A9EDE] bg-[#0A9EDE]/5' : 
+                              user.role === 'superadmin' ? 'bg-[#DD0408] border-[#DD0408] text-white' :
+                              user.role === 'president' ? 'bg-[#0A9EDE] border-[#0A9EDE] text-white' :
+                              user.role === 'tier-3' ? 'border-[#0BA242] text-[#0BA242] bg-[#0BA242]/5' : 
                               'bg-zinc-100 text-zinc-700'
                             }
                           >
@@ -338,7 +329,7 @@ export default function UserDirectory({
 
       {/* EDIT ROLE & PERMISSIONS MODAL */}
       {modalType === 'role' && activeUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-zinc-200 overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-5 border-b border-zinc-150 flex justify-between items-center bg-zinc-50">
@@ -418,20 +409,6 @@ export default function UserDirectory({
                   </div>
                 </div>
               )}
-
-              {actionError && (
-                <div className="flex gap-2 p-3 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-medium">
-                  <AlertTriangle size={16} className="shrink-0" />
-                  <span>{actionError}</span>
-                </div>
-              )}
-
-              {actionSuccess && (
-                <div className="flex gap-2 p-3 bg-[#0BA242]/10 border border-[#0BA242]/20 text-xs text-[#0BA242] rounded-lg font-medium">
-                  <Check size={16} className="shrink-0" />
-                  <span>{actionSuccess}</span>
-                </div>
-              )}
             </div>
 
             {/* Footer */}
@@ -455,7 +432,7 @@ export default function UserDirectory({
 
       {/* ADJUST COINS MODAL */}
       {modalType === 'coins' && activeUser && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-zinc-200 overflow-hidden animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className="px-6 py-5 border-b border-zinc-150 flex justify-between items-center bg-zinc-50">
@@ -503,20 +480,6 @@ export default function UserDirectory({
                   required
                 />
               </div>
-
-              {actionError && (
-                <div className="flex gap-2 p-3 bg-red-50 border border-red-100 text-xs text-red-600 rounded-lg font-medium">
-                  <AlertTriangle size={16} className="shrink-0" />
-                  <span>{actionError}</span>
-                </div>
-              )}
-
-              {actionSuccess && (
-                <div className="flex gap-2 p-3 bg-[#0BA242]/10 border border-[#0BA242]/20 text-xs text-[#0BA242] rounded-lg font-medium">
-                  <Check size={16} className="shrink-0" />
-                  <span>{actionSuccess}</span>
-                </div>
-              )}
             </div>
 
             {/* Footer */}

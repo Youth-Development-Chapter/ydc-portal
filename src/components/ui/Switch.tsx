@@ -57,13 +57,13 @@ export const Switch = ({
         onKeyDown={handleKeyDown}
         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1D1D1D] focus:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
           isChecked 
-            ? "bg-[#1D1D1D] shadow-sm dark:bg-white" 
-            : "bg-[#E5E5E5] dark:bg-[#333333]"
+            ? "bg-[#1D1D1D] shadow-sm" 
+            : "bg-[#E5E5E5]"
         }`}
         {...props}
       >
         <span
-          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white dark:bg-[#111111] shadow-md ring-0 transition duration-300 ease-in-out ${
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-300 ease-in-out ${
             isChecked 
               ? "translate-x-5" 
               : "translate-x-0"
@@ -75,7 +75,7 @@ export const Switch = ({
         <label
           htmlFor={switchId}
           className={`text-sm font-medium cursor-pointer ${
-            disabled ? "text-[#A3A3A3] cursor-not-allowed" : "text-[#1D1D1D] dark:text-white"
+            disabled ? "text-[#A3A3A3] cursor-not-allowed" : "text-[#1D1D1D]"
           }`}
         >
           {label}

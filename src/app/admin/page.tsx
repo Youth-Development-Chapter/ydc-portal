@@ -98,35 +98,36 @@ export default async function AdminDashboardOverview() {
   ]
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 to-zinc-800 rounded-3xl p-8 border border-zinc-800 shadow-xl relative overflow-hidden text-white">
-        <div className="absolute right-0 top-0 w-1/3 h-full opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,#DD0408,transparent_60%)]"></div>
+      <div className="relative bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 border border-zinc-200 shadow-sm overflow-hidden text-zinc-900">
+        <div className="absolute top-0 left-0 w-full h-[3px] fluid-header-gradient"></div>
+        <div className="absolute right-0 top-0 w-1/2 h-full opacity-[0.04] pointer-events-none bg-[radial-gradient(circle_at_top_right,#DD0408_0%,#0A9EDE_50%,transparent_100%)]"></div>
         <div className="relative z-10 space-y-2">
-          <h1 className="text-3xl font-extrabold tracking-tight">Overview Dashboard</h1>
-          <p className="text-zinc-400 text-sm max-w-xl">
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-900">Overview Dashboard</h1>
+          <p className="text-zinc-600 text-sm max-w-2xl leading-relaxed">
             Welcome to the YDC Administration panel. Review volunteer deeds, check in event attendees, manage rewards, and customize permissions.
           </p>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <Card key={stat.name} className="shadow-sm">
+            <Card key={stat.name} interactive className="shadow-sm hover:border-[#1d1d1d]/20 transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
-                  <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{stat.name}</span>
-                  <h3 className="text-3xl font-extrabold text-zinc-950 mt-1">{stat.value}</h3>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">{stat.name}</span>
+                  <h3 className="text-3xl font-extrabold text-zinc-900 mt-1 tracking-tight">{stat.value}</h3>
                 </div>
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color} shrink-0`}>
-                  <Icon size={24} />
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${stat.color} shrink-0 shadow-inner`}>
+                  <Icon size={22} />
                 </div>
               </CardHeader>
               <CardContent className="mt-1">
-                <span className="text-xs text-zinc-400 font-medium">{stat.description}</span>
+                <span className="text-xs text-zinc-500 font-medium">{stat.description}</span>
               </CardContent>
             </Card>
           )
@@ -134,7 +135,7 @@ export default async function AdminDashboardOverview() {
       </div>
 
       {/* Main Content Splits */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         
         {/* Approvals Feed */}
         <div className="lg:col-span-2 space-y-6">

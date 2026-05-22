@@ -52,8 +52,8 @@ export const TabsList = ({ className = "", variant = "line", children, ...props 
   const baseListClass = "flex items-center gap-1 overflow-x-auto scrollbar-none select-none";
   
   const variantStyles = {
-    line: "border-b border-[#E5E5E5] dark:border-[#333333] pb-[1px] w-full",
-    pill: "bg-[#F5F5F5] dark:bg-[#111111] border border-[#E5E5E5] dark:border-[#222222] p-1 rounded-xl w-fit",
+    line: "border-b border-[#E5E5E5] pb-[1px] w-full",
+    pill: "bg-[#F5F5F5] border border-[#E5E5E5] p-1 rounded-xl w-fit",
   };
 
   return (
@@ -85,11 +85,11 @@ export const TabsTrigger = ({
     "inline-flex items-center justify-center font-semibold text-sm transition-all duration-200 focus:outline-none shrink-0 cursor-pointer select-none active:scale-95";
 
   const variantTriggerStyles = {
-    line: `relative px-4 py-3 text-[#555555] hover:text-[#1D1D1D] dark:text-[#A3A3A3] dark:hover:text-white ${
-      isActive ? "text-[#1D1D1D] dark:text-white" : ""
+    line: `relative px-4 py-3 text-[#555555] hover:text-[#1D1D1D] ${
+      isActive ? "text-[#1D1D1D]" : ""
     }`,
-    pill: `px-4 py-2 rounded-lg text-[#555555] hover:text-[#1D1D1D] dark:text-[#A3A3A3] dark:hover:text-white ${
-      isActive ? "bg-white text-[#1D1D1D] shadow-sm border border-[#E5E5E5] dark:bg-[#222222] dark:border-[#333333] dark:text-white" : "border border-transparent"
+    pill: `px-4 py-2 rounded-lg text-[#555555] hover:text-[#1D1D1D] ${
+      isActive ? "bg-white text-[#1D1D1D] shadow-sm border border-[#E5E5E5]" : "border border-transparent"
     }`,
   };
 
@@ -104,7 +104,7 @@ export const TabsTrigger = ({
       
       {/* Black/White underline for active line tab */}
       {variant === "line" && isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1D1D1D] dark:bg-white animate-fadeIn rounded-full" />
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1D1D1D] animate-fadeIn rounded-full" />
       )}
     </button>
   );

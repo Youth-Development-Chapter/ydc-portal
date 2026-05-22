@@ -17,11 +17,11 @@ export const Badge = ({
 
   const variants = {
     default:
-      "bg-[#F5F5F5] border-[#E5E5E5] text-[#1D1D1D] dark:bg-[#1A1A1A] dark:border-[#333333] dark:text-[#F5F5F5]",
+      "bg-[#F5F5F5] border-[#E5E5E5] text-[#1D1D1D]",
     outline:
-      "bg-transparent border-[#E5E5E5] text-[#1D1D1D] dark:border-[#333333] dark:text-[#F5F5F5]",
+      "bg-transparent border-[#E5E5E5] text-[#1D1D1D]",
     inverse:
-      "bg-[#1D1D1D] border-[#1D1D1D] text-white dark:bg-white dark:border-white dark:text-[#111111]",
+      "bg-[#1D1D1D] border-[#1D1D1D] text-white",
   };
 
   return (
