@@ -33,11 +33,13 @@ export default function AuthCodeErrorPage() {
       const errorDescription = hashErrorDesc || queryErrorDesc;
 
       if (error || errorCode || errorDescription) {
-        setErrorDetails({
-          error: error || "authentication_error",
-          errorCode: errorCode || "unknown",
-          errorDescription: errorDescription ? decodeURIComponent(errorDescription).replace(/\+/g, " ") : "An unknown authentication error occurred.",
-        });
+        setTimeout(() => {
+          setErrorDetails({
+            error: error || "authentication_error",
+            errorCode: errorCode || "unknown",
+            errorDescription: errorDescription ? decodeURIComponent(errorDescription).replace(/\+/g, " ") : "An unknown authentication error occurred.",
+          });
+        }, 0);
       }
     }
   }, []);

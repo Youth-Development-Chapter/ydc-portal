@@ -15,12 +15,12 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       // Allow fonts from Google Fonts and same origin
       "font-src 'self' https://fonts.gstatic.com data:",
-      // Allow images from same origin, Supabase storage, R2, and data URIs
-      "img-src 'self' data: blob: https://*.supabase.co https://*.r2.dev https://*.cloudflare.com https://images.unsplash.com",
+      // Allow images from same origin, Supabase storage, R2, sslip.io, and data URIs
+      "img-src 'self' data: blob: https://*.supabase.co https://*.r2.dev https://*.cloudflare.com https://images.unsplash.com http://*.sslip.io https://*.sslip.io",
       // Allow connections to Supabase for auth/data
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.r2.cloudflarestorage.com",
-      // Allow video from R2 and same origin
-      "media-src 'self' blob: https://*.r2.dev https://*.cloudflare.com https://www.w3schools.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.r2.cloudflarestorage.com http://*.sslip.io https://*.sslip.io ws://*.sslip.io wss://*.sslip.io",
+      // Allow video from R2, sslip.io and same origin
+      "media-src 'self' blob: https://*.r2.dev https://*.cloudflare.com https://www.w3schools.com http://*.sslip.io https://*.sslip.io",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -42,6 +42,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "*.supabase.co" },
       { protocol: "https", hostname: "*.r2.dev" },
       { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "http", hostname: "*.sslip.io" },
+      { protocol: "https", hostname: "*.sslip.io" },
     ],
   },
 };

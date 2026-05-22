@@ -34,7 +34,7 @@ interface AdminNavProps {
 interface NavItem {
   name: string
   href: string
-  icon: React.ComponentType<any>
+  icon: React.ElementType
   permission?: string | null
   exact?: boolean
   requireExactRole?: string

@@ -26,8 +26,9 @@ export default function SignupPage() {
       if (res?.success) {
         (e.target as HTMLFormElement).reset();
       }
-    } catch (err: any) {
-      setState({ error: err?.message || "An unexpected error occurred." });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred.";
+      setState({ error: message });
     } finally {
       setPending(false);
     }
