@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings } from "lucide-react";
+import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings, Gift, Megaphone, Trophy } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses } from "@/lib/lms-data";
@@ -365,6 +365,36 @@ export default async function UserDashboard() {
               </div>
               <h4 className="font-bold mb-1 relative z-10">Log Deed</h4>
               <p className="text-xs text-white/80 relative z-10">Keep your streak</p>
+            </div>
+          </Link>
+
+          <Link href="/dashboard/rewards" className="block">
+            <div className="bg-gradient-to-br from-[#0BA242] to-[#098235] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Gift size={48} />
+              </div>
+              <h4 className="font-bold mb-1 relative z-10">Reward Shop</h4>
+              <p className="text-xs text-white/80 relative z-10">Spend your coins</p>
+            </div>
+          </Link>
+
+          <Link href="/dashboard/announcements" className="block">
+            <div className="bg-gradient-to-br from-[#E8F6FF] to-[#F0FAFF] border border-[#0A9EDE]/20 text-[#1D1D1D] rounded-2xl p-5 shadow-sm relative overflow-hidden cursor-pointer group h-full">
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-35 transition-opacity">
+                <Megaphone size={42} className="text-[#0A9EDE]" />
+              </div>
+              <h4 className="font-bold mb-1 relative z-10">Announcements</h4>
+              <p className="text-xs text-[#555555] relative z-10">Latest updates</p>
+            </div>
+          </Link>
+
+          <Link href="/leaderboard" className="block">
+            <div className="bg-gradient-to-br from-[#FFF8E6] to-[#FFF3CF] border border-yellow-300/70 text-[#1D1D1D] rounded-2xl p-5 shadow-sm relative overflow-hidden cursor-pointer group h-full">
+              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-35 transition-opacity">
+                <Trophy size={42} className="text-yellow-700" />
+              </div>
+              <h4 className="font-bold mb-1 relative z-10">Leaderboard</h4>
+              <p className="text-xs text-[#555555] relative z-10">See top members</p>
             </div>
           </Link>
         </div>

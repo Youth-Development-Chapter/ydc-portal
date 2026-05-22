@@ -91,16 +91,12 @@ export async function submitQuiz(
     }
   }
 
-  // 4. Find the course this lesson belongs to — run in parallel with MCQ fetch
-  //    since we already have the answers, we just need lesson→module→course chain.
-  const [lessonResult, moduleResult] = await Promise.all([
-    supabase.from('lessons').select('module_id').eq('id', lessonId).single(),
-    // module lookup depends on lesson result, so the second parallel query fetches
-    // lesson first; we resolve module after.
-    Promise.resolve(null),
-  ])
-
-  const { data: lessonRow, error: lessonError } = lessonResult
+  // 4. Find the course this lesson belongs to.
+  const { data: lessonRow, error: lessonError } = await supabase
+    .from('lessons')
+    .select('module_id')
+    .eq('id', lessonId)
+    .single()
 
   if (lessonError || !lessonRow) {
     console.error('submitQuiz: failed to find lesson', lessonError)
@@ -112,9 +108,6 @@ export async function submitQuiz(
     .select('course_id')
     .eq('id', lessonRow.module_id)
     .single()
-
-  // silence unused variable warning from Promise.resolve(null)
-  void moduleResult
 
   if (moduleError || !moduleRow) {
     console.error('submitQuiz: failed to find module', moduleError)
