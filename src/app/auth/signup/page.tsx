@@ -30,10 +30,10 @@ export default function SignupPage() {
       <div className="fluid-bottom-gradient"></div>
       
       <div className="sm:mx-auto sm:w-full sm:max-w-md px-6 relative z-10">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#555555] hover:text-[#1D1D1D] mb-6 group transition-colors cursor-pointer">
+        <a href="https://ydc.org.pk" className="inline-flex items-center gap-2 text-sm text-[#555555] hover:text-[#1D1D1D] mb-6 group transition-colors cursor-pointer">
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
           Back to Home
-        </Link>
+        </a>
         <div className="flex items-center justify-center gap-3 mb-4">
           <img src="/logocolor.png" alt="YDC Logo" className="h-25 w-auto drop-shadow-sm" />
         </div>
