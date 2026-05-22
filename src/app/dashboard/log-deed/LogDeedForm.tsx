@@ -1,13 +1,66 @@
 "use client";
 
 import React, { useActionState } from "react";
-import { Camera, Heart, Award, AlertCircle } from "lucide-react";
+import { Camera, Heart, Award, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { logDeed } from "../../actions";
 
-export default function LogDeedForm() {
+export default function LogDeedForm({ submissions = [] }: { submissions?: any[] }) {
   const [state, action, pending] = useActionState(logDeed, null);
+  const [submissionsTodayCount, setSubmissionsTodayCount] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    
+    const count = submissions.filter(
+      (sub: any) => sub.local_date === todayStr && (sub.status === 'approved' || sub.status === 'pending')
+    ).length;
+    
+    setSubmissionsTodayCount(count);
+    setIsLoading(false);
+  }, [submissions]);
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] h-64 animate-pulse"></div>
+    );
+  }
+
+  if (submissionsTodayCount >= 3) {
+    return (
+      <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0BA242] to-emerald-400"></div>
+        <div className="absolute -right-24 -top-24 w-48 h-48 bg-[#0BA242]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-2xl bg-[#0BA242]/10 flex items-center justify-center text-[#0BA242]">
+            <CheckCircle2 size={24} className="fill-[#0BA242]/20" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-[#0BA242] flex items-center gap-1.5">
+              Daily Limit Reached
+            </h2>
+            <p className="text-xs text-[#555555]">Your daily streak is locked in and protected.</p>
+          </div>
+        </div>
+
+        <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
+          <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Incredible Work!</p>
+          <p className="text-sm font-semibold text-[#1D1D1D] italic">You have submitted 3 deeds today. Thank you for your amazing contributions!</p>
+        </div>
+
+        <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
+          Limit 3 submissions per day. Check back tomorrow to log your next deed and keep your fire active!
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
@@ -19,7 +72,7 @@ export default function LogDeedForm() {
         </div>
         <div>
           <h2 className="text-lg font-bold">Goodness Tracker</h2>
-          <p className="text-xs text-[#555555]">Log a daily good deed to keep your active streak burning!</p>
+          <p className="text-xs text-[#555555]">Log a daily good deed to keep your active streak burning! ({submissionsTodayCount}/3 logged today)</p>
         </div>
       </div>
 

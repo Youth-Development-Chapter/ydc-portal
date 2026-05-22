@@ -4,6 +4,8 @@ import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle, ExternalLink, F
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LogDeedForm from "./LogDeedForm";
+import LocalTime from "@/components/ui/LocalTime";
+import WeeklyActivity from "@/components/ui/WeeklyActivity";
 
 export const dynamic = "force-dynamic";
 
@@ -46,40 +48,6 @@ export default async function LogDeedPage() {
   const nextMilestone = milestones.find(m => m > currentStreak) || 365;
   const progressPercent = Math.min(100, Math.round((currentStreak / nextMilestone) * 100));
   const daysRemaining = nextMilestone - currentStreak;
-
-  // Determine if a deed has already been completed or submitted today
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-  const todaySubmission = (submissions || []).find(
-    sub => sub.local_date === todayStr && (sub.status === 'approved' || sub.status === 'pending')
-  );
-
-  // Calculate rolling 7-day activity stepper data (inclusive of today)
-  const last7Days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-    
-    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-    const dayNum = d.getDate();
-    const isToday = i === 0;
-
-    // Check if an approved or pending deed exists for this local date Str
-    const hasDeed = (submissions || []).some(
-      sub => sub.local_date === dateStr && (sub.status === 'approved' || sub.status === 'pending')
-    );
-
-    last7Days.push({
-      dateStr,
-      dayName,
-      dayNum,
-      isToday,
-      hasDeed
-    });
-  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
@@ -136,33 +104,7 @@ export default async function LogDeedPage() {
           {/* 7-DAY STEPS TRACKER */}
           <div className="border-t border-[#F0F0F0] pt-5 pb-2">
             <p className="text-xs font-semibold text-[#555555] mb-4 uppercase tracking-wider">Weekly Activity</p>
-            <div className="flex justify-between items-center relative">
-              {/* Connecting line */}
-              <div className="absolute top-5 left-4 right-4 h-[2px] bg-[#E5E5E5] -z-10"></div>
-              
-              {last7Days.map((day) => (
-                <div key={day.dateStr} className="flex flex-col items-center flex-1">
-                  <div 
-                    className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${
-                      day.hasDeed 
-                        ? "bg-gradient-to-br from-[#0BA242] to-emerald-600 border-[#0BA242] shadow-md shadow-emerald-500/10 text-white" 
-                        : day.isToday
-                          ? "bg-[#F0F9FF] border-[#0A9EDE] text-[#0A9EDE] animate-pulse shadow-inner"
-                          : "bg-[#F5F5F5] border-[#E5E5E5] text-[#8A8A8A]"
-                    }`}
-                  >
-                    {day.hasDeed ? (
-                      <Flame size={18} className="fill-white/20" />
-                    ) : (
-                      <span className="text-xs font-bold font-mono">{day.dayNum}</span>
-                    )}
-                  </div>
-                  <span className={`text-[10px] mt-2 font-semibold ${day.isToday ? "text-[#0A9EDE] font-bold" : "text-[#8A8A8A]"}`}>
-                    {day.isToday ? "Today" : day.dayName}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <WeeklyActivity submissions={submissions || []} />
           </div>
 
           {/* MILESTONE PROGRESS */}
@@ -188,69 +130,7 @@ export default async function LogDeedPage() {
         </div>
 
         {/* Client-Side Input Form or Completed/Pending Alert Cards */}
-        {todaySubmission ? (
-          todaySubmission.status === 'approved' ? (
-            <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0BA242] to-emerald-400"></div>
-              <div className="absolute -right-24 -top-24 w-48 h-48 bg-[#0BA242]/5 rounded-full blur-3xl pointer-events-none"></div>
-
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-[#0BA242]/10 flex items-center justify-center text-[#0BA242]">
-                  <CheckCircle2 size={24} className="fill-[#0BA242]/20" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#0BA242] flex items-center gap-1.5">
-                    Deed Completed! <Sparkles size={16} className="text-amber-500 fill-amber-400" />
-                  </h2>
-                  <p className="text-xs text-[#555555]">Your daily streak is locked in and protected.</p>
-                </div>
-              </div>
-
-              <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
-                <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Your Deed Today</p>
-                <p className="text-sm font-semibold text-[#1D1D1D] italic">&ldquo;{todaySubmission.description}&rdquo;</p>
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs text-green-800 flex items-center gap-2">
-                  <Award size={16} className="text-green-600" />
-                  <span>Credited **+{(todaySubmission.coin_reward ?? 10) + (todaySubmission.bonus_coins ?? 0)} YDC Coins** to your wallet</span>
-                </div>
-              </div>
-
-              <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
-                Limit one submission per day. Check back tomorrow to log your next deed and keep your fire active!
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-amber-500 to-orange-400"></div>
-              <div className="absolute -right-24 -top-24 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 animate-pulse">
-                  <Clock size={24} className="text-amber-500" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-amber-600">Deed Under Review</h2>
-                  <p className="text-xs text-[#555555]">Submitted successfully! Pending administrator verification.</p>
-                </div>
-              </div>
-
-              <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
-                <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Your Submission Today</p>
-                <p className="text-sm font-semibold text-[#1D1D1D] italic">&ldquo;{todaySubmission.description}&rdquo;</p>
-                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 flex items-center gap-2">
-                  <AlertCircle size={16} className="text-amber-600" />
-                  <span>Your streak is safe! Once approved, +10 Coins (and any bonuses) will be credited.</span>
-                </div>
-              </div>
-
-              <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
-                Limit one active submission per day. Administrators will review your proof picture shortly.
-              </p>
-            </div>
-          )
-        ) : (
-          <LogDeedForm />
-        )}
+        <LogDeedForm submissions={submissions || []} />
 
         {/* Deed History Card */}
         <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
@@ -261,14 +141,6 @@ export default async function LogDeedPage() {
           <div className="space-y-4">
             {submissions && submissions.length > 0 ? (
               submissions.map((submission) => {
-                const date = new Date(submission.created_at).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                });
-
                 return (
                   <div key={submission.id} className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -276,7 +148,7 @@ export default async function LogDeedPage() {
                         <p className="text-sm font-semibold text-[#1D1D1D] leading-tight">{submission.description}</p>
                         <p className="text-[10px] text-[#8A8A8A] flex items-center gap-1">
                           <Clock size={10} />
-                          {date}
+                          <LocalTime dateStr={submission.created_at} />
                         </p>
                       </div>
 

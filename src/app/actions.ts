@@ -94,9 +94,9 @@ export async function logDeed(prevState: unknown, formData: FormData) {
     return { error: `Database error checking existing deeds: ${queryError.message}` }
   }
 
-  const hasDuplicate = existingDeeds && existingDeeds.some(d => d.status === 'approved' || d.status === 'pending')
-  if (hasDuplicate) {
-    return { error: 'You have already submitted a deed for today.' }
+  const validDeeds = existingDeeds ? existingDeeds.filter(d => d.status === 'approved' || d.status === 'pending') : []
+  if (validDeeds.length >= 3) {
+    return { error: 'Daily limit reached: You can only submit up to 3 deeds per day.' }
   }
 
   let proofUrl = ''
