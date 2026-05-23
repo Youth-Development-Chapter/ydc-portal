@@ -88,7 +88,7 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
 
           {/* Separate Book Cover Thumbnail */}
           {course.imageUrl && (
-            <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 bg-neutral-900">
+            <div className="relative w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 bg-neutral-900">
               <Image
                 src={course.imageUrl}
                 fill
