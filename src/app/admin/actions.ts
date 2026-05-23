@@ -848,10 +848,16 @@ export async function getUserFullHistory(targetUserId: string) {
     .eq('user_id', targetUserId)
     .order('completed_at', { ascending: false })
 
+  // Calculate sum of coins from ledger transactions
+  const totalCoins = (coinTransactions || []).reduce((sum, tx) => sum + tx.amount, 0)
+
   return {
     success: true,
     data: {
-      profile,
+      profile: {
+        ...profile,
+        coins: totalCoins,
+      },
       streak: streak || { current_streak: 0, longest_streak: 0, last_deed_date: null },
       coinTransactions: coinTransactions || [],
       registrations: registrations || [],
