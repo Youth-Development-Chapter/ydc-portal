@@ -208,3 +208,10 @@ export async function updatePassword(prevState: unknown, formData: FormData) {
 
   redirect('/dashboard')
 }
+
+export async function logout() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+  redirect('/auth/login')
+}
+

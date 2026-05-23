@@ -5,6 +5,7 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { logout } from "@/app/auth/actions";
 import { getCourses } from "@/lib/lms-data";
 import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
 import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
@@ -389,9 +390,11 @@ export default async function UserDashboard() {
             <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Settings">
               <Settings size={16} />
             </Link>
-            <Link href="/auth/login" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Logout">
-              <LogOut size={16} />
-            </Link>
+            <form action={logout}>
+              <button type="submit" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm cursor-pointer" title="Logout">
+                <LogOut size={16} />
+              </button>
+            </form>
           </div>
         </div>
       </div>
