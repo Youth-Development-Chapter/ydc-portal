@@ -26,8 +26,9 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
-      <main className="max-w-lg mx-auto w-full px-4 py-6">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+      <div className="fluid-top-gradient"></div>
+      <main className="max-w-lg mx-auto w-full px-4 py-6 relative z-10">
         <SettingsForm initialProfile={profile} />
       </main>
     </div>

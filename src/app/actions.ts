@@ -148,6 +148,7 @@ export async function logDeed(prevState: unknown, formData: FormData) {
   }
 
   revalidatePath('/dashboard')
-  redirect('/dashboard')
+  revalidatePath('/dashboard/log-deed')
+  return { success: true }
 }
 

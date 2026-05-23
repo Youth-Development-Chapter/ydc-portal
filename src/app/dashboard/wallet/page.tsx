@@ -1,8 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Coins, ArrowUpRight, ArrowDownLeft, Calendar } from "lucide-react";
+import { Coins, ArrowUpRight, ArrowDownLeft, Calendar } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import PageHeader from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -40,22 +41,12 @@ export default async function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
-      <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+      <div className="fluid-top-gradient"></div>
+      <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6 relative z-10">
         
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <Link 
-            href="/dashboard" 
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors shadow-sm"
-          >
-            <ArrowLeft size={20} className="text-[#1D1D1D]" />
-          </Link>
-          <span className="font-extrabold text-base tracking-tight text-[#1D1D1D] font-coolvetica">
-            YDC Wallet
-          </span>
-          <div className="w-10 h-10 opacity-0 pointer-events-none" /> {/* Spacer */}
-        </div>
+        <PageHeader title="YDC Wallet" backHref="/dashboard" />
 
         {/* Golden Shimmering Balance Card */}
         <div className="bg-gradient-to-br from-[#EAB308] via-[#CA8A04] to-[#854D0E] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[160px]">

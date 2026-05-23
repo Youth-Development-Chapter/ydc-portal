@@ -11,7 +11,8 @@ import {
   Gift, 
   ChevronLeft, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 
 export interface Flashcard {
@@ -35,71 +36,101 @@ interface DashboardFlashcardsProps {
 }
 
 export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsProps) {
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const autoPlayTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Swipe gestures state
+  // Drag/swipe state
   const touchStartX = useRef<number | null>(null);
-  const touchEndX = useRef<number | null>(null);
+  const touchCurrentX = useRef<number | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const isDragging = useRef(false);
 
-  // Safe navigation
+  // Visible cards after dismissal
+  const visible = flashcards.filter(fc => !dismissedIds.has(fc.id));
+
+  // Clamp currentIndex when cards are dismissed
+  useEffect(() => {
+    if (currentIndex >= visible.length && visible.length > 0) {
+      setCurrentIndex(visible.length - 1);
+    }
+  }, [visible.length, currentIndex]);
+
   const prevSlide = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    setCurrentIndex((prev) => (prev === 0 ? flashcards.length - 1 : prev - 1));
+    setCurrentIndex((prev) => (prev === 0 ? visible.length - 1 : prev - 1));
   };
 
   const nextSlide = (e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    setCurrentIndex((prev) => (prev === flashcards.length - 1 ? 0 : prev + 1));
+    setCurrentIndex((prev) => (prev === visible.length - 1 ? 0 : prev + 1));
+  };
+
+  const dismissCard = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDismissedIds(prev => new Set([...prev, id]));
   };
 
   // Auto-play setup
   useEffect(() => {
-    if (flashcards.length <= 1 || isPaused) {
+    if (visible.length <= 1 || isPaused) {
       if (autoPlayTimer.current) clearInterval(autoPlayTimer.current);
       return;
     }
 
     autoPlayTimer.current = setInterval(() => {
-      nextSlide();
+      setCurrentIndex((prev) => (prev === visible.length - 1 ? 0 : prev + 1));
     }, 8000);
 
     return () => {
       if (autoPlayTimer.current) clearInterval(autoPlayTimer.current);
     };
-  }, [flashcards, isPaused, currentIndex]);
+  }, [visible, isPaused, currentIndex]);
 
-  // Touch handlers
+  // Touch handlers with live drag translation
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
+    touchCurrentX.current = e.touches[0].clientX;
+    isDragging.current = true;
+    setIsPaused(true);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndX.current = e.touches[0].clientX;
+    if (!isDragging.current || touchStartX.current === null) return;
+    touchCurrentX.current = e.touches[0].clientX;
+    const offset = touchCurrentX.current - touchStartX.current;
+    // Apply resistance at edges so it doesn't feel endless
+    setDragOffset(offset * 0.6);
   };
 
   const handleTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
-    const diff = touchStartX.current - touchEndX.current;
+    if (!isDragging.current || touchStartX.current === null || touchCurrentX.current === null) return;
+    const diff = touchStartX.current - touchCurrentX.current;
     const minSwipeDistance = 50;
 
-    if (diff > minSwipeDistance) {
-      nextSlide();
-    } else if (diff < -minSwipeDistance) {
-      prevSlide();
+    if (Math.abs(diff) > minSwipeDistance) {
+      if (diff > 0) {
+        nextSlide();
+      } else {
+        prevSlide();
+      }
     }
 
+    isDragging.current = false;
     touchStartX.current = null;
-    touchEndX.current = null;
+    touchCurrentX.current = null;
+    // Snap back with a slight delay for the animation to feel smooth
+    setDragOffset(0);
+    setIsPaused(false);
   };
 
-  if (!flashcards || flashcards.length === 0) return null;
+  if (!visible || visible.length === 0) return null;
 
-  const currentCard = flashcards[currentIndex];
+  const currentCard = visible[Math.min(currentIndex, visible.length - 1)];
   const isUrdu = currentCard.isUrdu || false;
 
-  // Determine styles dynamically based on color configuration
   const getThemeStyles = (color: string) => {
     switch (color) {
       case 'red':
@@ -107,21 +138,24 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
           wrapper: "from-[#DD0408]/10 to-red-500/5 border-[#DD0408]/20 hover:border-[#DD0408]/40",
           iconContainer: "bg-[#DD0408]/10 text-[#DD0408]",
           badge: "bg-[#DD0408]/10 text-[#DD0408] border-[#DD0408]/20",
-          progressBar: "bg-[#DD0408]"
+          progressBar: "bg-[#DD0408]",
+          dismissHover: "hover:bg-[#DD0408]/10 hover:text-[#DD0408]"
         };
       case 'green':
         return {
           wrapper: "from-[#0BA242]/10 to-green-500/5 border-[#0BA242]/20 hover:border-[#0BA242]/40",
           iconContainer: "bg-[#0BA242]/10 text-[#0BA242]",
           badge: "bg-[#0BA242]/10 text-[#0BA242] border-[#0BA242]/20",
-          progressBar: "bg-[#0BA242]"
+          progressBar: "bg-[#0BA242]",
+          dismissHover: "hover:bg-[#0BA242]/10 hover:text-[#0BA242]"
         };
       case 'purple':
         return {
           wrapper: "from-purple-500/10 to-indigo-500/5 border-purple-500/20 hover:border-purple-500/40",
           iconContainer: "bg-purple-500/10 text-purple-600",
           badge: "bg-purple-500/10 text-purple-600 border-purple-500/20",
-          progressBar: "bg-purple-500"
+          progressBar: "bg-purple-500",
+          dismissHover: "hover:bg-purple-500/10 hover:text-purple-600"
         };
       case 'blue':
       default:
@@ -129,7 +163,8 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
           wrapper: "from-[#0A9EDE]/10 to-blue-500/5 border-[#0A9EDE]/20 hover:border-[#0A9EDE]/40",
           iconContainer: "bg-[#0A9EDE]/10 text-[#0A9EDE]",
           badge: "bg-[#0A9EDE]/10 text-[#0A9EDE] border-[#0A9EDE]/20",
-          progressBar: "bg-[#0A9EDE]"
+          progressBar: "bg-[#0A9EDE]",
+          dismissHover: "hover:bg-[#0A9EDE]/10 hover:text-[#0A9EDE]"
         };
     }
   };
@@ -157,35 +192,50 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <Link 
-        href={currentCard.link}
-        className={`block bg-gradient-to-r ${styles.wrapper} border rounded-2xl p-4 flex items-center justify-between group transition-all duration-300 shadow-sm cursor-pointer min-h-[92px] ${isUrdu ? "flex-row-reverse text-right" : ""}`}
+      {/* Card with live drag translation */}
+      <div
+        style={{
+          transform: `translateX(${dragOffset}px)`,
+          transition: isDragging.current ? 'none' : 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        }}
+        className="relative"
       >
-        <div className={`flex items-center gap-4 flex-1 ${isUrdu ? "flex-row-reverse" : ""}`}>
+        {/* Dismiss (X) button — absolutely positioned top-right, always visible */}
+        <button
+          onClick={(e) => dismissCard(e, currentCard.id)}
+          aria-label="Dismiss notification"
+          className={`absolute top-2 right-2 z-10 w-6 h-6 rounded-full bg-white/80 border border-[#E5E5E5] flex items-center justify-center text-[#A3A3A3] ${styles.dismissHover} transition-colors duration-200 cursor-pointer shadow-sm`}
+        >
+          <X size={11} />
+        </button>
+
+        <Link 
+          href={currentCard.link}
+          className={`block bg-gradient-to-r ${styles.wrapper} border rounded-2xl p-4 pr-10 flex items-center gap-4 group transition-all duration-300 shadow-sm cursor-pointer min-h-[92px] ${isUrdu ? "flex-row-reverse text-right pl-10 pr-4" : ""}`}
+        >
           <div className={`w-12 h-12 rounded-full ${styles.iconContainer} flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 duration-300`}>
             {renderIcon(currentCard.iconName, "animate-none")}
           </div>
           
-          <div className={`flex-1 min-w-0 ${isUrdu ? "pl-2 text-right" : "pr-2"}`}>
+          <div className={`flex-1 min-w-0 ${isUrdu ? "text-right" : ""}`}>
             <span className={`inline-block text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded border ${styles.badge} mb-1.5 ${isUrdu ? "font-nastaliq" : ""}`}>
               {isUrdu && currentCard.badgeTextUr ? currentCard.badgeTextUr : currentCard.badgeText}
             </span>
             
             <h4 
-              className={`font-bold text-sm text-[#1D1D1D] mb-1 truncate leading-tight ${isUrdu ? "font-nastaliq text-base" : ""}`}
+              className={`font-bold text-sm text-[#1D1D1D] mb-1 leading-tight line-clamp-1 ${isUrdu ? "font-nastaliq text-base" : ""}`}
               dir={isUrdu ? "rtl" : "ltr"}
             >
               {isUrdu && currentCard.titleUr ? currentCard.titleUr : currentCard.title}
             </h4>
             
             <p 
-              className={`text-xs text-[#555555] truncate ${isUrdu ? "font-nastaliq text-sm leading-relaxed" : ""}`}
+              className={`text-xs text-[#555555] line-clamp-2 leading-snug ${isUrdu ? "font-nastaliq text-sm" : ""}`}
               dir={isUrdu ? "rtl" : "ltr"}
             >
               {isUrdu && currentCard.descriptionUr ? currentCard.descriptionUr : currentCard.description}
             </p>
 
-            {/* Render Progress Bar if defined */}
             {typeof currentCard.progress === 'number' && (
               <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden mt-2">
                 <div 
@@ -195,20 +245,17 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
               </div>
             )}
           </div>
-        </div>
 
-        {/* Nav arrows / Indicator section */}
-        <div className={`flex items-center self-center shrink-0 ml-2 ${isUrdu ? "flex-row-reverse mr-2 ml-0" : ""}`}>
-          <ChevronRight size={18} className={`text-[#A3A3A3] group-hover:translate-x-0.5 transition-transform duration-300 ${isUrdu ? "rotate-180 group-hover:-translate-x-0.5" : ""}`} />
-        </div>
-      </Link>
+          <ChevronRight size={16} className={`text-[#C0C0C0] shrink-0 group-hover:translate-x-0.5 transition-transform duration-300 ${isUrdu ? "rotate-180 group-hover:-translate-x-0.5" : ""}`} />
+        </Link>
+      </div>
 
-      {/* Manual Switer overlay for multiple cards */}
-      {flashcards.length > 1 && (
+      {/* Manual switcher overlay for multiple cards */}
+      {visible.length > 1 && (
         <div className={`flex items-center justify-between px-3 mt-1.5 ${isUrdu ? "flex-row-reverse" : ""}`}>
           {/* Capsule indicators */}
           <div className={`flex gap-1.5 py-1 ${isUrdu ? "flex-row-reverse" : ""}`}>
-            {flashcards.map((_, idx) => (
+            {visible.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}

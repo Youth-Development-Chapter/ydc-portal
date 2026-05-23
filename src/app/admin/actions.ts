@@ -649,3 +649,85 @@ export async function updateEventCoinReward(eventId: string, coinReward: number)
   return { success: true }
 }
 
+/**
+ * Update an existing event.
+ */
+export async function updateEvent(
+  eventId: string,
+  title: string,
+  description: string,
+  date: string,
+  time: string,
+  location: string,
+  capacity: number,
+  coinReward: number,
+  division?: string | null
+) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_events')
+  if (!allowed) return { error: 'Permission denied. You cannot manage events.' }
+
+  if (!title || !date || !time || !location) {
+    return { error: 'Missing required event fields.' }
+  }
+
+  // Retrieve active admin profile to enforce division restrictions
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  let eventDivision: string | null = null
+
+  if (adminProfile?.role === 'president') {
+    eventDivision = adminProfile.division || null
+    if (!eventDivision) {
+      return { error: 'Active president is not assigned to a division.' }
+    }
+    
+    // Check if the event to edit is in the president's division
+    const { data: event } = await supabase
+      .from('events')
+      .select('division')
+      .eq('id', eventId)
+      .single()
+      
+    if (!event || event.division !== eventDivision) {
+      return { error: 'Permission denied. You can only edit events in your own division.' }
+    }
+  } else {
+    eventDivision = division || null
+  }
+
+  // 3. Update event
+  const { error } = await supabase
+    .from('events')
+    .update({
+      title,
+      description,
+      date,
+      time,
+      location,
+      capacity: capacity || 100,
+      coin_reward: coinReward,
+      division: eventDivision,
+    })
+    .eq('id', eventId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin/events')
+  revalidatePath('/events')
+  revalidatePath('/dashboard/president')
+  return { success: true }
+}
+

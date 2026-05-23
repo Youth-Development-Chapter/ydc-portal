@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
   Calendar, MapPin, Users, Ticket, 
-  Clock, CheckCircle2, ShieldCheck, AlertCircle, ArrowLeft
+  Clock, CheckCircle2, ShieldCheck, AlertCircle
 } from "lucide-react";
 import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/Button";
 import { claimTicket } from "@/app/actions";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface Event {
   id: string;
@@ -63,18 +64,7 @@ export default function EventsClient({ events, activeTicket }: EventsClientProps
   return (
     <div className="space-y-6">
       {/* Header with standard Back button */}
-      <div className="flex items-center justify-between">
-        <Link 
-          href="/dashboard" 
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors shadow-sm"
-        >
-          <ArrowLeft size={20} className="text-[#1D1D1D]" />
-        </Link>
-        <span className="font-extrabold text-base tracking-tight text-[#1D1D1D] font-coolvetica">
-          YDC Activities
-        </span>
-        <div className="w-10 h-10 opacity-0 pointer-events-none" /> {/* Spacer */}
-      </div>
+      <PageHeader title="YDC Activities" backHref="/dashboard" />
 
       {/* Premium Header Banner */}
       <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-3xl p-6 shadow-lg relative overflow-hidden">

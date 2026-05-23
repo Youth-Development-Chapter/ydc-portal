@@ -1,11 +1,12 @@
 import React from "react";
 import Link from "next/link";
-import { ChevronLeft, Clock, CheckCircle2, XCircle, AlertCircle, ExternalLink, Flame, Heart, Award, Sparkles } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, AlertCircle, ExternalLink, Flame, Heart, Award, Sparkles } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LogDeedForm from "./LogDeedForm";
 import LocalTime from "@/components/ui/LocalTime";
 import WeeklyActivity from "@/components/ui/WeeklyActivity";
+import PageHeader from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -60,15 +61,8 @@ export default async function LogDeedPage() {
           <img src="/icontransparent.png" alt="" className="w-full max-w-[500px] h-auto scale-150" />
         </div>
 
-        <div className="relative z-10 max-w-lg mx-auto flex items-center justify-between">
-          <Link 
-            href="/dashboard" 
-            className="w-10 h-10 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm"
-          >
-            <ChevronLeft size={20} />
-          </Link>
-          <h1 className="text-xl font-bold font-coolvetica text-[#1D1D1D]">Log Daily Deed</h1>
-          <div className="w-10 h-10 opacity-0 pointer-events-none"></div> {/* Spacer for centering */}
+        <div className="relative z-10 max-w-lg mx-auto">
+          <PageHeader title="Log Daily Deed" backHref="/dashboard" />        
         </div>
       </div>
 

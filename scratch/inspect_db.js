@@ -27,29 +27,17 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function inspect() {
-  console.log("Testing streaks query...");
-  const { data: streaks, error: sErr } = await supabase
-    .from('streaks')
-    .select('user_id, current_streak, longest_streak')
-    .limit(1);
-  if (sErr) console.error("Streaks query failed:", sErr);
-  else console.log("Streaks query succeeded.");
-
-  console.log("Testing coin_transactions query...");
-  const { data: coinAggs, error: cErr } = await supabase
-    .from('coin_transactions')
-    .select('user_id, amount')
-    .limit(1);
-  if (cErr) console.error("Coin transactions query failed:", cErr);
-  else console.log("Coin transactions query succeeded.");
-
-  console.log("Testing admin_permissions query...");
-  const { data: adminPerms, error: aErr } = await supabase
-    .from('admin_permissions')
-    .select('*')
-    .limit(1);
-  if (aErr) console.error("Admin permissions query failed:", aErr);
-  else console.log("Admin permissions query succeeded.");
+  console.log("Fetching profiles using updated fields...");
+  const { data: profiles, error: pError } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, division, qualification, updated_at');
+  if (pError) {
+    console.error("Profiles query failed:", pError);
+  } else {
+    console.log("Profiles query succeeded.");
+    console.log("Profiles count:", profiles.length);
+    console.log("First profile:", profiles[0]);
+  }
 }
 
 inspect();

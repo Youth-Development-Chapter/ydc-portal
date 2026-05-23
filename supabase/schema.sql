@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     address TEXT,
     avatar_url TEXT,
     role TEXT DEFAULT 'volunteer' NOT NULL CHECK (role IN ('volunteer', 'admin', 'superadmin', 'president', 'tier-3')),
+    created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 

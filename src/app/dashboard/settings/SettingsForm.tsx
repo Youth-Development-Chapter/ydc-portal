@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { ArrowLeft, User, Phone, BookOpen, MapPin, CheckCircle2, AlertCircle } from "lucide-react";
-import Link from "next/link";
+import { User, Phone, BookOpen, MapPin, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { updateProfile } from "./actions";
+import PageHeader from "@/components/ui/PageHeader";
 
 interface Profile {
   full_name: string;
@@ -58,18 +58,7 @@ export default function SettingsForm({ initialProfile }: { initialProfile: Profi
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <Link 
-          href="/dashboard" 
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors shadow-sm"
-        >
-          <ArrowLeft size={20} className="text-[#1D1D1D]" />
-        </Link>
-        <span className="font-extrabold text-base tracking-tight text-[#1D1D1D] font-coolvetica">
-          Profile Settings
-        </span>
-        <div className="w-10 h-10 opacity-0 pointer-events-none" /> {/* Spacer */}
-      </div>
+      <PageHeader title="Profile Settings" backHref="/dashboard" />
 
       {status && (
         <div 

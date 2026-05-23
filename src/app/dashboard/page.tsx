@@ -445,6 +445,26 @@ export default async function UserDashboard() {
           </div>
         </div>
 
+        {/* President / Admin Quick Access Console */}
+        {profile && ['president', 'superadmin', 'admin'].includes(profile.role) && (
+          <Link href="/dashboard/president" className="block">
+            <div className="bg-gradient-to-r from-[#DD0408] to-[#990003] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden cursor-pointer group hover:shadow-2xl transition duration-300">
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Settings size={64} />
+              </div>
+              <div className="relative z-10 space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-red-100 bg-white/10 px-2.5 py-1 rounded-full border border-white/20">
+                  Administrative Mode
+                </span>
+                <h3 className="text-xl font-bold font-coolvetica pt-3">President Console</h3>
+                <p className="text-xs text-red-100/80 mt-1 max-w-sm leading-relaxed">
+                  Manage streaks approvals, create/edit division events, and track manual attendance check-ins directly on mobile.
+                </p>
+              </div>
+            </div>
+          </Link>
+        )}
+
         {/* Registered Events */}
         <div>
           <div className="flex items-center justify-between mb-4">

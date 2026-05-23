@@ -1,8 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, Trophy, Medal, Flame, Coins } from "lucide-react";
+import { Trophy, Medal, Flame, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import PageHeader from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -59,22 +60,12 @@ export default async function LeaderboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
-      <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+      <div className="fluid-top-gradient"></div>
+      <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6 relative z-10">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <Link
-            href="/dashboard"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-colors shadow-sm"
-          >
-            <ArrowLeft size={20} className="text-[#1D1D1D]" />
-          </Link>
-          <span className="font-extrabold text-base tracking-tight text-[#1D1D1D] font-coolvetica">
-            Leaderboard
-          </span>
-          <div className="w-10 h-10 opacity-0 pointer-events-none" />
-        </div>
+        <PageHeader title="Leaderboard" backHref="/dashboard" />
 
         {/* Hero */}
         <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">

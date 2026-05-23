@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useActionState } from "react";
+import React, { useActionState, useEffect, useRef } from "react";
 import { Camera, Heart, Award, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +10,7 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
   const [state, action, pending] = useActionState(logDeed, null);
   const [submissionsTodayCount, setSubmissionsTodayCount] = React.useState(0);
   const [isLoading, setIsLoading] = React.useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
 
   React.useEffect(() => {
     const d = new Date();
@@ -25,6 +26,13 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
     setSubmissionsTodayCount(count);
     setIsLoading(false);
   }, [submissions]);
+
+  // Reset the form when deed is submitted successfully
+  useEffect(() => {
+    if (state && (state as any).success) {
+      formRef.current?.reset();
+    }
+  }, [state]);
 
   if (isLoading) {
     return (
@@ -62,6 +70,9 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
     );
   }
 
+  const isSuccess = state && (state as any).success;
+  const isError = state && (state as any).error;
+
   return (
     <div className="bg-white rounded-3xl p-6 shadow-xl border border-[#E5E5E5] relative overflow-hidden">
       <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#0A9EDE] to-[#0BA242]"></div>
@@ -76,17 +87,29 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
         </div>
       </div>
 
-      {state?.error && (
-        <div className="mb-6 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex gap-3">
-          <AlertCircle className="text-[#DC2626] shrink-0 mt-0.5" size={20} />
-          <div className="text-sm text-[#991B1B]">
-            <p className="font-bold mb-0.5">Submission Error</p>
-            <p>{state.error}</p>
+      {/* Success Banner */}
+      {isSuccess && (
+        <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 flex gap-3 animate-in slide-in-from-top duration-300">
+          <CheckCircle2 className="text-green-600 shrink-0 mt-0.5" size={20} />
+          <div className="text-sm text-green-800">
+            <p className="font-bold mb-0.5">Deed Submitted! ✅</p>
+            <p>Your good deed is under review. You will receive +10 YDC Coins once approved by an admin.</p>
           </div>
         </div>
       )}
 
-      <form action={action} className="space-y-6">
+      {/* Error Banner */}
+      {isError && (
+        <div className="mb-6 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex gap-3">
+          <AlertCircle className="text-[#DC2626] shrink-0 mt-0.5" size={20} />
+          <div className="text-sm text-[#991B1B]">
+            <p className="font-bold mb-0.5">Submission Error</p>
+            <p>{(state as any).error}</p>
+          </div>
+        </div>
+      )}
+
+      <form ref={formRef} action={action} className="space-y-6">
         <input type="hidden" name="local_date" value={new Date().toLocaleDateString('en-CA')} />
         <div>
           <Input
