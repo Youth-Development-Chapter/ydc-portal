@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import { Noto_Nastaliq_Urdu } from "next/font/google";
+import { Poppins, Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
 
 const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
@@ -9,22 +8,11 @@ const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
   variable: "--font-noto-nastaliq",
 });
 
-const coolveticaRg = localFont({
-  src: './fonts/Coolvetica Rg.otf',
-  variable: '--font-coolvetica',
-  weight: '400',
-});
-
-const coolveticaComp = localFont({
-  src: './fonts/Coolvetica Hv Comp.otf',
-  variable: '--font-coolvetica-comp',
-  weight: '800',
-});
-
-const coolveticaCond = localFont({
-  src: './fonts/Coolvetica Rg Cond.otf',
-  variable: '--font-coolvetica-cond',
-  weight: '400',
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -40,9 +28,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${coolveticaRg.variable} ${coolveticaComp.variable} ${coolveticaCond.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
+      className={`${poppins.variable} ${notoNastaliqUrdu.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col relative font-sans tracking-wide">
+      <body className="min-h-full flex flex-col relative font-sans">
         {children}
       </body>
     </html>

@@ -3,9 +3,9 @@
 :root {
   --background: #FFFFFF; /* Pure white */
   --foreground: #1D1D1D; /* Dark gray text */
-  --font-sans: var(--font-coolvetica), system-ui, -apple-system, sans-serif;
-  --font-comp: var(--font-coolvetica-comp), system-ui, -apple-system, sans-serif;
-  --font-cond: var(--font-coolvetica-cond), system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-poppins), system-ui, -apple-system, sans-serif;
+  --font-comp: var(--font-poppins), system-ui, -apple-system, sans-serif;
+  --font-cond: var(--font-poppins), system-ui, -apple-system, sans-serif;
 }
 
 @theme inline {
