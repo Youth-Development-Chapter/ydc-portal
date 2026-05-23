@@ -2,6 +2,7 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { getLessonForLearner } from "@/lib/lms-data";
 import InteractiveLesson from "@/components/lms/InteractiveLesson";
+import PageHeader from "@/components/ui/PageHeader";
 import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +47,8 @@ export default async function LessonViewerPage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="relative">
+    <div className="relative space-y-6 animate-in fade-in duration-500">
+      <PageHeader title="Lesson Viewer" backHref={`/lms/courses/${lesson.courseId}`} />
       <InteractiveLesson 
         lesson={lesson} 
         courseId={lesson.courseId} 

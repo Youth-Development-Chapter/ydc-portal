@@ -2,6 +2,7 @@ import React from "react";
 import { getCourses } from "@/lib/lms-data";
 import { createClient } from "@/utils/supabase/server";
 import CoursesClient from "./CoursesClient";
+import PageHeader from "@/components/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,8 @@ export default async function LmsCoursesPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 py-6 animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500 space-y-6">
+      <PageHeader title="Academy" backHref="/dashboard" />
       <CoursesClient
         courses={courses}
         completedCourseIds={completedCourseIds}

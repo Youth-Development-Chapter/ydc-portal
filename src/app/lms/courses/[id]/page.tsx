@@ -5,6 +5,7 @@ import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
 import LanguageSelectModal from "@/components/lms/LanguageSelectModal";
 import ChangeLanguageButton from "@/components/lms/ChangeLanguageButton";
+import PageHeader from "@/components/ui/PageHeader";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
@@ -54,30 +55,48 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
   const displayDesc = isUrdu && course.descriptionUr ? course.descriptionUr : course.description;
 
   return (
-    <div className="animate-in fade-in duration-500 pb-12">
-      {/* Course Hero */}
-      <div className="relative pt-4 pb-8 px-4 bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-b-[40px] shadow-lg">
-        <div className="absolute inset-0 z-0 opacity-20 pointer-events-none mix-blend-overlay">
-          <div 
-            className="w-full h-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${course.imageUrl})` }}
-          />
-        </div>
+    <div className="animate-in fade-in duration-500 pb-12 space-y-6">
+      <PageHeader title="Course Details" backHref="/lms/courses" />
 
-        <div className="relative z-10">
-          <Link href="/lms/courses" className="inline-flex items-center gap-1 text-sm font-medium text-white/70 hover:text-white mb-6 bg-white/10 px-3 py-1 rounded-full backdrop-blur-md">
-            <ChevronLeft size={16} /> Back to Catalog
-          </Link>
-          
-          <h1 className={`text-3xl font-coolvetica leading-tight mb-2 ${isUrdu ? "font-nastaliq text-right text-4xl" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
-            {displayTitle}
-          </h1>
-          <p className={`text-sm font-semibold text-[#0A9EDE] mb-4 ${isUrdu ? "text-right" : ""}`}>
-            {isUrdu ? `بذریعہ ${course.author}` : `By ${course.author}`}
-          </p>
-          <p className={`text-sm text-white/80 leading-relaxed ${isUrdu ? "font-nastaliq text-right text-lg" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
-            {displayDesc}
-          </p>
+      {/* Course Hero */}
+      <div className="relative p-6 bg-gradient-to-br from-[#1D1D1D] to-[#2D2D2D] text-white rounded-3xl shadow-xl overflow-hidden">
+        {/* Subtle abstract background gradient glow */}
+        <div className="absolute -right-10 -bottom-10 w-32 h-32 rounded-full bg-[#0A9EDE]/15 blur-2xl pointer-events-none"></div>
+        <div className="absolute -left-10 -top-10 w-32 h-32 rounded-full bg-indigo-500/10 blur-2xl pointer-events-none"></div>
+
+        <div className="relative z-10 flex gap-4 items-start">
+          <div className="flex-1 min-w-0 space-y-2">
+            <h1 
+              className={`text-2xl font-bold font-coolvetica leading-tight text-white ${isUrdu ? "font-nastaliq text-3xl text-right" : ""}`}
+              dir={isUrdu ? "rtl" : "ltr"}
+            >
+              {displayTitle}
+            </h1>
+            
+            {/* Mixed Language Direction Bug Fix */}
+            <div className={`flex items-center gap-1.5 text-xs font-bold text-[#0A9EDE] ${isUrdu ? "flex-row-reverse justify-start" : "justify-start"}`}>
+              <span>{isUrdu ? "بذریعہ" : "By"}</span>
+              <span>{course.author}</span>
+            </div>
+
+            <p 
+              className={`text-xs text-[#CCCCCC] leading-relaxed line-clamp-4 ${isUrdu ? "font-nastaliq text-base text-right" : ""}`}
+              dir={isUrdu ? "rtl" : "ltr"}
+            >
+              {displayDesc}
+            </p>
+          </div>
+
+          {/* Separate Book Cover Thumbnail */}
+          {course.imageUrl && (
+            <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 bg-neutral-900">
+              <img 
+                src={course.imageUrl} 
+                className="w-full h-full object-cover animate-fade-in" 
+                alt={course.title} 
+              />
+            </div>
+          )}
         </div>
       </div>
 

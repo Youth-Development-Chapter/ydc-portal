@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings, Gift, Megaphone, Trophy } from "lucide-react";
+import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses } from "@/lib/lms-data";
@@ -354,7 +354,7 @@ export default async function UserDashboard() {
     })); 
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden animate-fade-in">
       {/* Soft Background Gradient emanating from top */}
       <div className="fluid-top-gradient"></div>
 
@@ -365,13 +365,31 @@ export default async function UserDashboard() {
         </div>
 
         <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto">
-          <h1 className="text-[#1D1D1D] font-bold text-xl tracking-tight font-coolvetica">Dashboard</h1>
+          <div className="flex flex-col">
+            <span className="text-[9px] uppercase font-extrabold tracking-widest text-neutral-700">Volunteer Portal</span>
+            <h1 className="text-[#1D1D1D] font-bold text-lg tracking-tight font-coolvetica mt-0.5">
+              Asalam-o-Alaikum, <span className="text-[#0A9EDE]">{name.split(" ")[0]}</span>!
+            </h1>
+            <span className="text-[9px] text-neutral-600 mt-0.5 font-bold">
+              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/settings" className="w-10 h-10 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Settings">
-              <Settings size={18} />
+            {profile && ['president', 'superadmin', 'admin'].includes(profile.role) && (
+              <Link 
+                href="/dashboard/president" 
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-[#DD0408] border border-red-100 text-[10px] font-extrabold uppercase tracking-wider hover:bg-red-100 transition shadow-sm"
+                title="President Console"
+              >
+                <ShieldAlert size={12} className="text-[#DD0408] animate-pulse" />
+                <span>Console</span>
+              </Link>
+            )}
+            <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Settings">
+              <Settings size={16} />
             </Link>
-            <Link href="/auth/login" className="w-10 h-10 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Logout">
-              <LogOut size={18} />
+            <Link href="/auth/login" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Logout">
+              <LogOut size={16} />
             </Link>
           </div>
         </div>
@@ -379,7 +397,7 @@ export default async function UserDashboard() {
 
       {/* MEMBERSHIP CARD */}
       <div className="relative z-20 max-w-lg mx-auto px-4 -mt-24">
-        <div className="bg-[#1D1D1D] rounded-3xl p-6 shadow-2xl shadow-black/20 border border-[#333333] relative overflow-hidden text-white">
+        <div className="bg-[#1D1D1D] rounded-3xl p-6 shadow-2xl shadow-black/20 border border-[#333333] relative overflow-hidden text-white transition-all duration-300 hover:shadow-black/35 hover:-translate-y-0.5">
           <div className="absolute -right-12 -top-12 opacity-5 pointer-events-none">
             <img src="/icontransparent.png" alt="" className="w-64 h-auto" />
           </div>
@@ -424,141 +442,242 @@ export default async function UserDashboard() {
       </div>
 
       {/* MAIN CONTENT / ORGANIZED INFO */}
-      <div className="max-w-lg mx-auto px-4 mt-8 space-y-8">
+      <div className="max-w-lg mx-auto px-4 mt-6 space-y-6">
         
-        {/* Quick Stats Grid */}
+        {/* REDESIGNED QUICK HUB ACTIONS (Interactive & Practical) */}
         <div className="grid grid-cols-3 gap-3">
-          <Link href="/dashboard/wallet" className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm hover:border-[#0A9EDE] hover:shadow-md transition cursor-pointer group">
-            <Coins size={20} className="text-yellow-500 mb-2 group-hover:scale-110 transition-transform" />
-            <span className="text-xs text-[#555555] font-semibold">YDC Coins</span>
-            <span className="font-bold text-lg">{coins}</span>
+          {/* 1. Coins Wallet Card */}
+          <Link href="/dashboard/wallet" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-yellow-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+            <div className="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition duration-300">
+              <Coins size={18} />
+            </div>
+            <div className="flex flex-col items-center justify-center my-1">
+              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">YDC Coins</span>
+              <span className="font-extrabold text-base text-[#1D1D1D] mt-0.5">{coins}</span>
+            </div>
+            <span className="text-[8px] text-yellow-600 font-extrabold uppercase tracking-wide bg-yellow-50 px-2 py-0.5 rounded-full">
+              View Wallet
+            </span>
           </Link>
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
-            <MapPin size={20} className="text-[#0A9EDE] mb-2" />
-            <span className="text-xs text-[#555555] font-semibold">Division</span>
-            <span className="font-bold text-sm leading-tight mt-0.5 truncate w-full px-1">{division}</span>
+
+          {/* 2. LMS Academy Card */}
+          <Link href="/lms/courses" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-indigo-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition duration-300">
+              <BookOpen size={18} />
+            </div>
+            <div className="flex flex-col items-center justify-center my-1">
+              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">Academy LMS</span>
+              <span className="font-extrabold text-base text-[#1D1D1D] mt-0.5">{progressPercentage}%</span>
+            </div>
+            <span className="text-[8px] text-indigo-600 font-extrabold uppercase tracking-wide bg-indigo-50 px-2 py-0.5 rounded-full truncate max-w-full">
+              {progressPercentage === 100 ? "Completed" : progressPercentage > 0 ? "Resume" : "Start"}
+            </span>
+          </Link>
+
+          {/* 3. Daily Deed Status Card */}
+          <Link href="/dashboard/log-deed" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-orange-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition duration-300 group-hover:scale-110 ${
+              hasLoggedDeedToday ? "bg-green-50 text-[#0BA242]" : "bg-orange-50 text-orange-500"
+            }`}>
+              {hasLoggedDeedToday ? <Check size={18} /> : <Flame size={18} />}
+            </div>
+            <div className="flex flex-col items-center justify-center my-1">
+              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">Daily Deed</span>
+              <span className={`font-extrabold text-xs leading-none mt-1 truncate max-w-full px-1 ${
+                hasLoggedDeedToday ? "text-[#0BA242]" : "text-orange-500"
+              }`}>
+                {hasLoggedDeedToday ? "Logged" : "Pending"}
+              </span>
+            </div>
+            <span className={`text-[8px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+              hasLoggedDeedToday ? "bg-green-50 text-[#0BA242]" : "bg-orange-50 text-orange-500"
+            }`}>
+              {hasLoggedDeedToday ? "Streak Safe" : "Log Now"}
+            </span>
+          </Link>
+        </div>
+
+        {/* ACTIVE ACADEMY TRACK */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen size={18} className="text-indigo-600" />
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Active Academy Track</h3>
+            </div>
+            <Link href="/lms/courses" className="text-xs font-bold text-[#0A9EDE] hover:underline">
+              View LMS
+            </Link>
           </div>
-          <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex flex-col items-center justify-center text-center shadow-sm">
-            <GraduationCap size={20} className="text-[#0BA242] mb-2" />
-            <span className="text-xs text-[#555555] font-semibold">Education</span>
-            <span className="font-bold text-xs leading-tight mt-0.5 truncate w-full px-1">{education}</span>
+
+          <div className="bg-[#FAFAFA] border border-[#F0F0F0] rounded-2xl p-4 flex flex-col justify-between">
+            <div>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#A3A3A3] font-mono">Current Course</span>
+              <h4 className="font-bold text-sm text-[#1D1D1D] mt-1 line-clamp-1">{activeCourseTitle}</h4>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                <span className="text-[#555555]">Syllabus Completed</span>
+                <span className="text-[#1D1D1D] font-bold">{progressPercentage}%</span>
+              </div>
+              <div className="w-full bg-[#E5E5E5] h-2 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-indigo-600 rounded-full transition-all duration-500" 
+                  style={{ width: `${progressPercentage}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <Link 
+                href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"}
+                className="w-full text-center bg-[#1D1D1D] text-white hover:bg-neutral-800 py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
+              >
+                {progressPercentage === 100 ? "Review Lessons" : progressPercentage > 0 ? "Resume Learning" : "Start Course"}
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* President / Admin Quick Access Console */}
-        {profile && ['president', 'superadmin', 'admin'].includes(profile.role) && (
-          <Link href="/dashboard/president" className="block">
-            <div className="bg-gradient-to-r from-[#DD0408] to-[#990003] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden cursor-pointer group hover:shadow-2xl transition duration-300">
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Settings size={64} />
-              </div>
-              <div className="relative z-10 space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-red-100 bg-white/10 px-2.5 py-1 rounded-full border border-white/20">
-                  Administrative Mode
-                </span>
-                <h3 className="text-xl font-bold font-coolvetica pt-3">President Console</h3>
-                <p className="text-xs text-red-100/80 mt-1 max-w-sm leading-relaxed">
-                  Manage streaks approvals, create/edit division events, and track manual attendance check-ins directly on mobile.
-                </p>
-              </div>
+        {/* MY REGISTERED EVENTS */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar size={18} className="text-[#0A9EDE]" />
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">My Registered Events</h3>
             </div>
-          </Link>
-        )}
-
-        {/* Registered Events */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg">My Events</h3>
-            <Link href="/events" className="text-sm text-[#0A9EDE] font-semibold hover:underline">View All</Link>
+            <Link href="/events" className="text-xs font-bold text-[#0A9EDE] hover:underline">
+              Browse Events
+            </Link>
           </div>
 
           <div className="space-y-3">
             {myEvents.length > 0 ? (
               myEvents.map(event => (
                 <Link key={event.id} href="/events" className="block">
-                  <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 shadow-sm flex items-center justify-between group cursor-pointer hover:border-[#0A9EDE] transition-colors">
+                  <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-[#0A9EDE] rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-colors duration-200">
                     <div>
-                      <h4 className="font-bold text-sm mb-2">{event.title}</h4>
-                      <div className="flex items-center gap-4 text-xs text-[#555555]">
+                      <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 group-hover:text-[#0A9EDE] transition-colors">{event.title}</h4>
+                      <div className="flex items-center gap-4 text-[10px] text-[#555555] font-semibold">
                         <div className="flex items-center gap-1">
-                          <Calendar size={14} className="text-[#0BA242]" />
+                          <Calendar size={12} className="text-[#0BA242]" />
                           {event.date}
                         </div>
                         <div className="flex items-center gap-1">
-                          <Clock size={14} className="text-[#DD0408]" />
+                          <Clock size={12} className="text-[#DD0408]" />
                           {event.time}
                         </div>
                       </div>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#F0F9FF] transition-colors shrink-0 ml-2">
+                    <div className="w-8 h-8 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center shrink-0 group-hover:bg-[#F0F9FF] group-hover:border-[#0A9EDE]/25 transition-colors duration-200">
                       <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0A9EDE]" />
                     </div>
                   </div>
                 </Link>
               ))
             ) : (
-              <div className="bg-white border border-dashed border-[#E5E5E5] rounded-2xl p-6 text-center text-[#555555] text-sm">
+              <div className="bg-[#FAFAFA] border border-dashed border-[#E5E5E5] rounded-2xl p-6 text-center text-[#555555] text-xs">
                 No events registered yet.{" "}
-                <Link href="/events" className="text-[#0A9EDE] font-semibold hover:underline">
-                  Browse events
+                <Link href="/events" className="text-[#0A9EDE] font-extrabold hover:underline">
+                  Find event
                 </Link>
               </div>
             )}
           </div>
         </div>
 
-        {/* Action Blocks */}
-        <div className="grid grid-cols-2 gap-4">
-          <Link href="/lms/courses" className="block">
-            <div className="bg-gradient-to-br from-[#1D1D1D] to-[#333333] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Award size={48} />
-              </div>
-              <h4 className="font-bold mb-1 relative z-10">LMS Portal</h4>
-              <p className="text-xs text-[#A3A3A3] relative z-10">All Courses</p>
-            </div>
-          </Link>
-          
-          <Link href="/dashboard/log-deed" className="block">
-            <div className="bg-gradient-to-br from-[#0A9EDE] to-[#088abf] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Flame size={48} />
-              </div>
-              <h4 className="font-bold mb-1 relative z-10">Log Deed</h4>
-              <p className="text-xs text-white/80 relative z-10">Keep your streak</p>
-            </div>
-          </Link>
+        {/* REWARDS & SHOP PERKS */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <Gift size={18} className="text-[#0BA242]" />
+            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Rewards & Perks</h3>
+          </div>
 
           <Link href="/dashboard/rewards" className="block">
-            <div className="bg-gradient-to-br from-[#0BA242] to-[#098235] text-white rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer group h-full">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Gift size={48} />
+            <div className="bg-gradient-to-br from-green-500/5 to-[#0BA242]/5 border border-[#0BA242]/20 hover:border-[#0BA242]/40 rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0BA242]/10 text-[#0BA242] flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
+                  <Gift size={20} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-[#1D1D1D]">Redeem YDC Rewards</h4>
+                  <p className="text-[10px] text-[#555555] mt-0.5">Use your {coins} YDC coins to claim exclusive rewards</p>
+                </div>
               </div>
-              <h4 className="font-bold mb-1 relative z-10">Reward Shop</h4>
-              <p className="text-xs text-white/80 relative z-10">Spend your coins</p>
-            </div>
-          </Link>
-
-          <Link href="/dashboard/announcements" className="block">
-            <div className="bg-gradient-to-br from-[#E8F6FF] to-[#F0FAFF] border border-[#0A9EDE]/20 text-[#1D1D1D] rounded-2xl p-5 shadow-sm relative overflow-hidden cursor-pointer group h-full">
-              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-35 transition-opacity">
-                <Megaphone size={42} className="text-[#0A9EDE]" />
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-green-50 group-hover:border-[#0BA242]/25 transition duration-200">
+                <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0BA242]" />
               </div>
-              <h4 className="font-bold mb-1 relative z-10">Announcements</h4>
-              <p className="text-xs text-[#555555] relative z-10">Latest updates</p>
-            </div>
-          </Link>
-
-          <Link href="/leaderboard" className="block">
-            <div className="bg-gradient-to-br from-[#FFF8E6] to-[#FFF3CF] border border-yellow-300/70 text-[#1D1D1D] rounded-2xl p-5 shadow-sm relative overflow-hidden cursor-pointer group h-full">
-              <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-35 transition-opacity">
-                <Trophy size={42} className="text-yellow-700" />
-              </div>
-              <h4 className="font-bold mb-1 relative z-10">Leaderboard</h4>
-              <p className="text-xs text-[#555555] relative z-10">See top members</p>
             </div>
           </Link>
         </div>
+
+        {/* COMMUNITY HUB */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <Trophy size={18} className="text-yellow-600" />
+            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Community Hub</h3>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Announcements Card */}
+            <Link href="/dashboard/announcements" className="block">
+              <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-[#0A9EDE] rounded-2xl p-4 flex flex-col justify-between h-[110px] group cursor-pointer transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
+                    <Megaphone size={16} />
+                  </div>
+                  <ChevronRight size={14} className="text-[#A3A3A3] group-hover:text-[#0A9EDE] transition-transform duration-200 group-hover:translate-x-0.5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-[#1D1D1D]">Announcements</h4>
+                  <p className="text-[9px] text-[#A3A3A3] mt-0.5">Read latest portal updates</p>
+                </div>
+              </div>
+            </Link>
+
+            {/* Leaderboard Card */}
+            <Link href="/leaderboard" className="block">
+              <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-yellow-500 rounded-2xl p-4 flex flex-col justify-between h-[110px] group cursor-pointer transition-all duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
+                    <Trophy size={16} />
+                  </div>
+                  <ChevronRight size={14} className="text-[#A3A3A3] group-hover:text-yellow-500 transition-transform duration-200 group-hover:translate-x-0.5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-[#1D1D1D]">Leaderboard</h4>
+                  <p className="text-[9px] text-[#A3A3A3] mt-0.5">Check volunteer standings</p>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
+        {/* President / Admin Quick Access Console */}
+        {profile && ['president', 'superadmin', 'admin'].includes(profile.role) && (
+          <Link href="/dashboard/president" className="block pt-2">
+            <div className="bg-[#1D1D1D] text-white rounded-3xl p-5 border border-[#333333] hover:border-red-500 shadow-xl relative overflow-hidden cursor-pointer group transition-all duration-300 hover:shadow-black/25">
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-5 group-hover:opacity-10 transition-opacity duration-300">
+                <Settings size={48} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center shrink-0 border border-red-500/20">
+                    <Award size={18} />
+                  </div>
+                  <div>
+                    <span className="text-[8px] font-extrabold uppercase tracking-widest text-red-500">Administrative Portal</span>
+                    <h3 className="font-bold text-sm font-coolvetica text-white mt-0.5">President Admin Console</h3>
+                    <p className="text-[10px] text-[#A3A3A3] mt-0.5">Manage approvals, division events, and scan registrations</p>
+                  </div>
+                </div>
+                <div className="w-7 h-7 rounded-full bg-[#262626] border border-[#333333] flex items-center justify-center shrink-0 group-hover:bg-red-950 group-hover:border-red-500/30 transition duration-200">
+                  <ChevronRight size={14} className="text-[#A3A3A3] group-hover:text-red-500" />
+                </div>
+              </div>
+            </div>
+          </Link>
+        )}
 
       </div>
     </div>

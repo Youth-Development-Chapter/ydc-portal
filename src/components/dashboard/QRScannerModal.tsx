@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { X, Camera, Scan, AlertCircle } from "lucide-react";
+import { X, Camera, Scan, AlertCircle, KeyboardIcon, RefreshCw } from "lucide-react";
 
 interface QRScannerModalProps {
   onScan: (code: string) => void;
@@ -13,8 +13,11 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<"denied" | "notfound" | "other" | null>(null);
   const [scanning, setScanning] = useState(true);
   const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const [manualCode, setManualCode] = useState("");
+  const [showManual, setShowManual] = useState(false);
 
   useEffect(() => {
     let detector: any = null;
@@ -54,16 +57,26 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
             // Store cleanup
             (window as any).__qrInstance = qr;
           } catch {
-            setError("Your browser doesn't support QR scanning. Please type the ticket code manually.");
+            setError("Your browser doesn't support QR scanning. Please enter the User ID manually below.");
+            setErrorType("other");
+            setShowManual(true);
           }
         }
       } catch (err: any) {
         if (err.name === "NotAllowedError") {
-          setError("Camera access denied. Please click the lock icon in your browser URL bar to allow camera permissions, ensure you are using HTTPS, and try again.");
+          setError(
+            "Camera access was denied by the browser. To fix this: open the site lock icon in your URL bar → Site settings → Camera → Allow. If on a local network (not HTTPS), use the device that serves the portal or connect via HTTPS."
+          );
+          setErrorType("denied");
+          setShowManual(true);
         } else if (err.name === "NotFoundError") {
           setError("No camera found on this device.");
+          setErrorType("notfound");
+          setShowManual(true);
         } else {
           setError("Failed to start camera: " + (err.message || "unknown error"));
+          setErrorType("other");
+          setShowManual(true);
         }
       }
     };
@@ -114,6 +127,14 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
     onClose();
   };
 
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = manualCode.trim();
+    if (!trimmed) return;
+    stopCamera();
+    onScan(trimmed);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-in zoom-in-95 duration-200">
@@ -139,9 +160,21 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
         {/* Scanner Body */}
         <div className="p-5 space-y-4">
           {error ? (
-            <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex gap-3">
-              <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex gap-3">
+                <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+
+              {errorType === "denied" && (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 transition text-sm font-semibold text-zinc-700 cursor-pointer"
+                >
+                  <RefreshCw size={14} />
+                  Retry after granting permission
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -181,6 +214,36 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
                 Hold the QR code steady inside the frame. The ticket will be verified automatically.
               </p>
             </>
+          )}
+
+          {/* Manual fallback — shown when camera is unavailable */}
+          {showManual && (
+            <div className="border-t border-zinc-100 pt-4 space-y-2">
+              <div className="flex items-center gap-2 text-zinc-500">
+                <KeyboardIcon size={13} />
+                <p className="text-xs font-semibold">Enter User ID Manually</p>
+              </div>
+              <form onSubmit={handleManualSubmit} className="flex gap-2">
+                <input
+                  type="text"
+                  value={manualCode}
+                  onChange={(e) => setManualCode(e.target.value)}
+                  placeholder="Paste user UUID here…"
+                  className="flex-1 px-3 py-2 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A9EDE]/40 focus:border-[#0A9EDE]"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  disabled={!manualCode.trim()}
+                  className="px-4 py-2 rounded-xl bg-[#0A9EDE] text-white text-sm font-bold hover:bg-[#0A9EDE]/90 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
+                >
+                  Check In
+                </button>
+              </form>
+              <p className="text-[10px] text-zinc-400">
+                Ask the attendee to show their Profile QR and manually copy the ID shown below it.
+              </p>
+            </div>
           )}
 
           {/* Fallback html5-qrcode container */}

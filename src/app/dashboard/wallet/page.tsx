@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Coins, ArrowUpRight, ArrowDownLeft, Calendar } from "lucide-react";
+import { Coins, ArrowUpRight, ArrowDownLeft, Calendar, BookOpen, Flame, Gift, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
 
@@ -26,14 +26,39 @@ export default async function WalletPage() {
   // Calculate sum of coins
   const balance = transactions?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
 
+  // Categorize transactions for stats breakdown
+  let lmsCoins = 0;
+  let deedCoins = 0;
+  let eventCoins = 0;
+  let otherCoins = 0;
+  let redeemedCoins = 0;
+
+  (transactions || []).forEach(txn => {
+    if (txn.amount < 0) {
+      redeemedCoins += Math.abs(txn.amount);
+    } else {
+      if (txn.reason === "daily_deed") {
+        deedCoins += txn.amount;
+      } else if (txn.reason === "event_attendance") {
+        eventCoins += txn.amount;
+      } else if (txn.reason.startsWith("course_completion:")) {
+        lmsCoins += txn.amount;
+      } else {
+        otherCoins += txn.amount;
+      }
+    }
+  });
+
+  const totalEarned = lmsCoins + deedCoins + eventCoins + otherCoins;
+
   // Format reason to human-friendly text
   const formatReason = (reason: string) => {
     if (reason === "daily_deed") return "Approved Good Deed Submission";
     if (reason === "event_attendance") return "Checked in at YDC Event";
     if (reason === "reward_redeem") return "Redeemed Store Reward";
     if (reason.startsWith("course_completion:")) {
-      const courseId = reason.split(":")[1] || "";
-      // Capitalize first letter of course ID
+      const parts = reason.split(":");
+      const courseId = parts[1] || "";
       const courseTitle = courseId.charAt(0).toUpperCase() + courseId.slice(1);
       return `Completed Academy Course: ${courseTitle}`;
     }
@@ -41,7 +66,7 @@ export default async function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden animate-fade-in">
       <div className="fluid-top-gradient"></div>
       <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6 relative z-10">
         
@@ -49,7 +74,7 @@ export default async function WalletPage() {
         <PageHeader title="YDC Wallet" backHref="/dashboard" />
 
         {/* Golden Shimmering Balance Card */}
-        <div className="bg-gradient-to-br from-[#EAB308] via-[#CA8A04] to-[#854D0E] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[160px]">
+        <div className="bg-gradient-to-br from-[#EAB308] via-[#CA8A04] to-[#854D0E] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all hover:shadow-black/25">
           {/* Decorative coins vector behind */}
           <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
             <Coins size={140} />
@@ -68,11 +93,98 @@ export default async function WalletPage() {
           </div>
         </div>
 
+        {/* QUICK ACTION CARDS (Spend / Earn more) */}
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/lms/courses" className="bg-white border border-[#E5E5E5] hover:border-indigo-500 rounded-2xl p-4 flex flex-col justify-between h-[100px] group transition duration-200 shadow-sm shadow-black/5">
+            <BookOpen size={18} className="text-indigo-500 group-hover:scale-105 transition" />
+            <div>
+              <h4 className="font-bold text-xs text-[#1D1D1D]">Earn Academy Coins</h4>
+              <p className="text-[9px] text-[#A3A3A3] mt-0.5">Study syllabus, pass quizzes</p>
+            </div>
+          </Link>
+
+          <Link href="/dashboard/rewards" className="bg-white border border-[#E5E5E5] hover:border-green-500 rounded-2xl p-4 flex flex-col justify-between h-[100px] group transition duration-200 shadow-sm shadow-black/5">
+            <Gift size={18} className="text-green-500 group-hover:scale-105 transition" />
+            <div>
+              <h4 className="font-bold text-xs text-[#1D1D1D]">Redeem Store Rewards</h4>
+              <p className="text-[9px] text-[#A3A3A3] mt-0.5">Trade coins for rewards</p>
+            </div>
+          </Link>
+        </div>
+
+        {/* EARNINGS SOURCE BREAKDOWN */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <h2 className="font-bold text-sm text-[#1D1D1D] flex items-center gap-2 uppercase tracking-wider">
+            <TrendingUp size={16} className="text-[#0A9EDE]" />
+            Earnings Breakdown
+          </h2>
+
+          {totalEarned === 0 ? (
+            <p className="text-xs text-[#A3A3A3] text-center py-4">No earnings breakdown available yet.</p>
+          ) : (
+            <div className="space-y-3.5">
+              {/* LMS Progress Bar */}
+              <div>
+                <div className="flex justify-between items-center text-xs font-semibold text-[#555555] mb-1">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></span>Academy Quizzes</span>
+                  <span className="text-[#1D1D1D] font-bold">{lmsCoins} YDC ({Math.round((lmsCoins / totalEarned) * 100)}%)</span>
+                </div>
+                <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${(lmsCoins / totalEarned) * 100}%` }}></div>
+                </div>
+              </div>
+
+              {/* Deeds Progress Bar */}
+              <div>
+                <div className="flex justify-between items-center text-xs font-semibold text-[#555555] mb-1">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>Good Deeds</span>
+                  <span className="text-[#1D1D1D] font-bold">{deedCoins} YDC ({Math.round((deedCoins / totalEarned) * 100)}%)</span>
+                </div>
+                <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-orange-500 h-full rounded-full transition-all duration-500" style={{ width: `${(deedCoins / totalEarned) * 100}%` }}></div>
+                </div>
+              </div>
+
+              {/* Events Progress Bar */}
+              <div>
+                <div className="flex justify-between items-center text-xs font-semibold text-[#555555] mb-1">
+                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#0A9EDE] inline-block"></span>Event Attendance</span>
+                  <span className="text-[#1D1D1D] font-bold">{eventCoins} YDC ({Math.round((eventCoins / totalEarned) * 100)}%)</span>
+                </div>
+                <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-[#0A9EDE] h-full rounded-full transition-all duration-500" style={{ width: `${(eventCoins / totalEarned) * 100}%` }}></div>
+                </div>
+              </div>
+
+              {/* Other Progress Bar */}
+              {otherCoins > 0 && (
+                <div>
+                  <div className="flex justify-between items-center text-xs font-semibold text-[#555555] mb-1">
+                    <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-neutral-400 inline-block"></span>Other Actions</span>
+                    <span className="text-[#1D1D1D] font-bold">{otherCoins} YDC ({Math.round((otherCoins / totalEarned) * 100)}%)</span>
+                  </div>
+                  <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-neutral-400 h-full rounded-full transition-all duration-500" style={{ width: `${(otherCoins / totalEarned) * 100}%` }}></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Redeemed Summary */}
+              {redeemedCoins > 0 && (
+                <div className="pt-2 border-t border-[#F0F0F0] flex justify-between items-center text-xs font-bold text-red-500">
+                  <span>Total Redeemed / Spent</span>
+                  <span>-{redeemedCoins} YDC</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Transaction History Ledger */}
         <div className="space-y-4">
-          <h2 className="font-bold text-lg text-[#1D1D1D] px-1 flex items-center gap-2">
+          <h2 className="font-bold text-sm text-[#1D1D1D] px-1 flex items-center gap-2 uppercase tracking-wider">
             <Coins size={18} className="text-yellow-600" />
-            Transaction History
+            Transaction Ledger
           </h2>
 
           <div className="space-y-3">
@@ -91,12 +203,12 @@ export default async function WalletPage() {
                 return (
                   <div 
                     key={txn.id}
-                    className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex items-center justify-between shadow-sm transition-all duration-300"
+                    className="bg-white border border-[#E5E5E5] rounded-2xl p-4 flex items-center justify-between shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="flex items-center gap-3.5 min-w-0">
                       {/* Pill indicator */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                        isEarned ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 border ${
+                        isEarned ? "bg-green-50 text-green-600 border-green-100" : "bg-red-50 text-red-600 border-red-100"
                       }`}>
                         {isEarned ? <ArrowUpRight size={18} /> : <ArrowDownLeft size={18} />}
                       </div>

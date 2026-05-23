@@ -8,8 +8,7 @@ export default function LmsLayout({ children }: { children: React.ReactNode }) {
       <div className="fluid-top-gradient"></div>
 
       {/* MOBILE-FIRST CONTAINER */}
-      <main className="max-w-lg mx-auto w-full relative z-10 px-4 py-6 space-y-6">
-        <PageHeader title="Academy" backHref="/dashboard" />
+      <main className="max-w-lg mx-auto w-full relative z-10 px-4 py-6">
         {children}
       </main>
     </div>

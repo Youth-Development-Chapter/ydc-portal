@@ -39,6 +39,7 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const autoPlayTimer = useRef<NodeJS.Timeout | null>(null);
 
   // Drag/swipe state
@@ -46,6 +47,31 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
   const touchCurrentX = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const isDragging = useRef(false);
+
+  // Load from localStorage after mount to prevent hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+    try {
+      const stored = localStorage.getItem("ydc_dismissed_flashcards");
+      if (stored) {
+        const dismissedMap = JSON.parse(stored) as Record<string, string>;
+        const initiallyDismissed = new Set<string>();
+        
+        flashcards.forEach(fc => {
+          const signature = `${fc.title}_${fc.description}_${fc.link}_${fc.progress ?? ""}`;
+          if (dismissedMap[fc.id] === signature) {
+            initiallyDismissed.add(fc.id);
+          }
+        });
+        
+        if (initiallyDismissed.size > 0) {
+          setDismissedIds(initiallyDismissed);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load dismissed flashcards:", err);
+    }
+  }, [flashcards]);
 
   // Visible cards after dismissal
   const visible = flashcards.filter(fc => !dismissedIds.has(fc.id));
@@ -70,6 +96,21 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
   const dismissCard = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Find the flashcard to construct its signature
+    const fc = flashcards.find(x => x.id === id);
+    if (fc) {
+      const signature = `${fc.title}_${fc.description}_${fc.link}_${fc.progress ?? ""}`;
+      try {
+        const stored = localStorage.getItem("ydc_dismissed_flashcards");
+        const dismissedMap = stored ? JSON.parse(stored) : {};
+        dismissedMap[id] = signature;
+        localStorage.setItem("ydc_dismissed_flashcards", JSON.stringify(dismissedMap));
+      } catch (err) {
+        console.error("Failed to save dismissed flashcard:", err);
+      }
+    }
+    
     setDismissedIds(prev => new Set([...prev, id]));
   };
 
@@ -126,7 +167,7 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
     setIsPaused(false);
   };
 
-  if (!visible || visible.length === 0) return null;
+  if (!isMounted || !visible || visible.length === 0) return null;
 
   const currentCard = visible[Math.min(currentIndex, visible.length - 1)];
   const isUrdu = currentCard.isUrdu || false;
