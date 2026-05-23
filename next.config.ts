@@ -21,6 +21,8 @@ const securityHeaders = [
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.r2.cloudflarestorage.com http://*.sslip.io https://*.sslip.io ws://*.sslip.io wss://*.sslip.io https://db.ydc.org.pk wss://db.ydc.org.pk",
       // Allow video from R2, sslip.io, ydc domains and same origin
       "media-src 'self' blob: https://*.r2.dev https://*.cloudflare.com https://www.w3schools.com http://*.sslip.io https://*.sslip.io https://db.ydc.org.pk",
+      // Allow frames from youtube
+      "frame-src 'self' https://www.youtube.com https://youtube.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
 import LanguageSelectModal from "@/components/lms/LanguageSelectModal";
+import ChangeLanguageButton from "@/components/lms/ChangeLanguageButton";
 import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
@@ -69,10 +70,20 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
       {/* Course Content / Syllabus */}
       <div className="px-4 mt-6">
         <div className={`flex items-center justify-between mb-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
-          <h2 className={`text-lg font-bold text-[#1D1D1D] ${isUrdu ? "font-nastaliq text-right text-xl" : ""}`}>
-            {isUrdu ? "نصاب کے اسباق" : "Course Chapters"}
-          </h2>
-          <span className="text-xs font-bold text-[#555555] bg-[#E5E5E5] px-2 py-1 rounded-full">
+          <div className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
+            <h2 className={`text-lg font-bold text-[#1D1D1D] ${isUrdu ? "font-nastaliq text-right text-xl" : ""}`}>
+              {isUrdu ? "نصاب کے اسباق" : "Course Chapters"}
+            </h2>
+            {lockedLanguage && (
+              <ChangeLanguageButton
+                courseId={course.id}
+                courseTitle={course.title}
+                courseTitleUr={course.titleUr}
+                currentLanguage={lockedLanguage}
+              />
+            )}
+          </div>
+          <span className="text-xs font-bold text-[#555555] bg-[#E5E5E5] px-2 py-1 rounded-full shrink-0">
             {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Modules`}
           </span>
         </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, ShieldAlert, Check } from "lucide-react";
+import { Globe, ShieldAlert, Check, X } from "lucide-react";
 import { lockCourseLanguage } from "@/app/lms/courses/actions";
 import { Button } from "@/components/ui/Button";
 
@@ -11,6 +11,8 @@ interface LanguageSelectModalProps {
   courseTitle: string;
   courseTitleUr?: string;
   onSuccess?: (lang: "en" | "ur") => void;
+  closable?: boolean;
+  onClose?: () => void;
 }
 
 export default function LanguageSelectModal({
@@ -18,6 +20,8 @@ export default function LanguageSelectModal({
   courseTitle,
   courseTitleUr,
   onSuccess,
+  closable,
+  onClose,
 }: LanguageSelectModalProps) {
   const router = useRouter();
   const [selected, setSelected] = useState<"en" | "ur" | null>(null);
@@ -35,6 +39,9 @@ export default function LanguageSelectModal({
         if (onSuccess) {
           onSuccess(selected);
         }
+        if (closable && onClose) {
+          onClose();
+        }
         router.refresh();
       }
     });
@@ -43,6 +50,16 @@ export default function LanguageSelectModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 animate-in fade-in duration-200">
       <div className="bg-[#1D1D1D] border border-[#333333] text-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden flex flex-col space-y-6 animate-in zoom-in-95 duration-200">
+
+        {/* Close Button */}
+        {closable && onClose && (
+          <button 
+            onClick={onClose}
+            className="absolute top-4 right-4 z-20 text-[#A3A3A3] hover:text-white transition-colors p-1"
+          >
+            <X size={20} />
+          </button>
+        )}
 
         {/* Header */}
         <div className="text-center space-y-2 relative z-10">
