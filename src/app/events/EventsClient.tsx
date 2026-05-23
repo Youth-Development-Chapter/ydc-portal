@@ -1,16 +1,17 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { 
   Calendar, MapPin, Users, Ticket, 
   Clock, CheckCircle2, ShieldCheck, AlertCircle
 } from "lucide-react";
-import QRCode from "react-qr-code";
 import { Button } from "@/components/ui/Button";
 import { claimTicket } from "@/app/actions";
 import PageHeader from "@/components/ui/PageHeader";
+
+const QRCode = dynamic(() => import("react-qr-code"), { ssr: false });
 
 interface Event {
   id: string;
@@ -223,11 +224,7 @@ export default function EventsClient({ events, activeTicket }: EventsClientProps
 
                   {/* QR Box */}
                   <div className="my-6 mx-auto w-44 aspect-square bg-[#FAFAFA] border border-[#E5E5E5] p-3 rounded-2xl flex flex-col items-center justify-center relative shadow-sm">
-                    <QRCode 
-                      value={activeTicket.user_id} 
-                      size={140}
-                      style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                    />
+                    <QRCode value={activeTicket.user_id} size={140} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                     <div className="absolute -bottom-3 px-3 py-0.5 rounded-full bg-white border border-[#E5E5E5] text-[10px] font-mono text-[#555555] shadow-sm">
                       Member ID: YDC-{activeTicket.user_id.substring(0, 8).toUpperCase()}
                     </div>

@@ -2,6 +2,7 @@ import React from "react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import EventsClient from "./EventsClient";
+import { getUpcomingEventsForDivisionCached } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -22,21 +23,15 @@ export default async function EventsPage() {
     .single();
   const userDivision = profile?.division;
 
-  // Fetch upcoming events from Supabase ordered by date (scoped to division or overall)
-  let eventsQuery = supabase.from("events").select("*");
-  if (userDivision) {
-    eventsQuery = eventsQuery.or(`division.is.null,division.eq.${userDivision}`);
-  } else {
-    eventsQuery = eventsQuery.is("division", null);
-  }
-
-  const { data: dbEvents } = await eventsQuery.order("date", { ascending: true });
-
-  // Fetch current user registrations
-  const { data: registrations } = await supabase
-    .from("event_registrations")
-    .select("*")
-    .eq("user_id", user.id);
+  // Fetch events and current user registrations in parallel
+  const [dbEvents, registrationsResult] = await Promise.all([
+    getUpcomingEventsForDivisionCached(userDivision || null),
+    supabase
+      .from("event_registrations")
+      .select("id, event_id, user_id, ticket_code, attended, attended_at")
+      .eq("user_id", user.id),
+  ]);
+  const registrations = registrationsResult.data;
 
   const registeredMap = new Map();
   registrations?.forEach(reg => {
@@ -69,7 +64,12 @@ export default async function EventsPage() {
         event: ev
       };
     })
-    .find(reg => reg.event);
+    .find(reg => reg.event) as ({
+      ticket_code: string;
+      user_id: string;
+      attended: boolean;
+      event: { title: string; date: string; location: string };
+    } | undefined);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">

@@ -10,8 +10,10 @@
 // a server context.
 
 import sanitizeHtml from 'sanitize-html'
+import { unstable_cache } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 import type { Course, Lesson, LearnerLesson, LearnerMCQ } from './wellms'
+import { createPublicSupabaseServerClient } from './public-supabase'
 
 /** Allowed HTML tags and attributes for lesson text content. */
 const LESSON_HTML_OPTIONS: sanitizeHtml.IOptions = {
@@ -36,96 +38,111 @@ function sanitizeLessonContent(html: string): string {
 }
 
 export async function getCourses(): Promise<Course[]> {
-  const supabase = await createClient()
+  const query = unstable_cache(
+    async () => {
+      const supabase = createPublicSupabaseServerClient()
 
-  const { data: coursesData, error: coursesError } = await supabase
-    .from('courses')
-    .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
-    .order('created_at', { ascending: true })
+      const { data: coursesData, error: coursesError } = await supabase
+        .from('courses')
+        .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
+        .order('created_at', { ascending: true })
 
-  if (coursesError) {
-    console.error('Error fetching courses:', coursesError)
-    return []
-  }
-  if (!coursesData || coursesData.length === 0) return []
+      if (coursesError) {
+        console.error('Error fetching courses:', coursesError)
+        return []
+      }
+      if (!coursesData || coursesData.length === 0) return []
 
-  const { data: modulesData, error: modulesError } = await supabase
-    .from('modules')
-    .select('id, course_id, title, title_ur, duration')
-    .order('order_index', { ascending: true })
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('modules')
+        .select('id, course_id, title, title_ur, duration')
+        .order('order_index', { ascending: true })
 
-  if (modulesError) {
-    console.error('Error fetching modules:', modulesError)
-    return []
-  }
+      if (modulesError) {
+        console.error('Error fetching modules:', modulesError)
+        return []
+      }
 
-  const modulesByCourse: Record<string, { id: string; title: string; titleUr?: string; duration: string }[]> = {}
-  for (const m of modulesData || []) {
-    if (!modulesByCourse[m.course_id]) modulesByCourse[m.course_id] = []
-    modulesByCourse[m.course_id].push({
-      id: m.id,
-      title: m.title,
-      titleUr: m.title_ur || undefined,
-      duration: m.duration
-    })
-  }
+      const modulesByCourse: Record<string, { id: string; title: string; titleUr?: string; duration: string }[]> = {}
+      for (const m of modulesData || []) {
+        if (!modulesByCourse[m.course_id]) modulesByCourse[m.course_id] = []
+        modulesByCourse[m.course_id].push({
+          id: m.id,
+          title: m.title,
+          titleUr: m.title_ur || undefined,
+          duration: m.duration
+        })
+      }
 
-  return coursesData.map((c) => ({
-    id: c.id,
-    title: c.title,
-    titleUr: c.title_ur || undefined,
-    author: c.author,
-    description: c.description || '',
-    descriptionUr: c.description_ur || undefined,
-    imageUrl: c.image_url || '',
-    rewardPoints: c.reward_points,
-    modules: modulesByCourse[c.id] || [],
-  }))
+      return coursesData.map((c) => ({
+        id: c.id,
+        title: c.title,
+        titleUr: c.title_ur || undefined,
+        author: c.author,
+        description: c.description || '',
+        descriptionUr: c.description_ur || undefined,
+        imageUrl: c.image_url || '',
+        rewardPoints: c.reward_points,
+        modules: modulesByCourse[c.id] || [],
+      }))
+    },
+    ['lms:courses'],
+    { revalidate: 300, tags: ['lms:courses'] },
+  )
+
+  return query()
 }
 
 export async function getCourseById(courseId: string): Promise<Course | undefined> {
-  const supabase = await createClient()
+  const query = unstable_cache(
+    async () => {
+      const supabase = createPublicSupabaseServerClient()
 
-  const { data: course, error: courseError } = await supabase
-    .from('courses')
-    .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
-    .eq('id', courseId)
-    .single()
+      const { data: course, error: courseError } = await supabase
+        .from('courses')
+        .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
+        .eq('id', courseId)
+        .single()
 
-  if (courseError || !course) {
-    if (courseError && courseError.code !== 'PGRST116') {
-      console.error(`Error fetching course ${courseId}:`, courseError)
-    }
-    return undefined
-  }
+      if (courseError || !course) {
+        if (courseError && courseError.code !== 'PGRST116') {
+          console.error(`Error fetching course ${courseId}:`, courseError)
+        }
+        return undefined
+      }
 
-  const { data: modules, error: modulesError } = await supabase
-    .from('modules')
-    .select('id, title, title_ur, duration')
-    .eq('course_id', courseId)
-    .order('order_index', { ascending: true })
+      const { data: modules, error: modulesError } = await supabase
+        .from('modules')
+        .select('id, title, title_ur, duration')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true })
 
-  if (modulesError) {
-    console.error(`Error fetching modules for course ${courseId}:`, modulesError)
-    return undefined
-  }
+      if (modulesError) {
+        console.error(`Error fetching modules for course ${courseId}:`, modulesError)
+        return undefined
+      }
 
-  return {
-    id: course.id,
-    title: course.title,
-    titleUr: course.title_ur || undefined,
-    author: course.author,
-    description: course.description || '',
-    descriptionUr: course.description_ur || undefined,
-    imageUrl: course.image_url || '',
-    rewardPoints: course.reward_points,
-    modules: (modules || []).map((m) => ({
-      id: m.id,
-      title: m.title,
-      titleUr: m.title_ur || undefined,
-      duration: m.duration
-    })),
-  }
+      return {
+        id: course.id,
+        title: course.title,
+        titleUr: course.title_ur || undefined,
+        author: course.author,
+        description: course.description || '',
+        descriptionUr: course.description_ur || undefined,
+        imageUrl: course.image_url || '',
+        rewardPoints: course.reward_points,
+        modules: (modules || []).map((m) => ({
+          id: m.id,
+          title: m.title,
+          titleUr: m.title_ur || undefined,
+          duration: m.duration
+        })),
+      }
+    },
+    [`lms:course:${courseId}`],
+    { revalidate: 300, tags: ['lms:courses', `lms:course:${courseId}`] },
+  )
+  return query()
 }
 
 /**
@@ -185,66 +202,73 @@ export async function getLessonForLearner(lessonId: string): Promise<LearnerLess
 }
 
 export async function getLessonById(lessonId: string): Promise<Lesson | undefined> {
-  const supabase = await createClient()
+  const query = unstable_cache(
+    async () => {
+      const supabase = createPublicSupabaseServerClient()
 
-  const { data: lesson, error: lessonError } = await supabase
-    .from('lessons')
-    .select('id, module_id, title, title_ur, video_url, video_url_ur, text_content, text_content_ur')
-    .eq('id', lessonId)
-    .single()
+      const { data: lesson, error: lessonError } = await supabase
+        .from('lessons')
+        .select('id, module_id, title, title_ur, video_url, video_url_ur, text_content, text_content_ur')
+        .eq('id', lessonId)
+        .single()
 
-  if (lessonError || !lesson) {
-    if (lessonError && lessonError.code !== 'PGRST116') {
-      console.error(`Error fetching lesson ${lessonId}:`, lessonError)
-    }
-    return undefined
-  }
+      if (lessonError || !lesson) {
+        if (lessonError && lessonError.code !== 'PGRST116') {
+          console.error(`Error fetching lesson ${lessonId}:`, lessonError)
+        }
+        return undefined
+      }
 
-  const { data: moduleRow, error: moduleError } = await supabase
-    .from('modules')
-    .select('id, course_id')
-    .eq('id', lesson.module_id)
-    .single()
+      const { data: moduleRow, error: moduleError } = await supabase
+        .from('modules')
+        .select('id, course_id')
+        .eq('id', lesson.module_id)
+        .single()
 
-  if (moduleError || !moduleRow) {
-    console.error(`Error fetching module for lesson ${lessonId}:`, moduleError)
-    return undefined
-  }
+      if (moduleError || !moduleRow) {
+        console.error(`Error fetching module for lesson ${lessonId}:`, moduleError)
+        return undefined
+      }
 
-  const { data: mcqs, error: mcqsError } = await supabase
-    .from('mcqs')
-    .select('question, question_ur, options, options_ur, correct_answer_index, difficulty')
-    .eq('lesson_id', lessonId)
+      const { data: mcqs, error: mcqsError } = await supabase
+        .from('mcqs')
+        .select('question, question_ur, options, options_ur, correct_answer_index, difficulty')
+        .eq('lesson_id', lessonId)
 
-  if (mcqsError) {
-    console.error(`Error fetching MCQs for lesson ${lessonId}:`, mcqsError)
-    return undefined
-  }
+      if (mcqsError) {
+        console.error(`Error fetching MCQs for lesson ${lessonId}:`, mcqsError)
+        return undefined
+      }
 
-  return {
-    id: lesson.id,
-    moduleId: moduleRow.id,
-    courseId: moduleRow.course_id,
-    title: lesson.title,
-    titleUr: lesson.title_ur || undefined,
-    videoUrl: lesson.video_url || undefined,
-    videoUrlUr: lesson.video_url_ur || undefined,
-    // Sanitize HTML to prevent XSS
-    textContent: sanitizeLessonContent(lesson.text_content || ''),
-    textContentUr: lesson.text_content_ur ? sanitizeLessonContent(lesson.text_content_ur) : undefined,
-    mcq: (mcqs || []).map((m) => ({
-      question: m.question,
-      questionUr: m.question_ur || undefined,
-      options: Array.isArray(m.options)
-        ? (m.options as string[])
-        : typeof m.options === 'string'
-          ? (JSON.parse(m.options) as string[])
-          : [],
-      optionsUr: m.options_ur 
-        ? (Array.isArray(m.options_ur) ? (m.options_ur as string[]) : typeof m.options_ur === 'string' ? (JSON.parse(m.options_ur) as string[]) : undefined)
-        : undefined,
-      correctAnswerIndex: m.correct_answer_index,
-      difficulty: (m.difficulty || 'beginner') as 'beginner' | 'advanced' | 'expert',
-    })),
-  }
+      return {
+        id: lesson.id,
+        moduleId: moduleRow.id,
+        courseId: moduleRow.course_id,
+        title: lesson.title,
+        titleUr: lesson.title_ur || undefined,
+        videoUrl: lesson.video_url || undefined,
+        videoUrlUr: lesson.video_url_ur || undefined,
+        // Sanitize HTML to prevent XSS
+        textContent: sanitizeLessonContent(lesson.text_content || ''),
+        textContentUr: lesson.text_content_ur ? sanitizeLessonContent(lesson.text_content_ur) : undefined,
+        mcq: (mcqs || []).map((m) => ({
+          question: m.question,
+          questionUr: m.question_ur || undefined,
+          options: Array.isArray(m.options)
+            ? (m.options as string[])
+            : typeof m.options === 'string'
+              ? (JSON.parse(m.options) as string[])
+              : [],
+          optionsUr: m.options_ur 
+            ? (Array.isArray(m.options_ur) ? (m.options_ur as string[]) : typeof m.options_ur === 'string' ? (JSON.parse(m.options_ur) as string[]) : undefined)
+            : undefined,
+          correctAnswerIndex: m.correct_answer_index,
+          difficulty: (m.difficulty || 'beginner') as 'beginner' | 'advanced' | 'expert',
+        })),
+      }
+    },
+    [`lms:lesson:${lessonId}`],
+    { revalidate: 300, tags: ['lms:courses', `lms:lesson:${lessonId}`] },
+  )
+  return query()
 }

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { hasAdminPermission, AdminPermissions } from '@/lib/admin'
 
 /**
@@ -549,6 +549,7 @@ export async function createEvent(
 
   revalidatePath('/admin/events')
   revalidatePath('/events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -642,6 +643,7 @@ export async function toggleManualAttendance(registrationId: string, attended: b
 
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
+  revalidateTag('events', 'max')
   return { success: true, coinsModified: attended ? attendanceReward : -attendanceReward }
 }
 
@@ -691,6 +693,7 @@ export async function updateEventCoinReward(eventId: string, coinReward: number)
 
   revalidatePath('/admin/events')
   revalidatePath('/events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -773,6 +776,7 @@ export async function updateEvent(
   revalidatePath('/admin/events')
   revalidatePath('/events')
   revalidatePath('/dashboard/president')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -1011,5 +1015,3 @@ export async function deleteUserProfile(targetUserId: string) {
   revalidatePath('/admin/users')
   return { success: true }
 }
-
-

@@ -1,8 +1,9 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { hasAdminPermission } from '@/lib/admin'
+import { getUserCoinBalance } from '@/lib/perf-data'
 
 export async function redeemReward(rewardId: string): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient()
@@ -33,12 +34,7 @@ export async function redeemReward(rewardId: string): Promise<{ success?: true; 
   }
 
   // Calculate user coin balance
-  const { data: txns } = await supabase
-    .from('coin_transactions')
-    .select('amount')
-    .eq('user_id', user.id)
-
-  const balance = (txns || []).reduce((sum, t) => sum + t.amount, 0)
+  const balance = await getUserCoinBalance(user.id)
   if (balance < reward.coin_cost) {
     return { error: `Insufficient coins. You have ${balance} coins but this costs ${reward.coin_cost}.` }
   }
@@ -72,6 +68,7 @@ export async function redeemReward(rewardId: string): Promise<{ success?: true; 
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/dashboard/wallet')
+  revalidateTag('rewards', 'max')
   return { success: true }
 }
 
@@ -107,6 +104,7 @@ export async function createReward(data: {
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/admin/rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }
 
@@ -127,6 +125,7 @@ export async function toggleRewardActive(rewardId: string, isActive: boolean) {
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/admin/rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }
 
@@ -146,5 +145,6 @@ export async function fulfilRedemption(redemptionId: string) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }
