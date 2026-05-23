@@ -21,11 +21,25 @@ export default async function AdminUsersPage() {
     redirect('/admin')
   }
 
-  // 1. Fetch profiles
-  const { data: profiles } = await supabase
+  // Fetch active admin profile division
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('division')
+    .eq('id', user.id)
+    .single()
+
+  const adminDivision = adminProfile?.division
+
+  // 1. Fetch profiles (limit to division if president)
+  let profilesQuery = supabase
     .from('profiles')
     .select('id, full_name, email, role, division, qualification, created_at')
-    .order('full_name')
+
+  if (role === 'president' && adminDivision) {
+    profilesQuery = profilesQuery.eq('division', adminDivision)
+  }
+
+  const { data: profiles } = await profilesQuery.order('full_name')
 
   // 2. Fetch streaks
   const { data: streaks } = await supabase

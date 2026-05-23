@@ -23,6 +23,25 @@ export async function approveDeedSubmission(
   const allowed = await hasAdminPermission(user.id, 'can_approve_deeds')
   if (!allowed) return { error: 'Permission denied. You cannot approve deeds.' }
 
+  // Verify division scoping for President role
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const { data: submission } = await supabase
+      .from('deed_submissions')
+      .select('*, profiles:user_id(division)')
+      .eq('id', deedId)
+      .single()
+    
+    if (!submission || (submission.profiles as any)?.division !== adminProfile.division) {
+      return { error: 'Permission denied. This user belongs to a different division.' }
+    }
+  }
+
   // 3. Fetch base daily deed reward setting
   const { data: baseSetting } = await supabase
     .from('system_settings')
@@ -70,6 +89,25 @@ export async function rejectDeedSubmission(deedId: string, adminNotes: string) {
   // 2. Verify permission
   const allowed = await hasAdminPermission(user.id, 'can_approve_deeds')
   if (!allowed) return { error: 'Permission denied. You cannot reject deeds.' }
+
+  // Verify division scoping for President role
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const { data: submission } = await supabase
+      .from('deed_submissions')
+      .select('*, profiles:user_id(division)')
+      .eq('id', deedId)
+      .single()
+    
+    if (!submission || (submission.profiles as any)?.division !== adminProfile.division) {
+      return { error: 'Permission denied. This user belongs to a different division.' }
+    }
+  }
 
   // 3. Update deed submission status
   const { error } = await supabase
@@ -206,17 +244,78 @@ export async function updateUserAdminRole(
     return { error: 'You cannot modify your own administrative roles or permissions.' }
   }
 
-  // 4. If target role is admin/superadmin, make sure current caller is a Superadmin (Presidents cannot manage Superadmins)
+  // Fetch active admin profile
   const { data: activeAdminProfile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, division')
     .eq('id', user.id)
     .single()
 
-  const activeAdminRole = activeAdminProfile?.role
+  if (!activeAdminProfile) {
+    return { error: 'Admin profile not found.' }
+  }
+
+  const activeAdminRole = activeAdminProfile.role
 
   if (role === 'superadmin' && activeAdminRole !== 'superadmin') {
     return { error: 'Only Superadmins can promote users to Superadmin.' }
+  }
+
+  // Enforce President specific restrictions
+  if (activeAdminRole === 'president') {
+    // 1. Fetch target user profile
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('role, division')
+      .eq('id', targetUserId)
+      .single()
+
+    if (!targetProfile || targetProfile.division !== activeAdminProfile?.division) {
+      return { error: 'Permission denied. You can only manage members of your own division.' }
+    }
+
+    // 2. Presidents can only assign volunteer or tier-3 roles
+    if (role !== 'tier-3' && role !== 'volunteer') {
+      return { error: 'Permission denied. You can only assign Volunteer or Event Scanner roles.' }
+    }
+
+    // 3. Presidents can only assign scan tickets permission
+    if (role === 'tier-3') {
+      if (
+        permissions.can_approve_deeds ||
+        permissions.can_manage_events ||
+        permissions.can_manage_courses ||
+        permissions.can_manage_settings ||
+        permissions.can_manage_admins
+      ) {
+        return { error: 'Permission denied. You can only grant Ticket Scanning permission to an Event Scanner.' }
+      }
+      if (!permissions.can_scan_tickets) {
+        return { error: 'Ticket Scanning permission must be enabled for an Event Scanner.' }
+      }
+
+      // 4. Limit check: max 2 scanners per division
+      const { data: tier3Profiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('division', activeAdminProfile?.division)
+        .eq('role', 'tier-3')
+
+      if (tier3Profiles && tier3Profiles.length > 0) {
+        const otherScannerIds = tier3Profiles.map(p => p.id).filter(id => id !== targetUserId)
+        if (otherScannerIds.length > 0) {
+          const { count, error: countError } = await supabase
+            .from('admin_permissions')
+            .select('*', { count: 'exact', head: true })
+            .in('admin_id', otherScannerIds)
+            .eq('can_scan_tickets', true)
+
+          if (!countError && count !== null && count >= 2) {
+            return { error: 'Limit reached. You can only assign Event Scanner access to at most 2 users in your division.' }
+          }
+        }
+      }
+    }
   }
 
   // 5. Update profiles role
@@ -276,7 +375,7 @@ export async function checkInTicket(ticketCode: string) {
   // 3. Resolve ticket code
   const { data: registration, error: fetchError } = await supabase
     .from('event_registrations')
-    .select('*, profiles(full_name)')
+    .select('*, profiles(full_name), events(coin_reward)')
     .eq('ticket_code', ticketCode)
     .single()
 
@@ -292,13 +391,16 @@ export async function checkInTicket(ticketCode: string) {
     }
   }
 
-  // 4. Fetch event attendance reward setting
-  const { data: attendanceSetting } = await supabase
-    .from('system_settings')
-    .select('value')
-    .eq('key', 'event_attendance_reward')
-    .single()
-  const attendanceReward = attendanceSetting ? parseInt(attendanceSetting.value, 10) : 50
+  // 4. Fetch reward (event-specific first, fallback to system settings)
+  let attendanceReward = (registration.events as any)?.coin_reward
+  if (typeof attendanceReward !== 'number') {
+    const { data: attendanceSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'event_attendance_reward')
+      .single()
+    attendanceReward = attendanceSetting ? parseInt(attendanceSetting.value, 10) : 50
+  }
 
   // 5. Update registration status
   const { error: updateError } = await supabase
@@ -346,7 +448,9 @@ export async function createEvent(
   date: string,
   time: string,
   location: string,
-  capacity: number
+  capacity: number,
+  coinReward: number,
+  division?: string | null
 ) {
   const supabase = await createClient()
 
@@ -362,6 +466,24 @@ export async function createEvent(
     return { error: 'Missing required event fields.' }
   }
 
+  // Retrieve active admin profile to enforce division restrictions
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  let eventDivision: string | null = null
+
+  if (adminProfile?.role === 'president') {
+    eventDivision = adminProfile.division || null
+    if (!eventDivision) {
+      return { error: 'Active president is not assigned to a division.' }
+    }
+  } else {
+    eventDivision = division || null
+  }
+
   // 3. Insert event
   const { error } = await supabase
     .from('events')
@@ -372,6 +494,8 @@ export async function createEvent(
       time,
       location,
       capacity: capacity || 100,
+      coin_reward: coinReward,
+      division: eventDivision,
     })
 
   if (error) {
@@ -398,12 +522,31 @@ export async function toggleManualAttendance(registrationId: string, attended: b
   const allowed = await hasAdminPermission(user.id, 'can_scan_tickets')
   if (!allowed) return { error: 'Permission denied. You cannot check in attendees.' }
 
-  // 3. Fetch registration
+  // Fetch caller profile for division verification
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  // 3. Fetch registration with events division
   const { data: registration, error: fetchError } = await supabase
     .from('event_registrations')
-    .select('*')
+    .select('*, events(division, coin_reward)')
     .eq('id', registrationId)
     .single()
+
+  if (fetchError || !registration) {
+    return { error: 'Registration record not found.' }
+  }
+
+  // Verify division if caller is a President
+  if (adminProfile?.role === 'president') {
+    const eventDivision = (registration.events as any)?.division
+    if (eventDivision !== adminProfile.division) {
+      return { error: 'Permission denied. You can only manage attendees for events in your own division.' }
+    }
+  }
 
   if (fetchError || !registration) {
     return { error: 'Registration record not found.' }
@@ -414,13 +557,16 @@ export async function toggleManualAttendance(registrationId: string, attended: b
     return { success: true }
   }
 
-  // 4. Fetch reward setting
-  const { data: attendanceSetting } = await supabase
-    .from('system_settings')
-    .select('value')
-    .eq('key', 'event_attendance_reward')
-    .single()
-  const attendanceReward = attendanceSetting ? parseInt(attendanceSetting.value, 10) : 50
+  // 4. Fetch reward (event-specific first, fallback to system settings)
+  let attendanceReward = (registration.events as any)?.coin_reward
+  if (typeof attendanceReward !== 'number') {
+    const { data: attendanceSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'event_attendance_reward')
+      .single()
+    attendanceReward = attendanceSetting ? parseInt(attendanceSetting.value, 10) : 50
+  }
 
   // 5. Update registration status
   const { error: updateError } = await supabase
@@ -452,5 +598,54 @@ export async function toggleManualAttendance(registrationId: string, attended: b
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
   return { success: true, coinsModified: attended ? attendanceReward : -attendanceReward }
+}
+
+/**
+ * Update an event's coin reward value.
+ */
+export async function updateEventCoinReward(eventId: string, coinReward: number) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_events')
+  if (!allowed) return { error: 'Permission denied. You cannot edit event rewards.' }
+
+  // Fetch caller profile for division verification
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  // Verify event division for President
+  if (adminProfile?.role === 'president') {
+    const { data: event } = await supabase
+      .from('events')
+      .select('division')
+      .eq('id', eventId)
+      .single()
+    
+    if (!event || event.division !== adminProfile.division) {
+      return { error: 'Permission denied. You can only edit rewards for events in your own division.' }
+    }
+  }
+
+  // 3. Update events table
+  const { error } = await supabase
+    .from('events')
+    .update({ coin_reward: coinReward })
+    .eq('id', eventId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin/events')
+  revalidatePath('/events')
+  return { success: true }
 }
 

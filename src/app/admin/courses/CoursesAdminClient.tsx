@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, Pencil, BookOpen, FileJson } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { createCourse, deleteCourse, importCourseFromJson } from './actions'
+import { updateCourseReward } from '@/app/admin/actions'
+import { toast } from 'sonner'
 
 export interface CourseRow {
   id: string
@@ -27,6 +29,30 @@ export default function CoursesAdminClient({
   const [showCreate, setShowCreate] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Inline reward editing states
+  const [courseRewards, setCourseRewards] = useState<Record<string, number>>({})
+  const [savingReward, setSavingReward] = useState<Record<string, boolean>>({})
+
+  const handleSaveReward = async (courseId: string) => {
+    const pts = courseRewards[courseId] !== undefined 
+      ? courseRewards[courseId] 
+      : (initialCourses.find(c => c.id === courseId)?.rewardPoints ?? 50)
+    setSavingReward(prev => ({ ...prev, [courseId]: true }))
+    try {
+      const res = await updateCourseReward(courseId, pts)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success('Course coin reward updated!')
+        router.refresh()
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update reward.')
+    } finally {
+      setSavingReward(prev => ({ ...prev, [courseId]: false }))
+    }
+  }
 
   // Create form state
   const [newId, setNewId] = useState('')
@@ -302,7 +328,29 @@ export default function CoursesAdminClient({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-zinc-900">
-                    {c.rewardPoints} <span className="text-xs font-normal text-zinc-500">coins</span>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={courseRewards[c.id] !== undefined ? courseRewards[c.id] : c.rewardPoints}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 0
+                          setCourseRewards(prev => ({ ...prev, [c.id]: val }))
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-zinc-250 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 rounded bg-zinc-50/50 font-mono text-center"
+                        disabled={savingReward[c.id]}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs font-bold text-[#0A9EDE] hover:bg-[#0A9EDE]/5 shrink-0"
+                        onClick={() => handleSaveReward(c.id)}
+                        isLoading={savingReward[c.id]}
+                      >
+                        Save
+                      </Button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">

@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS public.events (
     time TEXT NOT NULL, -- e.g., "9:00 AM - 5:00 PM"
     location TEXT NOT NULL,
     capacity INTEGER NOT NULL DEFAULT 100,
+    coin_reward INTEGER NOT NULL DEFAULT 50,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 

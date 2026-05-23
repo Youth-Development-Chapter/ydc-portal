@@ -16,23 +16,43 @@ export default async function AdminEventsPage() {
   }
 
   // Verify permission
-  const { permissions } = await getAdminContext(user.id)
+  const { role, permissions } = await getAdminContext(user.id)
   const hasAccess = permissions.can_scan_tickets || permissions.can_manage_events
   if (!hasAccess) {
     redirect('/admin')
   }
 
-  // 1. Fetch events
-  const { data: events } = await supabase
-    .from('events')
-    .select('*')
-    .order('date', { ascending: false })
+  // Fetch active admin profile division
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('division')
+    .eq('id', user.id)
+    .single()
+  
+  const adminDivision = adminProfile?.division
 
-  // 2. Fetch registrations
-  const { data: registrations } = await supabase
+  // 1. Fetch events (limited to division if role is president)
+  let eventsQuery = supabase.from('events').select('*')
+  if (role === 'president' && adminDivision) {
+    eventsQuery = eventsQuery.eq('division', adminDivision)
+  }
+  const { data: events } = await eventsQuery.order('date', { ascending: false })
+
+  // 2. Fetch registrations (limited to the admin's division events if president)
+  let registrationsQuery = supabase
     .from('event_registrations')
     .select('*, profiles(full_name, division, qualification)')
-    .order('created_at', { ascending: false })
+  
+  if (role === 'president' && adminDivision) {
+    const eventIds = (events || []).map(e => e.id)
+    if (eventIds.length > 0) {
+      registrationsQuery = registrationsQuery.in('event_id', eventIds)
+    } else {
+      registrationsQuery = registrationsQuery.eq('event_id', '00000000-0000-0000-0000-000000000000')
+    }
+  }
+  
+  const { data: registrations } = await registrationsQuery.order('created_at', { ascending: false })
 
   // Format registrations data to prevent nested structural complexity client-side
   const mappedRegistrations = (registrations || []).map((reg) => ({
@@ -63,6 +83,8 @@ export default async function AdminEventsPage() {
         initialEvents={events || []} 
         initialRegistrations={mappedRegistrations}
         permissions={permissions}
+        adminRole={role}
+        adminDivision={adminDivision}
       />
     </div>
   )

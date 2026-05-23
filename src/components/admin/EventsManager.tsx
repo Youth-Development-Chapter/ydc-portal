@@ -16,8 +16,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
-import { checkInTicket, createEvent, toggleManualAttendance } from '@/app/admin/actions'
+import { checkInTicket, createEvent, toggleManualAttendance, updateEventCoinReward } from '@/app/admin/actions'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Registration {
   id: string
@@ -42,12 +43,15 @@ interface EventItem {
   time: string
   location: string
   capacity: number
+  coin_reward?: number
 }
 
 export default function EventsManager({
   initialEvents,
   initialRegistrations,
   permissions,
+  adminRole,
+  adminDivision,
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
@@ -55,9 +59,36 @@ export default function EventsManager({
     can_scan_tickets: boolean
     can_manage_events: boolean
   }
+  adminRole: string
+  adminDivision?: string | null
 }) {
+  const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
   const [registrations, setRegistrations] = useState<Registration[]>(initialRegistrations)
+
+  // Inline event coin editing states
+  const [eventRewards, setEventRewards] = useState<Record<string, number>>({})
+  const [savingEventReward, setSavingEventReward] = useState<Record<string, boolean>>({})
+
+  const handleSaveEventReward = async (eventId: string) => {
+    const coins = eventRewards[eventId] !== undefined
+      ? eventRewards[eventId]
+      : (events.find(ev => ev.id === eventId)?.coin_reward ?? 50)
+    setSavingEventReward(prev => ({ ...prev, [eventId]: true }))
+    try {
+      const res = await updateEventCoinReward(eventId, coins)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success('Event coin reward updated!')
+        router.refresh()
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update event reward.')
+    } finally {
+      setSavingEventReward(prev => ({ ...prev, [eventId]: false }))
+    }
+  }
 
   // Scanner Tab States
   const [ticketInput, setTicketInput] = useState('')
@@ -71,7 +102,9 @@ export default function EventsManager({
   const [newTime, setNewTime] = useState('')
   const [newLocation, setNewLocation] = useState('')
   const [newCapacity, setNewCapacity] = useState('100')
+  const [newCoinReward, setNewCoinReward] = useState('50')
   const [isCreating, setIsCreating] = useState(false)
+  const [newDivision, setNewDivision] = useState('')
 
   // Manage Attendees States
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null)
@@ -121,13 +154,16 @@ export default function EventsManager({
 
     try {
       const capacityVal = parseInt(newCapacity, 10) || 100
+      const coinRewardVal = parseInt(newCoinReward, 10) || 50
       const res = await createEvent(
         newTitle,
         newDescription,
         newDate,
         newTime,
         newLocation,
-        capacityVal
+        capacityVal,
+        coinRewardVal,
+        adminRole === 'president' ? (adminDivision || null) : (newDivision || null)
       )
 
       if (res?.error) {
@@ -143,6 +179,8 @@ export default function EventsManager({
         setNewTime('')
         setNewLocation('')
         setNewCapacity('100')
+        setNewCoinReward('50')
+        setNewDivision('')
 
         const newEvt: EventItem = {
           id: Math.random().toString(36).substring(2, 9), // temp id, path will refresh
@@ -152,6 +190,7 @@ export default function EventsManager({
           time: newTime,
           location: newLocation,
           capacity: capacityVal,
+          coin_reward: coinRewardVal,
         }
         setEvents(prev => [newEvt, ...prev])
       }
@@ -339,6 +378,35 @@ export default function EventsManager({
                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Attendance</span>
                           <span className="font-extrabold text-xs text-zinc-800">{attCount} checked in</span>
                         </div>
+
+                        {permissions.can_manage_events && (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-150 rounded-xl justify-between">
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Coins</span>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                min={0}
+                                value={eventRewards[event.id] !== undefined ? eventRewards[event.id] : (event.coin_reward ?? 50)}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value, 10) || 0
+                                  setEventRewards(prev => ({ ...prev, [event.id]: val }))
+                                }}
+                                className="w-12 px-1.5 py-0.5 text-center text-xs font-bold font-mono border border-zinc-300 rounded focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white"
+                                disabled={savingEventReward[event.id]}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-1 text-[10px] font-bold text-[#0A9EDE] hover:bg-[#0A9EDE]/5"
+                                onClick={() => handleSaveEventReward(event.id)}
+                                isLoading={savingEventReward[event.id]}
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
                         <Button 
                           onClick={() => setSelectedEvent(event)}
                           variant="outline" 
@@ -475,9 +543,33 @@ export default function EventsManager({
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     rows={3}
-                    className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900"
+                    className="w-full text-sm p-3 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-zinc-900"
                   />
                 </div>
+
+                {/* Division Scope Field */}
+                {(adminRole === 'superadmin' || adminRole === 'admin') ? (
+                  <div className="space-y-1">
+                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Division Scope</label>
+                    <select
+                      value={newDivision}
+                      onChange={(e) => setNewDivision(e.target.value)}
+                      className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
+                    >
+                      <option value="">Overall (South Punjab)</option>
+                      <option value="multan">Multan Division</option>
+                      <option value="bahawalpur">Bahawalpur Division</option>
+                      <option value="dgkhan">D.G. Khan Division</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1 bg-zinc-50 border border-zinc-150 p-3 rounded-xl">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Division Scope</span>
+                    <span className="text-xs font-bold text-zinc-800 uppercase">
+                      {adminDivision || 'No Division'} Division (Local Event)
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -520,6 +612,20 @@ export default function EventsManager({
                       required
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Attendance Coin Reward</label>
+                  <Input 
+                    type="number"
+                    value={newCoinReward}
+                    onChange={(e) => setNewCoinReward(e.target.value)}
+                    min="0"
+                    required
+                  />
+                  <p className="text-[10px] text-zinc-400">
+                    Number of YDC Coins to award members checked in at this event.
+                  </p>
                 </div>
               </div>
 

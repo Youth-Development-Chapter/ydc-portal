@@ -241,16 +241,16 @@ export default async function AdminDashboardOverview() {
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <TrendingUp size={16} className="text-[#0A9EDE]" />
-                LMS & Rewards Integration
+                LMS & Rewards Rules
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-zinc-500 space-y-3">
               <p>
-                LMS Course completion and volunteer deeds award coins automatically via PostgreSQL hooks.
+                Members earn coins automatically by completing courses, attending events, and submitting daily deeds.
               </p>
               <ul className="space-y-1 list-disc pl-4">
-                <li>Daily Deed: 10 + optional Admin Bonus</li>
-                <li>LMS Complete: Set per course (default 50)</li>
+                <li>Daily Deed: 10 Coins (+ optional Admin Bonus)</li>
+                <li>LMS Course Completion: Set per course (default 50)</li>
                 <li>Event Attendance: 50 Coins</li>
               </ul>
             </CardContent>

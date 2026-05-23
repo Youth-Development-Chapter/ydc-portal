@@ -163,9 +163,9 @@ export default function LoginPage() {
 
           <div className="mt-6 border-t border-[#E5E5E5] pt-6">
             <div className="rounded-xl bg-[#F5F5F5] border border-[#E5E5E5] p-3 flex items-start gap-3">
-              <ShieldCheck size={18} className="text-[#0A9EDE] shrink-0 mt-0.5" />
+              <ShieldCheck size={18} className="text-[#0BA242] shrink-0 mt-0.5" />
               <p className="text-xs text-[#555555] leading-relaxed">
-                Login sessions are securely processed using Supabase JWT tokens. Unauthorized administrative attempts are monitored.
+                Your security is our priority. Your session is fully encrypted and protected.
               </p>
             </div>
           </div>

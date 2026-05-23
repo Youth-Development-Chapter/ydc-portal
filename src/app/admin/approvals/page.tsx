@@ -16,10 +16,19 @@ export default async function AdminApprovalsPage() {
   }
 
   // Verify permission
-  const { permissions } = await getAdminContext(user.id)
+  const { role, permissions } = await getAdminContext(user.id)
   if (!permissions.can_approve_deeds) {
     redirect('/admin')
   }
+
+  // Fetch active admin profile division
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('division')
+    .eq('id', user.id)
+    .single()
+  
+  const adminDivision = adminProfile?.division
 
   // Fetch pending submissions with profile details
   const { data: submissions } = await supabase
@@ -37,8 +46,8 @@ export default async function AdminApprovalsPage() {
     streaks?.map((s) => [s.user_id, s.current_streak]) || []
   )
 
-  // Map user streaks to submissions
-  const mappedSubmissions = (submissions || []).map((sub) => ({
+  // Map user streaks to submissions and filter by division if president
+  let mappedSubmissions = (submissions || []).map((sub) => ({
     id: sub.id,
     user_id: sub.user_id,
     description: sub.description,
@@ -52,6 +61,12 @@ export default async function AdminApprovalsPage() {
     },
     streak: streakMap.get(sub.user_id) || 0,
   }))
+
+  if (role === 'president' && adminDivision) {
+    mappedSubmissions = mappedSubmissions.filter(
+      (sub) => sub.profiles.division?.toLowerCase() === adminDivision.toLowerCase()
+    )
+  }
 
   return (
     <div className="space-y-6">

@@ -14,11 +14,23 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch upcoming events from Supabase ordered by date
-  const { data: dbEvents } = await supabase
-    .from("events")
-    .select("*")
-    .order("date", { ascending: true });
+  // Fetch user profile to get division scope
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("division")
+    .eq("id", user.id)
+    .single();
+  const userDivision = profile?.division;
+
+  // Fetch upcoming events from Supabase ordered by date (scoped to division or overall)
+  let eventsQuery = supabase.from("events").select("*");
+  if (userDivision) {
+    eventsQuery = eventsQuery.or(`division.is.null,division.eq.${userDivision}`);
+  } else {
+    eventsQuery = eventsQuery.is("division", null);
+  }
+
+  const { data: dbEvents } = await eventsQuery.order("date", { ascending: true });
 
   // Fetch current user registrations
   const { data: registrations } = await supabase
