@@ -107,72 +107,37 @@ export default function InteractiveLesson({
 
   const allAnswered = answers.length > 0 && answers.every((a) => a !== null);
 
-  const labels = {
-    en: {
-      beginner: "Beginner",
-      advanced: "Advanced",
-      expert: "Expert",
-      selectDifficulty: "Select Difficulty Level",
-      backToLesson: "Back to Lesson",
-      hintNote: "Test your understanding",
-      hintText: "Please answer all questions before submitting. Correctly answer the questions to pass and unlock the next chapter!",
-      submitQuiz: "Submit Quiz",
-      answerAllToSubmit: "Answer every question to submit",
-      questionProgress: (current: number, total: number) => `Question ${current} of ${total}`,
-      answered: "Answered",
-      noQuestions: "No questions available for this difficulty level.",
-      courseCompleted: "Course Completed! 🎉",
-      chapterCompleted: "Chapter Completed!",
-      congratsCourse: "Congratulations! You have successfully completed the course! Keep up the great work!",
-      congratsChapter: "Great job! You passed the quiz. The next chapter is now unlocked.",
-      scoreLabel: (score: number, total: number) => `Score: ${score} / ${total}`,
-      completionBonus: "Completion Bonus!",
-      rewardCredited: (coins: number) => `Reward credited: +${coins} YDC Coins`,
-      returnToAcademy: "Return to Academy",
-      returnToCourse: "Return to Course",
-      testFailed: "Test Failed",
-      failDesc1: "You didn't pass this chapter's quiz.",
-      failDesc2: "Please review the content and try again.",
-      attemptsLabel: (attempts: number) => `Attempts so far: ${attempts}`,
-      reviewChapter: "Review Chapter",
-      readyToTest: "Ready to test your knowledge?",
-      readyDesc: "Answer the questions to check your understanding of this chapter. Complete it to unlock the next chapter!",
-      takeQuestionnaire: "Start Quiz",
-    },
-    ur: {
-      beginner: "ابتدائی",
-      advanced: "اعلیٰ",
-      expert: "ماہر",
-      selectDifficulty: "مشکل کی سطح منتخب کریں",
-      backToLesson: "سبق پر واپس جائیں",
-      hintNote: "اپنی سمجھ بوجھ کا جائزہ لیں",
-      hintText: "براہ کرم جمع کرانے سے پہلے تمام سوالات کے جواب دیں۔ اگلا سبق کھولنے کے لیے تمام سوالات کے درست جواب دینا ضروری ہے۔",
-      submitQuiz: "کوئز جمع کریں",
-      answerAllToSubmit: "جمع کرنے کے لیے تمام سوالات کے جواب دیں",
-      questionProgress: (current: number, total: number) => `سوال ${current} کا ${total}`,
-      answered: "جواب دیا گیا",
-      noQuestions: "اس سطح کے لیے کوئی سوالات دستیاب نہیں ہیں۔",
-      courseCompleted: "کورس مکمل ہو گیا! 🎉",
-      chapterCompleted: "سبق مکمل ہو گیا!",
-      congratsCourse: "بہت بہت مبارک ہو! آپ نے پورے کورس کو کامیابی سے مکمل کر لیا ہے! اسی طرح محنت جاری رکھیں۔",
-      congratsChapter: "شاندار! آپ نے کوئز پاس کر لیا ہے۔ اگلا سبق اب کھل چکا ہے۔",
-      scoreLabel: (score: number, total: number) => `سکور: ${score} / ${total}`,
-      completionBonus: "تکمیل کا بونس!",
-      rewardCredited: (coins: number) => `کریڈٹ انعام: +${coins} YDC سکے`,
-      returnToAcademy: "اکیڈمی پر واپس جائیں",
-      returnToCourse: "کورس پر واپس جائیں",
-      testFailed: "امتحان ناکام ہو گیا",
-      failDesc1: "بدبختی سے آپ یہ کوئز پاس نہیں کر سکے۔",
-      failDesc2: "براہ کرم سبق کا دوبارہ جائزہ لیں اور کوشش کریں۔",
-      attemptsLabel: (attempts: number) => `اب تک کی کوششیں: ${attempts}`,
-      reviewChapter: "سبق کا جائزہ لیں",
-      readyToTest: "کیا آپ اپنی معلومات کا جائزہ لینے کے لیے تیار ہیں؟",
-      readyDesc: "سبق مکمل کرنے اور اپنے علم کا جائزہ لینے کے لیے کوئز شروع کریں۔",
-      takeQuestionnaire: "کوئز شروع کریں",
-    }
+  const currentLabels = {
+    beginner: "Beginner",
+    advanced: "Advanced",
+    expert: "Expert",
+    selectDifficulty: "Select Difficulty Level",
+    backToLesson: "Back to Lesson",
+    hintNote: "Test your understanding",
+    hintText: "Please answer all questions before submitting. Correctly answer the questions to pass and unlock the next chapter!",
+    submitQuiz: "Submit Quiz",
+    answerAllToSubmit: "Answer every question to submit",
+    questionProgress: (current: number, total: number) => `Question ${current} of ${total}`,
+    answered: "Answered",
+    noQuestions: "No questions available for this difficulty level.",
+    courseCompleted: "Course Completed! 🎉",
+    chapterCompleted: "Chapter Completed!",
+    congratsCourse: "Congratulations! You have successfully completed the course! Keep up the great work!",
+    congratsChapter: "Great job! You passed the quiz. The next chapter is now unlocked.",
+    scoreLabel: (score: number, total: number) => `Score: ${score} / ${total}`,
+    completionBonus: "Completion Bonus!",
+    rewardCredited: (coins: number) => `Reward credited: +${coins} YDC Coins`,
+    returnToAcademy: "Return to Academy",
+    returnToCourse: "Return to Course",
+    testFailed: "Test Failed",
+    failDesc1: "You didn't pass this chapter's quiz.",
+    failDesc2: "Please review the content and try again.",
+    attemptsLabel: (attempts: number) => `Attempts so far: ${attempts}`,
+    reviewChapter: "Review Chapter",
+    readyToTest: "Ready to test your knowledge?",
+    readyDesc: "Answer the questions to check your understanding of this chapter. Complete it to unlock the next chapter!",
+    takeQuestionnaire: "Start Quiz",
   };
-
-  const currentLabels = labels[lockedLanguage];
 
   const beginnerCount = lesson.mcq.filter((q) => q.difficulty === "beginner").length;
   const advancedCount = lesson.mcq.filter((q) => q.difficulty === "advanced").length;
@@ -228,26 +193,26 @@ export default function InteractiveLesson({
           </div>
         )}
         
-        <h2 className={`text-2xl font-coolvetica mb-2 ${isUrdu ? "font-nastaliq text-3xl" : ""}`}>
+        <h2 className="text-2xl font-coolvetica mb-2">
           {isCourseDone ? currentLabels.courseCompleted : currentLabels.chapterCompleted}
         </h2>
-        <p className={`text-[#555555] mb-2 max-w-md ${isUrdu ? "font-nastaliq text-lg leading-relaxed" : ""}`}>
+        <p className="text-[#555555] mb-2 max-w-md">
           {isCourseDone ? currentLabels.congratsCourse : currentLabels.congratsChapter}
         </p>
         <p className="text-xs text-[#A3A3A3] mb-8">
           {currentLabels.scoreLabel(view.total, view.total)}
         </p>
 
-        {isCourseDone && view.rewardCoins > 0 && (
-          <div className="w-full max-w-sm bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-8 flex items-center gap-3">
+        {view.rewardCoins > 0 && (
+          <div className="w-full max-w-sm bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-8 flex items-center gap-3 animate-in fade-in duration-300">
             <div className="w-10 h-10 bg-yellow-500 text-white rounded-full flex items-center justify-center shrink-0">
               <Award size={20} />
             </div>
-            <div className={`text-left ${isUrdu ? "text-right flex-1" : ""}`}>
-              <p className={`font-bold text-sm text-[#1D1D1D] ${isUrdu ? "font-nastaliq" : ""}`}>
-                {currentLabels.completionBonus}
+            <div className="text-left">
+              <p className="font-bold text-sm text-[#1D1D1D]">
+                {isCourseDone ? currentLabels.completionBonus : "Chapter Reward!"}
               </p>
-              <p className={`text-xs text-[#555555] ${isUrdu ? "font-nastaliq mt-0.5" : ""}`}>
+              <p className="text-xs text-[#555555]">
                 {currentLabels.rewardCredited(view.rewardCoins)}
               </p>
             </div>
@@ -256,7 +221,7 @@ export default function InteractiveLesson({
 
         <Button
           onClick={() => router.push(isCourseDone ? "/lms/courses" : `/lms/courses/${courseId}`)}
-          className={`w-full max-w-sm bg-[#0A9EDE] hover:bg-[#0A9EDE]/90 ${isUrdu ? "font-nastaliq text-lg" : ""}`}
+          className="w-full max-w-sm bg-[#0A9EDE] hover:bg-[#0A9EDE]/90"
         >
           {isCourseDone ? currentLabels.returnToAcademy : currentLabels.returnToCourse}
         </Button>
@@ -271,26 +236,26 @@ export default function InteractiveLesson({
         <div className="w-24 h-24 bg-[#DD0408]/10 text-[#DD0408] rounded-full flex items-center justify-center mb-6">
           <AlertTriangle size={48} />
         </div>
-        <h2 className={`text-2xl font-coolvetica mb-2 ${isUrdu ? "font-nastaliq text-3xl" : ""}`}>
+        <h2 className="text-2xl font-coolvetica mb-2">
           {currentLabels.testFailed}
         </h2>
-        <p className={`text-[#555555] mb-1 ${isUrdu ? "font-nastaliq text-lg leading-relaxed" : ""}`}>
+        <p className="text-[#555555] mb-1">
           {currentLabels.failDesc1}
         </p>
-        <p className={`text-[#555555] mb-2 ${isUrdu ? "font-nastaliq text-lg leading-relaxed" : ""}`}>
+        <p className="text-[#555555] mb-2">
           {currentLabels.failDesc2}
         </p>
         <p className="text-xs text-[#A3A3A3] mb-8">
           {currentLabels.attemptsLabel(view.failedAttempts)}
         </p>
         <div className="flex flex-col gap-3 w-full max-w-sm">
-          <Button onClick={handleRetryAfterFail} className={`w-full ${isUrdu ? "font-nastaliq text-lg" : ""}`}>
+          <Button onClick={handleRetryAfterFail} className="w-full">
             {currentLabels.reviewChapter}
           </Button>
           <Button
             variant="outline"
             onClick={() => router.push(`/lms/courses/${courseId}`)}
-            className={`w-full ${isUrdu ? "font-nastaliq text-lg" : ""}`}
+            className="w-full"
           >
             {currentLabels.returnToCourse}
           </Button>
@@ -307,25 +272,17 @@ export default function InteractiveLesson({
         <div className="mb-4">
           <button
             onClick={() => setView({ kind: "content" })}
-            className={`text-sm font-semibold text-[#0A9EDE] flex items-center gap-1 ${isUrdu ? "font-nastaliq flex-row-reverse" : ""}`}
+            className="text-sm font-semibold text-[#0A9EDE] flex items-center gap-1"
             disabled={submitting}
           >
-            {isUrdu ? (
-              <>
-                {currentLabels.backToLesson} <ChevronLeft size={16} className="rotate-180" />
-              </>
-            ) : (
-              <>
-                <ChevronLeft size={16} /> {currentLabels.backToLesson}
-              </>
-            )}
+            <ChevronLeft size={16} /> {currentLabels.backToLesson}
           </button>
         </div>
 
         {/* Difficulty Tab Selector inside Quiz View */}
         <div className="bg-white border border-[#E5E5E5] rounded-2xl p-4 shadow-sm space-y-3">
           <div className="flex flex-col gap-2">
-            <label className={`text-xs font-semibold text-gray-500 uppercase ${isUrdu ? "text-right font-nastaliq" : ""}`}>
+            <label className="text-xs font-semibold text-gray-500 uppercase">
               {currentLabels.selectDifficulty}
             </label>
             <div className="grid grid-cols-3 gap-2 bg-[#F5F5F5] p-1 rounded-xl">
@@ -342,9 +299,7 @@ export default function InteractiveLesson({
                     type="button"
                     disabled={isDisabled || submitting}
                     onClick={() => setSelectedDifficulty(tab.key as any)}
-                    className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 ${
-                      isUrdu ? "pt-1.5 pb-2.5" : "py-2"
-                    } ${
+                    className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 py-2 ${
                       isActive
                         ? "bg-[#0A9EDE] text-white shadow-sm"
                         : isDisabled
@@ -352,7 +307,7 @@ export default function InteractiveLesson({
                         : "text-[#555555] hover:bg-gray-200"
                     }`}
                   >
-                    <span className={isUrdu ? "font-nastaliq pb-0.5" : ""}>{tab.label}</span>
+                    <span>{tab.label}</span>
                     <span className="text-[10px] font-normal opacity-80">({tab.count})</span>
                   </button>
                 );
@@ -361,9 +316,9 @@ export default function InteractiveLesson({
           </div>
         </div>
 
-        <div className={`bg-[#0A9EDE]/5 border border-[#0A9EDE]/20 rounded-xl p-4 text-xs text-[#1D1D1D] ${isUrdu ? "text-right" : ""}`}>
-          <p className={`font-semibold mb-1 ${isUrdu ? "font-nastaliq text-sm" : ""}`}>{currentLabels.hintNote}</p>
-          <p className={`text-[#555555] ${isUrdu ? "font-nastaliq text-xs leading-relaxed" : ""}`}>
+        <div className="bg-[#0A9EDE]/5 border border-[#0A9EDE]/20 rounded-xl p-4 text-xs text-[#1D1D1D]">
+          <p className="font-semibold mb-1">{currentLabels.hintNote}</p>
+          <p className="text-[#555555] leading-relaxed">
             {currentLabels.hintText}
           </p>
         </div>
@@ -377,7 +332,7 @@ export default function InteractiveLesson({
         {filteredMcqs.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-[#E5E5E5] space-y-3">
             <AlertTriangle className="mx-auto text-yellow-500" size={36} />
-            <p className={`text-sm text-[#555555] ${isUrdu ? "font-nastaliq" : ""}`}>
+            <p className="text-sm text-[#555555]">
               {currentLabels.noQuestions}
             </p>
           </div>
@@ -392,12 +347,12 @@ export default function InteractiveLesson({
                   key={qIdx}
                   className="bg-white rounded-2xl p-5 shadow-sm border border-[#E5E5E5]"
                 >
-                  <div className={`flex items-center justify-between mb-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                    <span className={`text-xs font-bold uppercase text-[#555555] ${isUrdu ? "font-nastaliq" : ""}`}>
-                      {isUrdu ? currentLabels.questionProgress(qIdx + 1, filteredMcqs.length) : `Question ${qIdx + 1} of ${filteredMcqs.length}`}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase text-[#555555]">
+                      {`Question ${qIdx + 1} of ${filteredMcqs.length}`}
                     </span>
                     {answers[qIdx] !== null && (
-                      <span className={`text-[10px] font-semibold uppercase tracking-wider text-[#0A9EDE] ${isUrdu ? "font-nastaliq" : ""}`}>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[#0A9EDE]">
                         {currentLabels.answered}
                       </span>
                     )}
@@ -421,9 +376,7 @@ export default function InteractiveLesson({
                           type="button"
                           disabled={submitting}
                           onClick={() => pickAnswer(qIdx, optIdx)}
-                          className={`w-full text-left p-3 rounded-xl border transition-colors flex items-center gap-3 ${
-                            isUrdu ? "flex-row-reverse text-right" : "flex-row text-left"
-                          } ${cls}`}
+                          className={`w-full text-left p-3 rounded-xl border transition-colors flex items-center gap-3 flex-row text-left ${cls}`}
                         >
                           <span
                             className={`w-4 h-4 rounded-full border-2 shrink-0 ${
@@ -452,7 +405,7 @@ export default function InteractiveLesson({
           onClick={handleSubmit}
           disabled={!allAnswered || submitting}
           isLoading={submitting}
-          className={`w-full ${isUrdu ? "font-nastaliq text-lg" : ""}`}
+          className="w-full"
         >
           {allAnswered ? currentLabels.submitQuiz : currentLabels.answerAllToSubmit}
         </Button>
@@ -499,17 +452,17 @@ export default function InteractiveLesson({
           <div className="mt-12 pt-6 border-t border-[#E5E5E5]">
             <div className="bg-[#0A9EDE]/10 border border-[#0A9EDE]/20 rounded-2xl p-6 space-y-6">
               <div className="text-center">
-                <h3 className={`font-bold text-[#1D1D1D] mb-2 ${isUrdu ? "font-nastaliq text-xl" : ""}`}>
+                <h3 className="font-bold text-[#1D1D1D] mb-2">
                   {currentLabels.readyToTest}
                 </h3>
-                <p className={`text-xs text-[#555555] ${isUrdu ? "font-nastaliq" : ""}`}>
+                <p className="text-xs text-[#555555]">
                   {currentLabels.readyDesc}
                 </p>
               </div>
 
               {/* Difficulty Selector before starting */}
               <div className="flex flex-col gap-2 max-w-md mx-auto">
-                <label className={`text-xs font-semibold text-gray-500 uppercase ${isUrdu ? "text-right font-nastaliq" : ""}`}>
+                <label className="text-xs font-semibold text-gray-500 uppercase">
                   {currentLabels.selectDifficulty}
                 </label>
                 <div className="grid grid-cols-3 gap-2 bg-[#F5F5F5] p-1 rounded-xl">
@@ -526,9 +479,7 @@ export default function InteractiveLesson({
                         type="button"
                         disabled={isDisabled}
                         onClick={() => setSelectedDifficulty(tab.key as any)}
-                        className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 ${
-                          isUrdu ? "pt-1.5 pb-2.5" : "py-2"
-                        } ${
+                        className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 py-2 ${
                           isActive
                             ? "bg-[#0A9EDE] text-white shadow-sm"
                             : isDisabled
@@ -536,7 +487,7 @@ export default function InteractiveLesson({
                             : "text-[#555555] hover:bg-gray-200"
                         }`}
                       >
-                        <span className={isUrdu ? "font-nastaliq pb-0.5" : ""}>{tab.label}</span>
+                        <span>{tab.label}</span>
                         <span className="text-[10px] font-normal opacity-80">({tab.count})</span>
                       </button>
                     );
@@ -545,7 +496,7 @@ export default function InteractiveLesson({
               </div>
 
               <div className="flex justify-center">
-                <Button onClick={startQuiz} className={`w-full max-w-md bg-[#0A9EDE] hover:bg-[#0A9EDE]/90 ${isUrdu ? "font-nastaliq text-lg" : ""}`}>
+                <Button onClick={startQuiz} className="w-full max-w-md bg-[#0A9EDE] hover:bg-[#0A9EDE]/90">
                   {currentLabels.takeQuestionnaire}
                 </Button>
               </div>

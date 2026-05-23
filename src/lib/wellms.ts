@@ -65,6 +65,7 @@ export interface Course {
   description: string
   descriptionUr?: string
   imageUrl: string
+  rewardPoints?: number
   modules: { id: string; title: string; titleUr?: string; duration: string }[]
 }
 

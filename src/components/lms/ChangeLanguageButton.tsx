@@ -23,10 +23,10 @@ export default function ChangeLanguageButton({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 bg-[#E5E5E5] hover:bg-[#D5D5D5] transition-colors rounded-full text-xs font-bold text-[#1D1D1D] ${currentLanguage === "ur" ? "font-nastaliq text-sm" : ""}`}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E5E5E5] hover:bg-[#D5D5D5] transition-colors rounded-full text-xs font-bold text-[#1D1D1D]"
       >
         <Globe size={14} />
-        {currentLanguage === "ur" ? "ٹریک تبدیل کریں" : "Change Track"}
+        Change Track
       </button>
 
       {isOpen && (

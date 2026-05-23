@@ -89,24 +89,24 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 450px;
+  height: 500px;
   background: linear-gradient(
     270deg, 
-    rgba(221,4,8,0.18) 0%, 
-    rgba(10,158,222,0.18) 16.66%, 
-    rgba(11,162,66,0.18) 33.33%, 
-    rgba(221,4,8,0.18) 50%, 
-    rgba(10,158,222,0.18) 66.66%, 
-    rgba(11,162,66,0.18) 83.33%, 
-    rgba(221,4,8,0.18) 100%
+    rgba(221,4,8,0.45) 0%, 
+    rgba(10,158,222,0.45) 16.66%, 
+    rgba(11,162,66,0.45) 33.33%, 
+    rgba(221,4,8,0.45) 50%, 
+    rgba(10,158,222,0.45) 66.66%, 
+    rgba(11,162,66,0.45) 83.33%, 
+    rgba(221,4,8,0.45) 100%
   );
   background-size: 200% 100%;
-  animation: fluid-flow 18s linear infinite;
+  animation: fluid-flow 15s linear infinite;
   mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
   -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
   pointer-events: none;
   z-index: 0;
-  filter: blur(60px);
+  filter: blur(40px);
 }
 
 /* Noto Nastaliq Urdu layout adjustments to avoid clipped descenders/ascenders */

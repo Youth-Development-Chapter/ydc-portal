@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
 import LanguageSelectModal from "@/components/lms/LanguageSelectModal";
@@ -20,19 +21,21 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
+  if (!user) {
+    redirect(`/auth/login?next=/lms/courses/${id}`);
+  }
+
   let lockedLanguage: "en" | "ur" | null = null;
 
-  if (user) {
-    const { data: setting } = await supabase
-      .from("user_course_settings")
-      .select("language")
-      .eq("user_id", user.id)
-      .eq("course_id", id)
-      .maybeSingle();
+  const { data: setting } = await supabase
+    .from("user_course_settings")
+    .select("language")
+    .eq("user_id", user.id)
+    .eq("course_id", id)
+    .maybeSingle();
 
-    if (setting) {
-      lockedLanguage = setting.language as "en" | "ur";
-    }
+  if (setting) {
+    lockedLanguage = setting.language as "en" | "ur";
   }
 
   const isUrdu = lockedLanguage === "ur";
@@ -69,10 +72,10 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
 
       {/* Course Content / Syllabus */}
       <div className="px-4 mt-6">
-        <div className={`flex items-center justify-between mb-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
-          <div className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
-            <h2 className={`text-lg font-bold text-[#1D1D1D] ${isUrdu ? "font-nastaliq text-right text-xl" : ""}`}>
-              {isUrdu ? "نصاب کے اسباق" : "Course Chapters"}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-bold text-[#1D1D1D]">
+              Course Chapters
             </h2>
             {lockedLanguage && (
               <ChangeLanguageButton
@@ -84,7 +87,7 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
             )}
           </div>
           <span className="text-xs font-bold text-[#555555] bg-[#E5E5E5] px-2 py-1 rounded-full shrink-0">
-            {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Modules`}
+            {course.modules.length} Modules
           </span>
         </div>
         
@@ -92,6 +95,7 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
           courseId={course.id} 
           modules={course.modules} 
           lockedLanguage={lockedLanguage || "en"} 
+          rewardPoints={course.rewardPoints}
         />
       </div>
 

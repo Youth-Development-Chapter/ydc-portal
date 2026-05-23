@@ -115,9 +115,9 @@ export async function submitQuiz(
 
   const courseId = moduleRow.course_id as string
 
-  // 5. On pass: record progress (triggers course-completion reward in DB).
+  // 5. On pass: record progress (triggers course-completion and chapter reward in DB).
   if (allCorrect) {
-    const { error: progressError } = await supabase
+    const { data: progressRow, error: progressError } = await supabase
       .from('user_progress')
       .upsert(
         {
@@ -131,14 +131,16 @@ export async function submitQuiz(
         },
         { onConflict: 'user_id,course_id,lesson_id,language,difficulty' },
       )
+      .select('id')
+      .single()
 
-    if (progressError) {
+    if (progressError || !progressRow) {
       console.error('submitQuiz: failed to save progress', progressError)
       return { ok: false, error: 'Could not save your progress.' }
     }
 
     // Run queries in parallel
-    const [attemptsResult, allModulesResult, progressRowsResult] = await Promise.all([
+    const [attemptsResult, allModulesResult, progressRowsResult, txnsResult] = await Promise.all([
       // Read attempts
       supabase
         .from('quiz_attempts')
@@ -161,11 +163,19 @@ export async function submitQuiz(
         .eq('course_id', courseId)
         .eq('language', language)
         .eq('completed', true),
+
+      // Fetch the coin transactions created by this progress update
+      supabase
+        .from('coin_transactions')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('reference_id', progressRow.id),
     ])
 
     const attemptsRow = attemptsResult.data
     const allModules = allModulesResult.data
     const progressRows = progressRowsResult.data
+    const txns = txnsResult.data
 
     const completedLessonsCount = new Set((progressRows || []).map(r => r.lesson_id)).size
 
@@ -182,30 +192,11 @@ export async function submitQuiz(
     const isCourseCompleted = totalLessonsCount !== 0 && completedLessonsCount >= totalLessonsCount
 
     let completedCourseId: string | null = null
-    let rewardCoins = 0
-
     if (isCourseCompleted) {
       completedCourseId = courseId
-      
-      const completionReason = `course_completion:${courseId}:${language}`
-      const { data: completionTxn } = await supabase
-        .from('coin_transactions')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('reason', completionReason)
-        .maybeSingle()
-      
-      if (completionTxn) {
-        rewardCoins = completionTxn.amount || 0
-      } else {
-        const { data: courseRow } = await supabase
-          .from('courses')
-          .select('reward_points')
-          .eq('id', courseId)
-          .maybeSingle()
-        rewardCoins = courseRow?.reward_points ?? 50
-      }
     }
+
+    const rewardCoins = (txns || []).reduce((sum, tx) => sum + (tx.amount || 0), 0)
 
     revalidatePath(`/lms/courses/${courseId}`)
     revalidatePath('/lms/courses')

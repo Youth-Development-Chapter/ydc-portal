@@ -65,9 +65,9 @@ export default function PresidentConsoleClient({
   const [activeTab, setActiveTab] = useState<'approvals' | 'events'>('approvals')
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
       {/* Top Gradient */}
-      <div className="fluid-top-gradient opacity-90 h-48"></div>
+      <div className="fluid-top-gradient"></div>
 
       <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6 relative z-10">
         

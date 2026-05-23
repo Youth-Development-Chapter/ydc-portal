@@ -8,16 +8,17 @@ import { useActionState } from "react";
 import { login } from "../actions";
 import { createClient } from "@/utils/supabase/client";
 
-export default function LoginClient() {
+export default function LoginClient({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(login, null);
 
   const handleOAuthLogin = async (provider: "google" | "facebook") => {
     const supabase = createClient();
     const origin = window.location.origin;
+    const nextPath = next || "/dashboard";
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${origin}/auth/callback`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
       },
     });
   };
@@ -62,6 +63,7 @@ export default function LoginClient() {
           )}
 
           <form className="space-y-6" action={action}>
+            <input type="hidden" name="next" value={next || "/dashboard"} />
             <Input
               id="email"
               name="email"

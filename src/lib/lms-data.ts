@@ -40,7 +40,7 @@ export async function getCourses(): Promise<Course[]> {
 
   const { data: coursesData, error: coursesError } = await supabase
     .from('courses')
-    .select('id, title, title_ur, author, description, description_ur, image_url')
+    .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
     .order('created_at', { ascending: true })
 
   if (coursesError) {
@@ -78,6 +78,7 @@ export async function getCourses(): Promise<Course[]> {
     description: c.description || '',
     descriptionUr: c.description_ur || undefined,
     imageUrl: c.image_url || '',
+    rewardPoints: c.reward_points,
     modules: modulesByCourse[c.id] || [],
   }))
 }
@@ -87,7 +88,7 @@ export async function getCourseById(courseId: string): Promise<Course | undefine
 
   const { data: course, error: courseError } = await supabase
     .from('courses')
-    .select('id, title, title_ur, author, description, description_ur, image_url')
+    .select('id, title, title_ur, author, description, description_ur, image_url, reward_points')
     .eq('id', courseId)
     .single()
 
@@ -117,6 +118,7 @@ export async function getCourseById(courseId: string): Promise<Course | undefine
     description: course.description || '',
     descriptionUr: course.description_ur || undefined,
     imageUrl: course.image_url || '',
+    rewardPoints: course.reward_points,
     modules: (modules || []).map((m) => ({
       id: m.id,
       title: m.title,

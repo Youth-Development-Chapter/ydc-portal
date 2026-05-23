@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, ShieldAlert, Check, X } from "lucide-react";
+import { Globe, Check, X } from "lucide-react";
 import { lockCourseLanguage } from "@/app/lms/courses/actions";
 import { Button } from "@/components/ui/Button";
 
@@ -68,19 +68,8 @@ export default function LanguageSelectModal({
           </div>
           <h2 className="text-2xl font-bold font-coolvetica tracking-tight">Select Course Language</h2>
           <p className="text-xs text-[#A3A3A3] font-medium leading-relaxed px-4">
-            Pick your preferred track. This choice will lock until you complete all chapters of the course.
+            Pick your preferred track. Note: your progress will reset if you change the language.
           </p>
-        </div>
-
-        {/* Warning Badge */}
-        <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 rounded-2xl p-4 flex items-start gap-3 relative z-10">
-          <ShieldAlert size={20} className="shrink-0 mt-0.5" />
-          <div className="text-left space-y-1">
-            <h4 className="text-xs font-bold uppercase tracking-wider">Lock-in Warning</h4>
-            <p className="text-[11px] text-yellow-500/80 leading-relaxed">
-              Course progress and chapter unlocking are separated by language. Your progress will be tracked under the selected track.
-            </p>
-          </div>
         </div>
 
         {/* Language Options */}

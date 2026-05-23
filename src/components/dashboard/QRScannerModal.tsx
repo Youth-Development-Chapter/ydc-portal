@@ -59,7 +59,7 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
         }
       } catch (err: any) {
         if (err.name === "NotAllowedError") {
-          setError("Camera access was denied. Please allow camera permissions and try again.");
+          setError("Camera access denied. Please click the lock icon in your browser URL bar to allow camera permissions, ensure you are using HTTPS, and try again.");
         } else if (err.name === "NotFoundError") {
           setError("No camera found on this device.");
         } else {

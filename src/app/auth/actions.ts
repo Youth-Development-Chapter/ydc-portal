@@ -129,6 +129,7 @@ export async function login(prevState: unknown, formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const rememberMe = formData.get('remember-me') as string
+  const next = (formData.get('next') as string) || '/dashboard'
 
   if (!email || !password) {
     return { error: 'Email and password are required' }
@@ -160,7 +161,7 @@ export async function login(prevState: unknown, formData: FormData) {
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  redirect(next)
 }
 
 export async function resetPassword(prevState: unknown, formData: FormData) {
