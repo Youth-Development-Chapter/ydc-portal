@@ -1,14 +1,25 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
+import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses } from "@/lib/lms-data";
 import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
 import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
+import {
+  getRecentAnnouncementsCached,
+  getUpcomingEventsForDivisionCached,
+  getUserCoinBalance,
+} from "@/lib/perf-data";
 
 export default async function UserDashboard() {
+  const extractEvent = (registration: { events?: unknown }) => {
+    if (Array.isArray(registration.events)) return registration.events[0] || null;
+    return (registration.events as { id: string; title: string; date: string; time: string; location: string } | null) || null;
+  };
+
   const supabase = await createClient();
   
   // Fetch secure user session
@@ -18,12 +29,29 @@ export default async function UserDashboard() {
     redirect("/auth/login");
   }
 
-  // Fetch real profile data
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+  const [
+    profileResult,
+    streakResult,
+    registrationsResult,
+    todayDeedsResult,
+    coins,
+  ] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, full_name, division, qualification, role')
+      .eq('id', user.id)
+      .single(),
+    supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
+    supabase
+      .from('event_registrations')
+      .select('id, event_id, ticket_code, attended, events(id, title, date, time, location)')
+      .eq('user_id', user.id),
+    supabase.from('deed_submissions').select('id, status').eq('user_id', user.id).eq('local_date', todayStr),
+    getUserCoinBalance(user.id),
+  ]);
+
+  const profile = profileResult.data;
 
   // If no profile exists, redirect to onboarding
   if (!profile) {
@@ -32,51 +60,29 @@ export default async function UserDashboard() {
 
   // Map real data to UI
   const name = profile?.full_name || user.user_metadata?.full_name || "YDC Member";
-  const division = profile?.division || "Not specified";
-  const education = profile?.qualification || "Not specified";
   const memberId = profile?.id ? `YDC-${profile.id.substring(0, 8).toUpperCase()}` : "YDC-UNKNOWN";
   
-  // Fetch real Coins sum from transaction ledger
-  const { data: coinTxns } = await supabase
-    .from('coin_transactions')
-    .select('amount')
-    .eq('user_id', user.id);
-  const coins = coinTxns?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
-
   // Determine Tier dynamically
   const tier = coins >= 1000 ? "Gold Tier" : coins >= 300 ? "Silver Tier" : "Bronze Tier";
 
-  // Fetch Streak record
-  const { data: streakRecord } = await supabase
-    .from('streaks')
-    .select('current_streak')
-    .eq('user_id', user.id)
-    .single();
+  const streakRecord = streakResult.data;
   const streak = streakRecord?.current_streak || 0;
 
-  // Fetch event registrations
-  const { data: registrations } = await supabase
-    .from('event_registrations')
-    .select('*, events(*)')
-    .eq('user_id', user.id);
+  const registrations = registrationsResult.data;
 
   // Find if there is an upcoming registered event starting in < 48 hours
   const now = new Date();
   const upcomingEvent48h = (registrations || []).find(reg => {
-    if (!reg.events) return false;
-    const eventDate = new Date(`${reg.events.date}T${reg.events.time.split(' - ')[0] || '00:00:00'}`);
+    const event = extractEvent(reg);
+    if (!event) return false;
+    const eventDate = new Date(`${event.date}T${event.time.split(' - ')[0] || '00:00:00'}`);
     const diffMs = eventDate.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     return diffHours > 0 && diffHours <= 48;
   });
 
   // Check if today a deed was submitted using local_date
-  const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-  const { data: todayDeeds } = await supabase
-    .from('deed_submissions')
-    .select('id, status')
-    .eq('user_id', user.id)
-    .eq('local_date', todayStr);
+  const todayDeeds = todayDeedsResult.data;
 
   const hasLoggedDeedToday = todayDeeds && todayDeeds.some(d => d.status === 'approved' || d.status === 'pending');
 
@@ -84,17 +90,15 @@ export default async function UserDashboard() {
   let progressPercentage = 0;
   let activeCourseTitle = "Ethics & Character Building";
   let activeCourseId = "";
-  let isCourseCompleted = false;
   const lockedLanguages = new Map<string, 'en' | 'ur'>();
 
   try {
-    const supabaseForLms = await createClient();
     const courses = await getCourses();
     if (courses && courses.length > 0) {
       const courseIds = courses.map(c => c.id);
 
       // Fetch locked course settings
-      const { data: settings } = await supabaseForLms
+      const { data: settings } = await supabase
         .from('user_course_settings')
         .select('course_id, language')
         .eq('user_id', user.id);
@@ -105,7 +109,7 @@ export default async function UserDashboard() {
 
       // Fetch ALL progress for this user across all courses in ONE query
       // instead of N sequential queries (N+1 elimination).
-      const { data: allProgress } = await supabaseForLms
+      const { data: allProgress } = await supabase
         .from('user_progress')
         .select('course_id, lesson_id, language')
         .eq('user_id', user.id)
@@ -146,7 +150,6 @@ export default async function UserDashboard() {
         const completed = progressByCourse.get(courses[0].id)?.size ?? 0;
         const total = courses[0].modules?.length || 1;
         selectedProgress = Math.min(100, Math.round((completed / total) * 100));
-        isCourseCompleted = true;
       }
 
       const activeLockedLang = lockedLanguages.get(selectedCourse.id) || 'en';
@@ -181,20 +184,15 @@ export default async function UserDashboard() {
     .gte('redeemed_at', twoDaysAgoStr)
     .order('redeemed_at', { ascending: false });
 
-  // 3. Fetch recent announcements
-  const { data: recentAnnouncements } = await supabase
-    .from('announcements')
-    .select('id, title, content, created_at')
-    .gte('created_at', twoDaysAgoStr)
-    .order('created_at', { ascending: false });
-
-  // 4. Fetch all upcoming events (date >= todayStr)
-  const { data: allUpcomingEvents } = await supabase
-    .from('events')
-    .select('*')
-    .gte('date', todayStr)
-    .order('date', { ascending: true })
-    .limit(5);
+  // 3 + 4. Fetch announcements and upcoming events via short-lived cache
+  const [announcementsCached, allUpcomingEventsCached] = await Promise.all([
+    getRecentAnnouncementsCached(),
+    getUpcomingEventsForDivisionCached(null),
+  ]);
+  const recentAnnouncements = announcementsCached.filter((a) => a.created_at >= twoDaysAgoStr);
+  const allUpcomingEvents = allUpcomingEventsCached
+    .filter((e) => e.date >= todayStr)
+    .slice(0, 5);
 
   // Compile Streak Warning (Highest priority if they haven't logged today)
   if (!hasLoggedDeedToday) {
@@ -214,8 +212,9 @@ export default async function UserDashboard() {
   }
 
   // Compile Registered Event Starting Soon (< 48 hours)
-  if (upcomingEvent48h && upcomingEvent48h.events) {
-    const event = upcomingEvent48h.events;
+  if (upcomingEvent48h) {
+    const event = extractEvent(upcomingEvent48h);
+    if (event) {
     flashcards.push({
       id: `reg-event-48h-${event.id}`,
       type: "upcoming_event",
@@ -229,6 +228,7 @@ export default async function UserDashboard() {
       badgeColor: "green",
       iconName: "calendar"
     });
+    }
   }
 
   // Compile Unregistered Upcoming Events (so they can join)
@@ -342,15 +342,16 @@ export default async function UserDashboard() {
   }
 
   const myEvents = (registrations || [])
-    .filter(reg => reg.events)
+    .map((reg) => ({ reg, event: extractEvent(reg) }))
+    .filter(({ event }) => !!event)
     .map(reg => ({
-      id: reg.events.id,
-      title: reg.events.title,
-      date: new Date(reg.events.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: reg.events.time,
-      location: reg.events.location,
-      ticketCode: reg.ticket_code,
-      attended: reg.attended
+      id: reg.event!.id,
+      title: reg.event!.title,
+      date: new Date(reg.event!.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: reg.event!.time,
+      location: reg.event!.location,
+      ticketCode: reg.reg.ticket_code,
+      attended: reg.reg.attended
     })); 
 
   return (
@@ -361,7 +362,7 @@ export default async function UserDashboard() {
       {/* HERO SECTION */}
       <div className="relative pt-6 pb-32 px-4 overflow-hidden">
         <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
-          <img src="/icontransparent.png" alt="" className="w-full max-w-[500px] h-auto scale-150" />
+          <Image src="/icontransparent.png" alt="" width={500} height={500} className="w-full max-w-[500px] h-auto scale-150" priority={false} />
         </div>
 
         <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto">
@@ -399,12 +400,12 @@ export default async function UserDashboard() {
       <div className="relative z-20 max-w-lg mx-auto px-4 -mt-24">
         <div className="bg-[#1D1D1D] rounded-3xl p-6 shadow-2xl shadow-black/20 border border-[#333333] relative overflow-hidden text-white transition-all duration-300 hover:shadow-black/35 hover:-translate-y-0.5">
           <div className="absolute -right-12 -top-12 opacity-5 pointer-events-none">
-            <img src="/icontransparent.png" alt="" className="w-64 h-auto" />
+            <Image src="/icontransparent.png" alt="" width={256} height={256} className="w-64 h-auto" />
           </div>
 
           <div className="flex justify-between items-start mb-8 relative z-10">
             <div className="bg-white/10 backdrop-blur-md p-2 rounded-xl">
-              <img src="/icontransparent.png" alt="YDC Icon" className="h-8 w-auto brightness-0 invert" />
+              <Image src="/icontransparent.png" alt="YDC Icon" width={128} height={32} className="h-8 w-auto brightness-0 invert" />
             </div>
 
             <div className="flex items-center gap-1.5 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/30 px-3 py-1.5 rounded-full shadow-inner">

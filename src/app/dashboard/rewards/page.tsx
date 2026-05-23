@@ -5,6 +5,7 @@ import { Gift, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import RewardsClient from "./RewardsClient";
 import PageHeader from "@/components/ui/PageHeader";
+import { getUserCoinBalance } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,17 +18,13 @@ export default async function RewardsPage() {
   }
 
   // Fetch active rewards and user's redemption history in parallel
-  const [rewardsResult, txnsResult, redemptionsResult] = await Promise.all([
+  const [rewardsResult, userBalance, redemptionsResult] = await Promise.all([
     supabase
       .from("rewards")
       .select("id, title, description, coin_cost, quantity_available")
       .eq("is_active", true)
       .order("coin_cost", { ascending: true }),
-
-    supabase
-      .from("coin_transactions")
-      .select("amount")
-      .eq("user_id", user.id),
+    getUserCoinBalance(user.id),
 
     supabase
       .from("reward_redemptions")
@@ -36,7 +33,6 @@ export default async function RewardsPage() {
       .neq("status", "cancelled"),
   ]);
 
-  const userBalance = (txnsResult.data || []).reduce((sum, t) => sum + t.amount, 0);
   const redeemedIds = new Set((redemptionsResult.data || []).map((r) => r.reward_id));
 
   const rewards = (rewardsResult.data || []).map((r) => ({

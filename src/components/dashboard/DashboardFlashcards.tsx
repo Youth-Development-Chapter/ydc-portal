@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { 
   BookOpen, 
@@ -74,7 +74,10 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
   }, [flashcards]);
 
   // Visible cards after dismissal
-  const visible = flashcards.filter(fc => !dismissedIds.has(fc.id));
+  const visible = useMemo(
+    () => flashcards.filter(fc => !dismissedIds.has(fc.id)),
+    [flashcards, dismissedIds],
+  );
 
   // Clamp currentIndex when cards are dismissed
   useEffect(() => {
@@ -128,7 +131,7 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
     return () => {
       if (autoPlayTimer.current) clearInterval(autoPlayTimer.current);
     };
-  }, [visible, isPaused, currentIndex]);
+  }, [visible.length, isPaused]);
 
   // Touch handlers with live drag translation
   const handleTouchStart = (e: React.TouchEvent) => {

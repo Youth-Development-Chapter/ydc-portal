@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Megaphone, Pin, Clock } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
+import { getRecentAnnouncementsCached } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,7 @@ export default async function AnnouncementsPage() {
     redirect("/auth/login");
   }
 
-  const { data: announcements } = await supabase
-    .from("announcements")
-    .select("id, title, content, is_pinned, created_at")
-    .order("is_pinned", { ascending: false })
-    .order("created_at", { ascending: false });
+  const announcements = await getRecentAnnouncementsCached();
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">

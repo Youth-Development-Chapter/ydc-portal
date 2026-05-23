@@ -1,12 +1,11 @@
 import React from "react";
-import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getCourseById } from "@/lib/lms-data";
 import CourseModulesList from "@/components/lms/CourseModulesList";
 import LanguageSelectModal from "@/components/lms/LanguageSelectModal";
 import ChangeLanguageButton from "@/components/lms/ChangeLanguageButton";
 import PageHeader from "@/components/ui/PageHeader";
-import { ChevronLeft } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -90,10 +89,12 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
           {/* Separate Book Cover Thumbnail */}
           {course.imageUrl && (
             <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden shrink-0 shadow-lg border border-white/10 bg-neutral-900">
-              <img 
-                src={course.imageUrl} 
-                className="w-full h-full object-cover animate-fade-in" 
-                alt={course.title} 
+              <Image
+                src={course.imageUrl}
+                fill
+                sizes="96px"
+                className="w-full h-full object-cover animate-fade-in"
+                alt={course.title}
               />
             </div>
           )}
