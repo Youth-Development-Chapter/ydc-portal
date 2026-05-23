@@ -103,6 +103,7 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
     .insert({
       id: userId,
       full_name: user.user_metadata.full_name,
+      email: user.email,
       father_name,
       dob: dob || null,
       whatsapp,

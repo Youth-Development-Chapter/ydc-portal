@@ -8,6 +8,7 @@
 CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT,
+    email TEXT,
     father_name TEXT,
     dob DATE,
     whatsapp TEXT,
@@ -731,3 +732,37 @@ CREATE INDEX IF NOT EXISTS idx_reward_redemptions_user
 
 CREATE INDEX IF NOT EXISTS idx_rewards_active
   ON public.rewards (is_active, coin_cost);
+
+-- Trigger to set email on profile insert if null
+CREATE OR REPLACE FUNCTION public.set_profile_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.email IS NULL THEN
+    SELECT email INTO NEW.email FROM auth.users WHERE id = NEW.id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_profile_created ON public.profiles;
+CREATE TRIGGER on_profile_created
+  BEFORE INSERT ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.set_profile_email();
+
+-- Trigger to sync email from auth.users to public.profiles on email update
+CREATE OR REPLACE FUNCTION public.sync_profile_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE public.profiles
+  SET email = NEW.email
+  WHERE id = NEW.id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_email_updated ON auth.users;
+CREATE TRIGGER on_auth_user_email_updated
+  AFTER UPDATE OF email ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.sync_profile_email();
