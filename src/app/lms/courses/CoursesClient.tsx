@@ -33,7 +33,91 @@ export default function CoursesClient({
   const activeCourses = courses.filter((c) => !completedSet.has(c.id));
   const completedCourses = courses.filter((c) => completedSet.has(c.id));
 
-  const listToRender = activeTab === "active" ? activeCourses : completedCourses;
+  const renderCourseCard = (course: Course) => {
+    const progress = courseProgressMap[course.id] || { completed: 0, total: 0, percent: 0 };
+    const isDone = completedSet.has(course.id);
+    const isUrdu = lockedLanguages[course.id] === "ur";
+    const displayTitle = isUrdu && course.titleUr ? course.titleUr : course.title;
+
+    return (
+      <Link key={course.id} href={`/lms/courses/${course.id}`} className="block" prefetch={false}>
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-4 shadow-sm hover:border-[#0A9EDE] transition-colors group overflow-hidden relative">
+          <div 
+            className="absolute inset-0 z-0 opacity-5"
+            style={{ backgroundImage: `url(${course.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+          />
+          
+          <div className={`relative z-10 flex gap-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
+            {/* Course Cover Image */}
+            <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 shadow-md relative">
+              <div 
+                className="w-full h-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${course.imageUrl})` }}
+              />
+              {isDone && (
+                <div className="absolute inset-0 bg-[#0BA242]/80 flex items-center justify-center text-white">
+                  <CheckCircle2 size={24} className="animate-pulse" />
+                </div>
+              )}
+            </div>
+            
+            {/* Course Metadata */}
+            <div className="flex-1 flex flex-col justify-between py-1">
+              <div>
+                <div className={`flex items-center gap-1.5 mb-1 ${isUrdu ? "flex-row-reverse" : ""}`}>
+                  <BookOpen size={13} className="text-[#DD0408]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
+                    {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Chapters`}
+                  </span>
+                  {isDone && (
+                    <span className="text-[9px] font-extrabold uppercase bg-[#0BA242]/10 text-[#0BA242] px-2 py-0.5 rounded-full border border-[#0BA242]/20 flex items-center gap-1">
+                      <Award size={10} /> {isUrdu ? "مکمل" : "Completed"}
+                    </span>
+                  )}
+                </div>
+                <h3 
+                  className={`font-bold text-[#1D1D1D] text-base leading-tight mb-0.5 ${
+                    isUrdu ? "font-nastaliq text-right text-lg" : ""
+                  }`}
+                  dir={isUrdu ? "rtl" : "ltr"}
+                >
+                  {displayTitle}
+                </h3>
+                <p className={`text-xs text-[#0A9EDE] font-semibold ${isUrdu ? "text-right" : ""}`}>{course.author}</p>
+              </div>
+
+              {/* Visual Progress Bar */}
+              <div className="mt-3 space-y-1">
+                <div className={`flex justify-between text-[10px] font-semibold text-[#555555] ${isUrdu ? "flex-row-reverse" : ""}`}>
+                  <span>{isUrdu ? "پیش رفت" : "Progress"}</span>
+                  <span dir={isUrdu ? "rtl" : "ltr"}>
+                    {isUrdu 
+                      ? `${progress.percent}% (${progress.completed}/${progress.total} اسباق)`
+                      : `${progress.percent}% (${progress.completed}/${progress.total} lessons)`}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden border border-[#E5E5E5]">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isDone ? "bg-[#0BA242]" : "bg-[#0A9EDE]"
+                    }`}
+                    style={{ width: `${progress.percent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Chevron Action */}
+            <div className="flex items-center justify-center pl-2">
+              <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#0A9EDE] transition-colors">
+                <ChevronRight size={16} className={`text-[#555555] group-hover:text-white ${isUrdu ? "rotate-180" : ""}`} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -81,113 +165,49 @@ export default function CoursesClient({
         </button>
       </div>
 
-      {/* Catalog List */}
+      {/* Catalog List with CSS Toggled Visibility */}
       <div className="space-y-4">
-        {listToRender.length === 0 ? (
-          <div className="bg-white border border-[#E5E5E5] rounded-3xl p-10 text-center space-y-4">
-            <div className="w-16 h-16 bg-[#F5F5F5] text-[#A3A3A3] rounded-full flex items-center justify-center mx-auto">
-              {activeTab === "active" ? <BookOpen size={28} /> : <Award size={28} />}
+        {/* Active Tab View */}
+        <div className={activeTab === "active" ? "block space-y-4" : "hidden"}>
+          {activeCourses.length === 0 ? (
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-10 text-center space-y-4">
+              <div className="w-16 h-16 bg-[#F5F5F5] text-[#A3A3A3] rounded-full flex items-center justify-center mx-auto">
+                <BookOpen size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-[#1D1D1D]">All Caught Up!</h3>
+                <p className="text-sm text-[#555555] max-w-xs mx-auto mt-1">
+                  You have completed all available courses in our academy catalog. Superb job! 🎉
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-lg text-[#1D1D1D]">
-                {activeTab === "active" ? "All Caught Up!" : "No Completed Courses Yet"}
-              </h3>
-              <p className="text-sm text-[#555555] max-w-xs mx-auto mt-1">
-                {activeTab === "active"
-                  ? "You have completed all available courses in our academy catalog. Superb job! 🎉"
-                  : "Finish your active chapters and pass the quizzes to unlock your certificates and rewards here."}
-              </p>
+          ) : (
+            <div className="grid gap-4">
+              {activeCourses.map((course) => renderCourseCard(course))}
             </div>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {listToRender.map((course) => {
-              const progress = courseProgressMap[course.id] || { completed: 0, total: 0, percent: 0 };
-              const isDone = completedSet.has(course.id);
-              const isUrdu = lockedLanguages[course.id] === "ur";
-              const displayTitle = isUrdu && course.titleUr ? course.titleUr : course.title;
-              
-              return (
-                <Link key={course.id} href={`/lms/courses/${course.id}`} className="block">
-                  <div className="bg-white border border-[#E5E5E5] rounded-3xl p-4 shadow-sm hover:border-[#0A9EDE] transition-all group overflow-hidden relative">
-                    <div 
-                      className="absolute inset-0 z-0 opacity-5"
-                      style={{ backgroundImage: `url(${course.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                    />
-                    
-                    <div className={`relative z-10 flex gap-4 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                      {/* Course Cover Image */}
-                      <div className="w-16 h-20 rounded-xl overflow-hidden shrink-0 shadow-md relative">
-                        <div 
-                          className="w-full h-full bg-cover bg-center"
-                          style={{ backgroundImage: `url(${course.imageUrl})` }}
-                        />
-                        {isDone && (
-                          <div className="absolute inset-0 bg-[#0BA242]/80 flex items-center justify-center text-white">
-                            <CheckCircle2 size={24} className="animate-pulse" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Course Metadata */}
-                      <div className="flex-1 flex flex-col justify-between py-1">
-                        <div>
-                          <div className={`flex items-center gap-1.5 mb-1 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                            <BookOpen size={13} className="text-[#DD0408]" />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#555555]">
-                              {isUrdu ? `${course.modules.length} اسباق` : `${course.modules.length} Chapters`}
-                            </span>
-                            {isDone && (
-                              <span className="text-[9px] font-extrabold uppercase bg-[#0BA242]/10 text-[#0BA242] px-2 py-0.5 rounded-full border border-[#0BA242]/20 flex items-center gap-1">
-                                <Award size={10} /> {isUrdu ? "مکمل" : "Completed"}
-                              </span>
-                            )}
-                          </div>
-                          <h3 
-                            className={`font-bold text-[#1D1D1D] text-base leading-tight mb-0.5 ${
-                              isUrdu ? "font-nastaliq text-right text-lg" : ""
-                            }`}
-                            dir={isUrdu ? "rtl" : "ltr"}
-                          >
-                            {displayTitle}
-                          </h3>
-                          <p className={`text-xs text-[#0A9EDE] font-semibold ${isUrdu ? "text-right" : ""}`}>{course.author}</p>
-                        </div>
+          )}
+        </div>
 
-                        {/* Visual Progress Bar */}
-                        <div className="mt-3 space-y-1">
-                          <div className={`flex justify-between text-[10px] font-semibold text-[#555555] ${isUrdu ? "flex-row-reverse" : ""}`}>
-                            <span>{isUrdu ? "پیش رفت" : "Progress"}</span>
-                            <span dir={isUrdu ? "rtl" : "ltr"}>
-                              {isUrdu 
-                                ? `${progress.percent}% (${progress.completed}/${progress.total} اسباق)`
-                                : `${progress.percent}% (${progress.completed}/${progress.total} lessons)`}
-                            </span>
-                          </div>
-                          <div className="w-full h-1.5 bg-[#F5F5F5] rounded-full overflow-hidden border border-[#E5E5E5]">
-                            <div
-                              className={`h-full rounded-full transition-all duration-500 ${
-                                isDone ? "bg-[#0BA242]" : "bg-[#0A9EDE]"
-                              }`}
-                              style={{ width: `${progress.percent}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Chevron Action */}
-                      <div className="flex items-center justify-center pl-2">
-                        <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center group-hover:bg-[#0A9EDE] transition-colors">
-                          <ChevronRight size={16} className={`text-[#555555] group-hover:text-white ${isUrdu ? "rotate-180" : ""}`} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+        {/* Completed Tab View */}
+        <div className={activeTab === "completed" ? "block space-y-4" : "hidden"}>
+          {completedCourses.length === 0 ? (
+            <div className="bg-white border border-[#E5E5E5] rounded-3xl p-10 text-center space-y-4">
+              <div className="w-16 h-16 bg-[#F5F5F5] text-[#A3A3A3] rounded-full flex items-center justify-center mx-auto">
+                <Award size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-[#1D1D1D]">No Completed Courses Yet</h3>
+                <p className="text-sm text-[#555555] max-w-xs mx-auto mt-1">
+                  Finish your active chapters and pass the quizzes to unlock your certificates and rewards here.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {completedCourses.map((course) => renderCourseCard(course))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

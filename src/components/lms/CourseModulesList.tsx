@@ -92,8 +92,8 @@ export default function CourseModulesList({
           return (
             <div key={module.id}>
               {isUnlocked ? (
-                <Link href={`/lms/lessons/${module.id}`} className="block">
-                  <div className={`bg-white border rounded-2xl p-4 flex items-center justify-between transition-all shadow-sm hover:shadow-md ${isUrdu ? "flex-row-reverse" : ""} ${isCompleted ? 'border-[#0BA242] bg-green-50/10' : 'border-[#E5E5E5] hover:border-[#0A9EDE]'}`}>
+                <Link href={`/lms/lessons/${module.id}`} className="block" prefetch={false}>
+                  <div className={`bg-white border rounded-2xl p-4 flex items-center justify-between transition-colors shadow-sm hover:shadow-md ${isUrdu ? "flex-row-reverse text-right" : ""} ${isCompleted ? 'border-[#0BA242] bg-green-50/10' : 'border-[#E5E5E5] hover:border-[#0A9EDE]'}`}>
                     <div className={`flex items-center gap-4 flex-1 ${isUrdu ? "flex-row-reverse text-right" : ""}`}>
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-[#0BA242]/10 text-[#0BA242]' : 'bg-[#0A9EDE]/10 text-[#0A9EDE]'}`}>
                         {isCompleted ? <CheckCircle size={20} /> : <PlayCircle size={20} />}

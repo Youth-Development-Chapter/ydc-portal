@@ -5,6 +5,8 @@ import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRig
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses } from "@/lib/lms-data";
+import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
+import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
 
 export default async function UserDashboard() {
   const supabase = await createClient();
@@ -77,18 +79,6 @@ export default async function UserDashboard() {
     .eq('local_date', todayStr);
 
   const hasLoggedDeedToday = todayDeeds && todayDeeds.some(d => d.status === 'approved' || d.status === 'pending');
-
-  let flashcardState: 'course_progress' | 'streak_warning' | 'upcoming_event' = 'course_progress';
-  let flashcardEventTitle = "";
-
-  if (upcomingEvent48h && upcomingEvent48h.events) {
-    flashcardState = 'upcoming_event';
-    flashcardEventTitle = upcomingEvent48h.events.title;
-  } else if (!hasLoggedDeedToday) {
-    flashcardState = 'streak_warning';
-  } else {
-    flashcardState = 'course_progress';
-  }
 
   // Calculate LMS progress percentage
   let progressPercentage = 0;
@@ -168,6 +158,189 @@ export default async function UserDashboard() {
     console.error("Failed to fetch LMS progress:", err);
   }
 
+  // Compile Dynamic Flashcards
+  const flashcards: Flashcard[] = [];
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const twoDaysAgoStr = twoDaysAgo.toISOString();
+
+  // 1. Fetch recent approved deeds
+  const { data: recentApprovedDeeds } = await supabase
+    .from('deed_submissions')
+    .select('id, description, coin_reward, bonus_coins, verified_at')
+    .eq('user_id', user.id)
+    .eq('status', 'approved')
+    .gte('verified_at', twoDaysAgoStr)
+    .order('verified_at', { ascending: false });
+
+  // 2. Fetch recent reward redemptions
+  const { data: recentRedemptions } = await supabase
+    .from('reward_redemptions')
+    .select('id, coin_cost, redeemed_at, rewards(title)')
+    .eq('user_id', user.id)
+    .gte('redeemed_at', twoDaysAgoStr)
+    .order('redeemed_at', { ascending: false });
+
+  // 3. Fetch recent announcements
+  const { data: recentAnnouncements } = await supabase
+    .from('announcements')
+    .select('id, title, content, created_at')
+    .gte('created_at', twoDaysAgoStr)
+    .order('created_at', { ascending: false });
+
+  // 4. Fetch all upcoming events (date >= todayStr)
+  const { data: allUpcomingEvents } = await supabase
+    .from('events')
+    .select('*')
+    .gte('date', todayStr)
+    .order('date', { ascending: true })
+    .limit(5);
+
+  // Compile Streak Warning (Highest priority if they haven't logged today)
+  if (!hasLoggedDeedToday) {
+    flashcards.push({
+      id: "streak-warning",
+      type: "streak_warning",
+      title: "Action Required",
+      titleUr: "عمل کی ضرورت ہے",
+      description: "Keep your streak! Log a daily deed to keep your fire alive.",
+      descriptionUr: "اپنی اسٹریک برقرار رکھیں! فائر کو زندہ رکھنے کے لیے روزانہ کا عمل لاگ کریں۔",
+      link: "/dashboard/log-deed",
+      badgeText: "Streak Alert",
+      badgeTextUr: "اسٹریک الرٹ",
+      badgeColor: "red",
+      iconName: "alert"
+    });
+  }
+
+  // Compile Registered Event Starting Soon (< 48 hours)
+  if (upcomingEvent48h && upcomingEvent48h.events) {
+    const event = upcomingEvent48h.events;
+    flashcards.push({
+      id: `reg-event-48h-${event.id}`,
+      type: "upcoming_event",
+      title: "Event Tomorrow!",
+      titleUr: "تقریب شروع ہونے والی ہے",
+      description: `"${event.title}" starts soon. Your entry ticket is ready!`,
+      descriptionUr: `"${event.title}" اگلے 48 گھنٹوں میں شروع ہو رہی ہے۔ آپ کا انٹری ٹکٹ تیار ہے!`,
+      link: "/events",
+      badgeText: "Starting Soon",
+      badgeTextUr: "جلد شروع ہو رہا ہے",
+      badgeColor: "green",
+      iconName: "calendar"
+    });
+  }
+
+  // Compile Unregistered Upcoming Events (so they can join)
+  const registeredEventIds = new Set((registrations || []).map(r => r.event_id));
+  const unregisteredEvents = (allUpcomingEvents || []).filter(e => !registeredEventIds.has(e.id));
+  unregisteredEvents.forEach(event => {
+    flashcards.push({
+      id: `unreg-event-${event.id}`,
+      type: "unregistered_event",
+      title: "Upcoming Event",
+      titleUr: "تقریب آرہی ہے",
+      description: `Claim entry ticket for "${event.title}" (${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${event.time}).`,
+      descriptionUr: `ٹکٹ حاصل کریں: "${event.title}"، (${new Date(event.date).toLocaleDateString('ur-PK', { month: 'short', day: 'numeric' })} بوقت ${event.time})۔`,
+      link: "/events",
+      badgeText: "Claim Ticket",
+      badgeTextUr: "ٹکٹ حاصل کریں",
+      badgeColor: "blue",
+      iconName: "calendar"
+    });
+  });
+
+  // Compile Recent Deed Approvals (within 48 hours)
+  (recentApprovedDeeds || []).forEach(deed => {
+    const totalCoins = deed.coin_reward + deed.bonus_coins;
+    flashcards.push({
+      id: `deed-approved-${deed.id}`,
+      type: "deed_approval",
+      title: "Deed Approved! 🎉",
+      titleUr: "عمل منظور ہو گیا! 🎉",
+      description: `Your submission for "${deed.description}" was approved. +${totalCoins} Coins added!`,
+      descriptionUr: `آپ کا بھیجا ہوا عمل "${deed.description}" منظور کر لیا گیا ہے۔ +${totalCoins} کوائنز شامل کر دیے گئے ہیں!`,
+      link: "/dashboard",
+      badgeText: "Deed Approved",
+      badgeTextUr: "منظور شدہ عمل",
+      badgeColor: "green",
+      iconName: "check"
+    });
+  });
+
+  // Compile Recent Reward Redemptions (within 48 hours)
+  (recentRedemptions || []).forEach(red => {
+    const rewardTitle = (red.rewards as any)?.title || "Reward";
+    flashcards.push({
+      id: `reward-redeemed-${red.id}`,
+      type: "reward_redemption",
+      title: "Reward Redeemed! 🎁",
+      titleUr: "انعام حاصل کر لیا! 🎁",
+      description: `You successfully redeemed "${rewardTitle}" for ${red.coin_cost} coins.`,
+      descriptionUr: `آپ نے ${red.coin_cost} کوائنز کے عوض کامیابی کے ساتھ "${rewardTitle}" حاصل کر لیا ہے۔`,
+      link: "/dashboard/rewards",
+      badgeText: "Redeemed",
+      badgeTextUr: "حاصل کیا",
+      badgeColor: "purple",
+      iconName: "gift"
+    });
+  });
+
+  // Compile Recent Announcements (within 48 hours)
+  (recentAnnouncements || []).forEach(ann => {
+    flashcards.push({
+      id: `announcement-${ann.id}`,
+      type: "announcement",
+      title: "New Announcement",
+      titleUr: "نیا اعلان",
+      description: ann.title,
+      descriptionUr: ann.title,
+      link: "/dashboard/announcements",
+      badgeText: "Announcement",
+      badgeTextUr: "اعلان",
+      badgeColor: "blue",
+      iconName: "bell"
+    });
+  });
+
+  // Compile Course Progress (Resume, In-Progress only, NOT completed)
+  if (progressPercentage > 0 && progressPercentage < 100) {
+    const courseLang = lockedLanguages.get(activeCourseId) || 'en';
+    const isUrduCourse = courseLang === 'ur';
+    flashcards.push({
+      id: `course-progress-${activeCourseId}`,
+      type: "course_progress",
+      title: "Resume Course",
+      titleUr: "کورس جاری رکھیں",
+      description: `Continue your progress in "${activeCourseTitle}" (${progressPercentage}% completed).`,
+      descriptionUr: `کورس جاری رکھیں جہاں سے آپ نے چھوڑا تھا: "${activeCourseTitle}" (${progressPercentage}% مکمل)۔`,
+      link: `/lms/courses/${activeCourseId}`,
+      badgeText: "Resume Course",
+      badgeTextUr: "کورس جاری رکھیں",
+      badgeColor: "blue",
+      iconName: "book",
+      progress: progressPercentage,
+      isUrdu: isUrduCourse
+    });
+  }
+
+  // Fallback card if empty
+  if (flashcards.length === 0) {
+    flashcards.push({
+      id: "all-caught-up",
+      type: "fallback",
+      title: "All Caught Up! ✨",
+      titleUr: "سب کچھ مکمل ہے! ✨",
+      description: "You are up to date with all events, courses, and announcements. Great job!",
+      descriptionUr: "آپ تمام تقاریب، کورسز اور اعلانات کے ساتھ اپ ٹو ڈیٹ ہیں۔ بہت خوب!",
+      link: "/dashboard",
+      badgeText: "Status Normal",
+      badgeTextUr: "حالت نارمل",
+      badgeColor: "green",
+      iconName: "check"
+    });
+  }
+
   const myEvents = (registrations || [])
     .filter(reg => reg.events)
     .map(reg => ({
@@ -242,70 +415,9 @@ export default async function UserDashboard() {
         </div>
       </div>
 
-      {/* DYNAMIC FLASHCARD ALERT */}
+      {/* DYNAMIC FLASHCARD ALERT CAROUSEL */}
       <div className="max-w-lg mx-auto px-4 mt-6">
-        {flashcardState === 'course_progress' && (() => {
-          const courseLang = lockedLanguages.get(activeCourseId) || 'en';
-          const isUrduCourse = courseLang === 'ur';
-          return (
-            <Link 
-              href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"} 
-              className={`block bg-gradient-to-r from-[#0A9EDE]/10 to-blue-500/5 border border-[#0A9EDE]/20 rounded-2xl p-4 flex items-center justify-between group hover:border-[#0A9EDE]/40 transition-colors shadow-sm cursor-pointer ${isUrduCourse ? "flex-row-reverse text-right" : ""}`}
-            >
-              <div className={`flex items-center gap-4 flex-1 ${isUrduCourse ? "flex-row-reverse" : ""}`}>
-                <div className="w-12 h-12 rounded-full bg-[#0A9EDE]/10 flex items-center justify-center shrink-0">
-                  <BookOpen size={20} className="text-[#0A9EDE]" />
-                </div>
-                <div className={`flex-1 ${isUrduCourse ? "pl-4 text-right" : "pr-4"}`}>
-                  <p className={`text-xs text-[#0A9EDE] font-bold uppercase tracking-wider mb-0.5 ${isUrduCourse ? "font-nastaliq" : ""}`}>
-                    {isCourseCompleted 
-                      ? (isUrduCourse ? "کورس مکمل ہو گیا! 🎉" : "Course Completed! 🎉") 
-                      : (isUrduCourse ? "کورس جاری رکھیں" : "Resume Course")}
-                  </p>
-                  <h4 className={`font-bold text-sm text-[#1D1D1D] mb-2 truncate ${isUrduCourse ? "font-nastaliq text-base leading-relaxed" : ""}`} dir={isUrduCourse ? "rtl" : "ltr"}>
-                    {activeCourseTitle}
-                  </h4>
-                  <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${isCourseCompleted ? 'bg-[#0BA242]' : 'bg-[#0A9EDE]'}`} style={{ width: `${progressPercentage}%` }}></div>
-                  </div>
-                </div>
-              </div>
-              <ChevronRight size={18} className={`text-[#A3A3A3] group-hover:text-[#0A9EDE] transition-colors ${isUrduCourse ? "rotate-180" : ""}`} />
-            </Link>
-          );
-        })()}
-
-        {flashcardState === 'streak_warning' && (
-          <Link href="/dashboard/log-deed" className="block bg-gradient-to-r from-[#DD0408]/10 to-red-500/5 border border-[#DD0408]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#DD0408]/40 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#DD0408]/10 flex items-center justify-center shrink-0">
-                <AlertTriangle size={20} className="text-[#DD0408] animate-pulse" />
-              </div>
-              <div>
-                <p className="text-xs text-[#DD0408] font-bold uppercase tracking-wider mb-0.5">Action Required</p>
-                <h4 className="font-bold text-sm text-[#1D1D1D]">Keep your streak!</h4>
-                <p className="text-xs text-[#555555] mt-0.5">Log a daily deed to keep your fire alive.</p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-[#DD0408]" />
-          </Link>
-        )}
-
-        {flashcardState === 'upcoming_event' && (
-          <Link href="/events" className="block bg-gradient-to-r from-[#0BA242]/10 to-green-500/5 border border-[#0BA242]/20 rounded-2xl p-4 flex items-center justify-between shadow-sm cursor-pointer hover:border-[#0BA242]/40 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#0BA242]/10 flex items-center justify-center shrink-0">
-                <Calendar size={20} className="text-[#0BA242]" />
-              </div>
-              <div>
-                <p className="text-xs text-[#0BA242] font-bold uppercase tracking-wider mb-0.5">Upcoming Event</p>
-                <h4 className="font-bold text-sm text-[#1D1D1D] truncate">{flashcardEventTitle}</h4>
-                <p className="text-xs text-[#555555] mt-0.5">Check details and QR ticket below.</p>
-              </div>
-            </div>
-            <ChevronRight size={18} className="text-[#0BA242]" />
-          </Link>
-        )}
+        <DashboardFlashcards flashcards={flashcards} />
       </div>
 
       {/* MAIN CONTENT / ORGANIZED INFO */}

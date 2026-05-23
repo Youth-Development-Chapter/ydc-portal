@@ -342,7 +342,9 @@ export default function InteractiveLesson({
                     type="button"
                     disabled={isDisabled || submitting}
                     onClick={() => setSelectedDifficulty(tab.key as any)}
-                    className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 ${
+                    className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 ${
+                      isUrdu ? "pt-1.5 pb-2.5" : "py-2"
+                    } ${
                       isActive
                         ? "bg-[#0A9EDE] text-white shadow-sm"
                         : isDisabled
@@ -350,7 +352,7 @@ export default function InteractiveLesson({
                         : "text-[#555555] hover:bg-gray-200"
                     }`}
                   >
-                    <span className={isUrdu ? "font-nastaliq" : ""}>{tab.label}</span>
+                    <span className={isUrdu ? "font-nastaliq pb-0.5" : ""}>{tab.label}</span>
                     <span className="text-[10px] font-normal opacity-80">({tab.count})</span>
                   </button>
                 );
@@ -524,7 +526,9 @@ export default function InteractiveLesson({
                         type="button"
                         disabled={isDisabled}
                         onClick={() => setSelectedDifficulty(tab.key as any)}
-                        className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex flex-col items-center justify-center gap-0.5 ${
+                        className={`px-3 text-xs font-bold rounded-lg transition-colors flex flex-col items-center justify-center gap-0.5 ${
+                          isUrdu ? "pt-1.5 pb-2.5" : "py-2"
+                        } ${
                           isActive
                             ? "bg-[#0A9EDE] text-white shadow-sm"
                             : isDisabled
@@ -532,7 +536,7 @@ export default function InteractiveLesson({
                             : "text-[#555555] hover:bg-gray-200"
                         }`}
                       >
-                        <span className={isUrdu ? "font-nastaliq" : ""}>{tab.label}</span>
+                        <span className={isUrdu ? "font-nastaliq pb-0.5" : ""}>{tab.label}</span>
                         <span className="text-[10px] font-normal opacity-80">({tab.count})</span>
                       </button>
                     );

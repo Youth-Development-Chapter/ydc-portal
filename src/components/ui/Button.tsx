@@ -32,9 +32,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     // Size variants
     const sizes = {
-      sm: "text-xs px-3 py-1.5 gap-1.5 h-8",
-      md: "text-sm px-4 py-2.5 gap-2 h-10",
-      lg: "text-base px-6 py-3.5 gap-2 h-12 rounded-xl", 
+      sm: "text-xs px-3 py-1.5 gap-1.5 min-h-[2rem]",
+      md: "text-sm px-4 py-2.5 gap-2 min-h-[2.5rem]",
+      lg: "text-base px-6 py-3.5 gap-2 min-h-[3rem] rounded-xl", 
     };
 
     // Style variants - Strictly Black and White
@@ -69,7 +69,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           </svg>
         )}
         {!isLoading && leftIcon && <span className="inline-flex shrink-0">{leftIcon}</span>}
-        <span className="truncate">{children}</span>
+        <span className="overflow-visible">{children}</span>
         {!isLoading && rightIcon && <span className="inline-flex shrink-0">{rightIcon}</span>}
       </button>
     );

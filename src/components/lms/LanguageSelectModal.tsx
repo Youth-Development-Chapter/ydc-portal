@@ -41,11 +41,8 @@ export default function LanguageSelectModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1D1D1D]/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-      <div className="bg-[#1D1D1D] border border-[#333333] text-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden flex flex-col space-y-6 animate-in zoom-in-95 duration-300">
-        {/* Glow decoration */}
-        <div className="absolute -right-24 -top-24 w-48 h-48 rounded-full bg-[#0A9EDE]/10 blur-3xl pointer-events-none" />
-        <div className="absolute -left-24 -bottom-24 w-48 h-48 rounded-full bg-[#DD0408]/10 blur-3xl pointer-events-none" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 animate-in fade-in duration-200">
+      <div className="bg-[#1D1D1D] border border-[#333333] text-white rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden flex flex-col space-y-6 animate-in zoom-in-95 duration-200">
 
         {/* Header */}
         <div className="text-center space-y-2 relative z-10">

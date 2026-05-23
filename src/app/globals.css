@@ -83,3 +83,10 @@ body {
   z-index: 0;
   filter: blur(40px);
 }
+
+/* Noto Nastaliq Urdu layout adjustments to avoid clipped descenders/ascenders */
+.font-nastaliq {
+  line-height: 1.8 !important;
+  padding-bottom: 0.12em !important;
+  padding-top: 0.08em !important;
+}
