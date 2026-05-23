@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { hasAdminPermission } from '@/lib/admin'
 
 export async function createAnnouncement(data: {
@@ -30,6 +30,7 @@ export async function createAnnouncement(data: {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
+  revalidateTag('announcements')
   return { success: true as const }
 }
 
@@ -46,6 +47,7 @@ export async function deleteAnnouncement(id: string) {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
+  revalidateTag('announcements')
   return { success: true as const }
 }
 
@@ -66,5 +68,6 @@ export async function togglePinAnnouncement(id: string, isPinned: boolean) {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
+  revalidateTag('announcements')
   return { success: true as const }
 }

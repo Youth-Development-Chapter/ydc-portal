@@ -1,6 +1,6 @@
 "use client";
  
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Lock, CheckCircle, PlayCircle, Globe, Award, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
@@ -28,7 +28,7 @@ export default function CourseModulesList({
 }: CourseModulesListProps) {
   const [userProgressList, setUserProgressList] = useState<{ lessonId: string; difficulty: string }[]>([]);
   const [mounted, setMounted] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   
   const isUrdu = lockedLanguage === "ur";
 
@@ -62,6 +62,7 @@ export default function CourseModulesList({
 
   // A lesson/module is completed if it has progress recorded for at least one difficulty
   const completedModuleIds = Object.keys(difficultiesMap);
+  const completedModuleSet = new Set(completedModuleIds);
 
   return (
     <div className="space-y-4">
@@ -87,8 +88,8 @@ export default function CourseModulesList({
           const previousModuleId = index > 0 ? modules[index - 1].id : null;
           
           // Unlocked if first module or previous module has been completed (any difficulty)
-          const isUnlocked = isFirst || (previousModuleId && completedModuleIds.includes(previousModuleId));
-          const isCompleted = completedModuleIds.includes(module.id);
+          const isUnlocked = isFirst || (previousModuleId && completedModuleSet.has(previousModuleId));
+          const isCompleted = completedModuleSet.has(module.id);
           const completedDiffs = difficultiesMap[module.id] || [];
 
           // Coin calculations

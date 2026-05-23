@@ -27,28 +27,15 @@ export default async function LmsCoursesPage() {
       lockedLanguages[setting.course_id] = setting.language as "en" | "ur";
     }
 
-    // 2. Fetch all modules & lessons to establish baseline counts
+    // 2. Fetch all modules to establish baseline counts
     const { data: allModules } = await supabase
       .from("modules")
       .select("id, course_id");
-      
-    const { data: allLessons } = await supabase
-      .from("lessons")
-      .select("id, module_id");
 
-    // Establish mapping of module_id -> course_id
-    const moduleToCourseMap: Record<string, string> = {};
+    // Count modules per course (1 lesson per module in this LMS model)
     for (const mod of allModules || []) {
-      moduleToCourseMap[mod.id] = mod.course_id;
-    }
-
-    // Accumulate total lessons count per course
-    const courseLessonsCount: Record<string, number> = {};
-    for (const les of allLessons || []) {
-      const courseId = moduleToCourseMap[les.module_id];
-      if (courseId) {
-        courseLessonsCount[courseId] = (courseLessonsCount[courseId] || 0) + 1;
-      }
+      courseProgressMap[mod.course_id] = courseProgressMap[mod.course_id] || { completed: 0, total: 0, percent: 0 };
+      courseProgressMap[mod.course_id].total += 1;
     }
 
     // 3. Fetch all completed user progress records for this user
@@ -73,7 +60,7 @@ export default async function LmsCoursesPage() {
 
     // 4. Populate progress mapping & completed course status
     for (const course of courses) {
-      const total = courseLessonsCount[course.id] || 0;
+      const total = courseProgressMap[course.id]?.total || 0;
       const completed = completedLessonsPerCourse[course.id]?.size || 0;
       const percent = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 

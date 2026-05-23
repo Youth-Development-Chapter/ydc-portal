@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Trophy, Medal, Flame, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
+import { getLeaderboard } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,34 +16,13 @@ export default async function LeaderboardPage() {
     redirect("/auth/login");
   }
 
-  // Fetch aggregated coin balances per user
-  const { data: transactions } = await supabase
-    .from("coin_transactions")
-    .select("user_id, amount");
-
-  const coinMap = new Map<string, number>();
-  (transactions || []).forEach((txn) => {
-    coinMap.set(txn.user_id, (coinMap.get(txn.user_id) || 0) + txn.amount);
-  });
-
-  // Fetch profiles for users who have coins
-  const userIds = Array.from(coinMap.keys());
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, full_name, division")
-    .in("id", userIds.length > 0 ? userIds : ["00000000-0000-0000-0000-000000000000"]);
-
-  // Build leaderboard entries
-  const entries = (profiles || [])
-    .map((p) => ({
-      id: p.id,
-      full_name: p.full_name || "Anonymous Member",
-      division: p.division || "Unknown",
-      coins: coinMap.get(p.id) || 0,
-    }))
-    .filter((e) => e.coins > 0)
-    .sort((a, b) => b.coins - a.coins)
-    .slice(0, 50); // Top 50
+  // DB-side aggregation for top leaderboard entries
+  const entries = (await getLeaderboard(50)).map((row) => ({
+    id: row.user_id,
+    full_name: row.full_name,
+    division: row.division,
+    coins: row.coins,
+  }));
 
   const myRank = entries.findIndex((e) => e.id === user.id) + 1;
 

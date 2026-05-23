@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Coins, ArrowUpRight, ArrowDownLeft, Calendar, BookOpen, Flame, Gift, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
+import { getUserCoinBalance } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function WalletPage() {
     .order("created_at", { ascending: false });
 
   // Calculate sum of coins
-  const balance = transactions?.reduce((acc, curr) => acc + curr.amount, 0) || 0;
+  const balance = await getUserCoinBalance(user.id);
 
   // Categorize transactions for stats breakdown
   let lmsCoins = 0;
