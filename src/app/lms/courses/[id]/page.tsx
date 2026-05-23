@@ -25,6 +25,17 @@ export default async function CourseDetailsPage({ params }: { params: Promise<{ 
     redirect(`/auth/login?next=/lms/courses/${id}`);
   }
 
+  // Session guard: check if user profile exists. If not, redirect to onboarding.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    redirect(`/onboarding?next=/lms/courses/${id}&notice=profile`);
+  }
+
   let lockedLanguage: "en" | "ur" | null = null;
 
   const { data: setting } = await supabase

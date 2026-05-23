@@ -1,5 +1,7 @@
 "use client";
 
+import React, { Suspense, useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import { 
   Users, Calendar, Phone, MessageCircle, MapPin, 
   Building, Map, Camera, Loader2, AlertCircle, ArrowRight
@@ -7,11 +9,13 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { useActionState } from "react";
 import { completeProfile } from "../auth/actions";
 
-export default function OnboardingPage() {
+function OnboardingForm() {
   const [state, action, pending] = useActionState(completeProfile, null);
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "";
+  const notice = searchParams.get("notice");
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-[#1D1D1D] py-12 px-6">
@@ -32,6 +36,16 @@ export default function OnboardingPage() {
         <div className="absolute top-0 inset-x-0 h-1 bg-[#0BA242]"></div>
         
         <div className="p-8 sm:p-10">
+          {notice === "profile" && (
+            <div className="mb-8 p-4 rounded-xl bg-blue-50 border border-blue-200 flex gap-3 text-sm text-blue-700 animate-in fade-in duration-300">
+              <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={20} />
+              <div>
+                <p className="font-bold mb-1">Profile Onboarding Required</p>
+                <p>Please complete your profile details to access the course catalog and track your progress.</p>
+              </div>
+            </div>
+          )}
+
           {state?.error && (
             <div className="mb-8 p-4 rounded-xl bg-[#FEF2F2] border border-[#FECACA] flex gap-3">
               <AlertCircle className="text-[#DC2626] shrink-0 mt-0.5" size={20} />
@@ -43,6 +57,7 @@ export default function OnboardingPage() {
           )}
 
           <form className="space-y-8" action={action}>
+            <input type="hidden" name="next" value={next} />
             
             {/* Personal Details */}
             <div>
@@ -200,5 +215,17 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
+        <Loader2 className="animate-spin text-[#0BA242]" size={36} />
+      </div>
+    }>
+      <OnboardingForm />
+    </Suspense>
   );
 }

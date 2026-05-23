@@ -60,6 +60,8 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
     return { error: 'You must be logged in to complete your profile.' }
   }
 
+  const next = (formData.get('next') as string) || '/dashboard'
+
   const father_name = formData.get('father_name') as string
   const dob = formData.get('dob') as string
   const whatsapp = formData.get('whatsapp') as string
@@ -120,7 +122,7 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
     return { error: profileError.message }
   }
 
-  redirect('/dashboard')
+  redirect(next)
 }
 
 export async function login(prevState: unknown, formData: FormData) {

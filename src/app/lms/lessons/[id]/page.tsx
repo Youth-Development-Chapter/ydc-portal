@@ -21,6 +21,17 @@ export default async function LessonViewerPage({ params }: { params: Promise<{ i
     redirect(`/auth/login?next=/lms/lessons/${id}`);
   }
 
+  // Session guard: check if user profile exists. If not, redirect to onboarding.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile) {
+    redirect(`/onboarding?next=/lms/lessons/${id}&notice=profile`);
+  }
+
   let lockedLanguage: "en" | "ur" = "en";
 
   const { data: setting } = await supabase
