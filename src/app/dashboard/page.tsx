@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, MapPin, GraduationCap, Calendar, Clock, ChevronRight, LogOut, BookOpen, AlertTriangle, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
+import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getCourses } from "@/lib/lms-data";
@@ -15,6 +15,11 @@ import {
 } from "@/lib/perf-data";
 
 export default async function UserDashboard() {
+  const extractEvent = (registration: { events?: unknown }) => {
+    if (Array.isArray(registration.events)) return registration.events[0] || null;
+    return (registration.events as { id: string; title: string; date: string; time: string; location: string } | null) || null;
+  };
+
   const supabase = await createClient();
   
   // Fetch secure user session
@@ -55,8 +60,6 @@ export default async function UserDashboard() {
 
   // Map real data to UI
   const name = profile?.full_name || user.user_metadata?.full_name || "YDC Member";
-  const division = profile?.division || "Not specified";
-  const education = profile?.qualification || "Not specified";
   const memberId = profile?.id ? `YDC-${profile.id.substring(0, 8).toUpperCase()}` : "YDC-UNKNOWN";
   
   // Determine Tier dynamically
@@ -70,8 +73,9 @@ export default async function UserDashboard() {
   // Find if there is an upcoming registered event starting in < 48 hours
   const now = new Date();
   const upcomingEvent48h = (registrations || []).find(reg => {
-    if (!reg.events) return false;
-    const eventDate = new Date(`${reg.events.date}T${reg.events.time.split(' - ')[0] || '00:00:00'}`);
+    const event = extractEvent(reg);
+    if (!event) return false;
+    const eventDate = new Date(`${event.date}T${event.time.split(' - ')[0] || '00:00:00'}`);
     const diffMs = eventDate.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     return diffHours > 0 && diffHours <= 48;
@@ -86,7 +90,6 @@ export default async function UserDashboard() {
   let progressPercentage = 0;
   let activeCourseTitle = "Ethics & Character Building";
   let activeCourseId = "";
-  let isCourseCompleted = false;
   const lockedLanguages = new Map<string, 'en' | 'ur'>();
 
   try {
@@ -147,7 +150,6 @@ export default async function UserDashboard() {
         const completed = progressByCourse.get(courses[0].id)?.size ?? 0;
         const total = courses[0].modules?.length || 1;
         selectedProgress = Math.min(100, Math.round((completed / total) * 100));
-        isCourseCompleted = true;
       }
 
       const activeLockedLang = lockedLanguages.get(selectedCourse.id) || 'en';
@@ -210,8 +212,9 @@ export default async function UserDashboard() {
   }
 
   // Compile Registered Event Starting Soon (< 48 hours)
-  if (upcomingEvent48h && upcomingEvent48h.events) {
-    const event = upcomingEvent48h.events;
+  if (upcomingEvent48h) {
+    const event = extractEvent(upcomingEvent48h);
+    if (event) {
     flashcards.push({
       id: `reg-event-48h-${event.id}`,
       type: "upcoming_event",
@@ -225,6 +228,7 @@ export default async function UserDashboard() {
       badgeColor: "green",
       iconName: "calendar"
     });
+    }
   }
 
   // Compile Unregistered Upcoming Events (so they can join)
@@ -338,15 +342,16 @@ export default async function UserDashboard() {
   }
 
   const myEvents = (registrations || [])
-    .filter(reg => reg.events)
+    .map((reg) => ({ reg, event: extractEvent(reg) }))
+    .filter(({ event }) => !!event)
     .map(reg => ({
-      id: reg.events.id,
-      title: reg.events.title,
-      date: new Date(reg.events.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: reg.events.time,
-      location: reg.events.location,
-      ticketCode: reg.ticket_code,
-      attended: reg.attended
+      id: reg.event!.id,
+      title: reg.event!.title,
+      date: new Date(reg.event!.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: reg.event!.time,
+      location: reg.event!.location,
+      ticketCode: reg.reg.ticket_code,
+      attended: reg.reg.attended
     })); 
 
   return (

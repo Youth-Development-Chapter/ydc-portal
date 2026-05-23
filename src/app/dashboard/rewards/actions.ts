@@ -68,7 +68,7 @@ export async function redeemReward(rewardId: string): Promise<{ success?: true; 
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/dashboard/wallet')
-  revalidateTag('rewards')
+  revalidateTag('rewards', 'max')
   return { success: true }
 }
 
@@ -104,7 +104,7 @@ export async function createReward(data: {
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/admin/rewards')
-  revalidateTag('rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }
 
@@ -125,7 +125,7 @@ export async function toggleRewardActive(rewardId: string, isActive: boolean) {
 
   revalidatePath('/dashboard/rewards')
   revalidatePath('/admin/rewards')
-  revalidateTag('rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }
 
@@ -145,6 +145,6 @@ export async function fulfilRedemption(redemptionId: string) {
   if (error) return { error: error.message }
 
   revalidatePath('/admin/rewards')
-  revalidateTag('rewards')
+  revalidateTag('rewards', 'max')
   return { success: true as const }
 }

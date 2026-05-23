@@ -1,5 +1,4 @@
 import React from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Trophy, Medal, Flame, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";

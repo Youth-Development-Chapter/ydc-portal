@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { randomBytes } from 'crypto'
 
 
@@ -47,7 +46,7 @@ export async function claimTicket(eventId: string) {
 
   revalidatePath('/events')
   revalidatePath('/dashboard')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -150,6 +149,6 @@ export async function logDeed(prevState: unknown, formData: FormData) {
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/log-deed')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true }
 }

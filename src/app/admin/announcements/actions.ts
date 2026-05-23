@@ -30,7 +30,7 @@ export async function createAnnouncement(data: {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
-  revalidateTag('announcements')
+  revalidateTag('announcements', 'max')
   return { success: true as const }
 }
 
@@ -47,7 +47,7 @@ export async function deleteAnnouncement(id: string) {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
-  revalidateTag('announcements')
+  revalidateTag('announcements', 'max')
   return { success: true as const }
 }
 
@@ -68,6 +68,6 @@ export async function togglePinAnnouncement(id: string, isPinned: boolean) {
 
   revalidatePath('/dashboard/announcements')
   revalidatePath('/admin/announcements')
-  revalidateTag('announcements')
+  revalidateTag('announcements', 'max')
   return { success: true as const }
 }

@@ -64,7 +64,12 @@ export default async function EventsPage() {
         event: ev
       };
     })
-    .find(reg => reg.event);
+    .find(reg => reg.event) as ({
+      ticket_code: string;
+      user_id: string;
+      attended: boolean;
+      event: { title: string; date: string; location: string };
+    } | undefined);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">

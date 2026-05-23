@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Coins, ArrowUpRight, ArrowDownLeft, Calendar, BookOpen, Flame, Gift, TrendingUp } from "lucide-react";
+import { Coins, ArrowUpRight, ArrowDownLeft, Calendar, BookOpen, Gift, TrendingUp } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import PageHeader from "@/components/ui/PageHeader";
 import { getUserCoinBalance } from "@/lib/perf-data";

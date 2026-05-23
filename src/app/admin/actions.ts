@@ -549,7 +549,7 @@ export async function createEvent(
 
   revalidatePath('/admin/events')
   revalidatePath('/events')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -643,7 +643,7 @@ export async function toggleManualAttendance(registrationId: string, attended: b
 
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true, coinsModified: attended ? attendanceReward : -attendanceReward }
 }
 
@@ -693,7 +693,7 @@ export async function updateEventCoinReward(eventId: string, coinReward: number)
 
   revalidatePath('/admin/events')
   revalidatePath('/events')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -776,7 +776,7 @@ export async function updateEvent(
   revalidatePath('/admin/events')
   revalidatePath('/events')
   revalidatePath('/dashboard/president')
-  revalidateTag('events')
+  revalidateTag('events', 'max')
   return { success: true }
 }
 
@@ -1015,4 +1015,3 @@ export async function deleteUserProfile(targetUserId: string) {
   revalidatePath('/admin/users')
   return { success: true }
 }
-

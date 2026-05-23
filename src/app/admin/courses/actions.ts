@@ -24,11 +24,11 @@ async function requireCourseAdmin() {
 function revalidateCourse(courseId?: string) {
   revalidatePath('/admin/courses')
   revalidatePath('/lms/courses')
-  revalidateTag('lms:courses')
+  revalidateTag('lms:courses', 'max')
   if (courseId) {
     revalidatePath(`/admin/courses/${courseId}`)
     revalidatePath(`/lms/courses/${courseId}`)
-    revalidateTag(`lms:course:${courseId}`)
+    revalidateTag(`lms:course:${courseId}`, 'max')
   }
 }
 
@@ -157,7 +157,7 @@ export async function createModule(data: {
 
   if (error) return { error: error.message }
   revalidateCourse(data.courseId)
-  revalidateTag(`lms:lesson:${trimmedId}`)
+  revalidateTag(`lms:lesson:${trimmedId}`, 'max')
   return { success: true as const, id: trimmedId }
 }
 
@@ -181,7 +181,7 @@ export async function updateModule(
 
   if (error) return { error: error.message }
   revalidateCourse(data.courseId)
-  revalidateTag(`lms:lesson:${id}`)
+  revalidateTag(`lms:lesson:${id}`, 'max')
   return { success: true as const }
 }
 
@@ -282,7 +282,7 @@ export async function deleteLesson(id: string, courseId: string) {
   const { error } = await supabase!.from('lessons').delete().eq('id', id)
   if (error) return { error: error.message }
   revalidateCourse(courseId)
-  revalidateTag(`lms:lesson:${id}`)
+  revalidateTag(`lms:lesson:${id}`, 'max')
   return { success: true as const }
 }
 
