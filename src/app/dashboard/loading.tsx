@@ -2,12 +2,15 @@ import React from "react";
 
 export default function DashboardLoading() {
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 animate-pulse">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 animate-pulse relative overflow-hidden">
+      {/* Soft Background Gradient skeleton */}
+      <div className="fluid-top-gradient"></div>
+
       {/* Hero header skeleton */}
-      <div className="relative pt-6 pb-32 px-4 bg-gray-200 rounded-b-[40px] shadow-sm overflow-hidden h-[180px]">
+      <div className="relative pt-6 pb-32 px-4 overflow-hidden h-[180px]">
         <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto">
-          <div className="h-6 w-28 bg-white/20 rounded-lg"></div>
-          <div className="w-10 h-10 rounded-full bg-white/20"></div>
+          <div className="h-6 w-28 bg-gray-200 rounded-lg"></div>
+          <div className="w-10 h-10 rounded-full bg-gray-200"></div>
         </div>
       </div>
 

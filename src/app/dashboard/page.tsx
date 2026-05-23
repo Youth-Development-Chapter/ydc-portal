@@ -354,20 +354,23 @@ export default async function UserDashboard() {
     })); 
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">
+    <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
+      {/* Soft Background Gradient emanating from top */}
+      <div className="fluid-top-gradient"></div>
+
       {/* HERO SECTION */}
-      <div className="relative pt-6 pb-32 px-4 fluid-header-gradient rounded-b-[40px] shadow-lg overflow-hidden">
-        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-10 pointer-events-none mix-blend-overlay">
+      <div className="relative pt-6 pb-32 px-4 overflow-hidden">
+        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none">
           <img src="/icontransparent.png" alt="" className="w-full max-w-[500px] h-auto scale-150" />
         </div>
 
         <div className="relative z-10 flex items-center justify-between max-w-lg mx-auto">
-          <h1 className="text-white font-bold text-xl tracking-tight drop-shadow-sm font-coolvetica">Dashboard</h1>
+          <h1 className="text-[#1D1D1D] font-bold text-xl tracking-tight font-coolvetica">Dashboard</h1>
           <div className="flex items-center gap-2">
-            <Link href="/dashboard/settings" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition shadow-sm" title="Settings">
+            <Link href="/dashboard/settings" className="w-10 h-10 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Settings">
               <Settings size={18} />
             </Link>
-            <Link href="/auth/login" className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition shadow-sm" title="Logout">
+            <Link href="/auth/login" className="w-10 h-10 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Logout">
               <LogOut size={18} />
             </Link>
           </div>
