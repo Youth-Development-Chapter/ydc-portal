@@ -71,6 +71,9 @@ export default function PresidentEventsManager({
   const [ticketInput, setTicketInput] = useState('')
   const [isCheckingIn, setIsCheckingIn] = useState(false)
   const [showCameraScanner, setShowCameraScanner] = useState(false)
+  const [scanEventId, setScanEventId] = useState<string>(
+    initialEvents.length > 0 ? initialEvents[0].id : ''
+  )
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -108,7 +111,7 @@ export default function PresidentEventsManager({
 
     setIsCheckingIn(true)
     try {
-      const res = await checkInTicket(code.trim())
+      const res = await checkInTicket(code.trim(), scanEventId || undefined)
       if (res?.error) {
         if (res.alreadyScanned) {
           toast.warning(`Already Checked In`, {
@@ -123,10 +126,16 @@ export default function PresidentEventsManager({
         })
         
         // Update local registrations list
+        const cleanCode = code.trim()
         setRegistrations(prev =>
-          prev.map(reg =>
-            reg.ticket_code === code.trim() ? { ...reg, attended: true, attended_at: new Date().toISOString() } : reg
-          )
+          prev.map(reg => {
+            const matches = scanEventId
+              ? (reg.user_id === cleanCode && reg.event_id === scanEventId)
+              : reg.ticket_code === cleanCode
+            return matches
+              ? { ...reg, attended: true, attended_at: new Date().toISOString() }
+              : reg
+          })
         )
         setTicketInput('')
         router.refresh()
@@ -293,9 +302,26 @@ export default function PresidentEventsManager({
       <Card className="shadow-sm border border-zinc-150 bg-white rounded-2xl overflow-hidden">
         <CardContent className="p-4 space-y-3">
           <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Quick Ticket Check-In</label>
+          <div className="space-y-2">
+            <span className="text-[10px] text-zinc-400 font-bold block">Select Checkpoint Event</span>
+            <select
+              value={scanEventId}
+              onChange={(e) => setScanEventId(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white mb-2"
+              disabled={isCheckingIn}
+              required
+            >
+              <option value="">Select an Event...</option>
+              {events.map((ev) => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+          </div>
           <form onSubmit={handleTicketCheckIn} className="flex gap-2">
             <Input 
-              placeholder="Enter Ticket Code (e.g. TKT-...)"
+              placeholder="Scan QR or type User UUID / Member ID"
               value={ticketInput}
               onChange={(e) => setTicketInput(e.target.value)}
               className="h-9 text-xs flex-1"

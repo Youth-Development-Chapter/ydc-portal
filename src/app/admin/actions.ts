@@ -361,7 +361,7 @@ export async function updateUserAdminRole(
 /**
  * Scan event tickets to record volunteer attendance and award coins.
  */
-export async function checkInTicket(ticketCode: string) {
+export async function checkInTicket(scannedId: string, eventId?: string) {
   const supabase = await createClient()
 
   // 1. Authenticate admin user
@@ -372,15 +372,59 @@ export async function checkInTicket(ticketCode: string) {
   const allowed = await hasAdminPermission(user.id, 'can_scan_tickets')
   if (!allowed) return { error: 'Permission denied. You cannot check in tickets.' }
 
-  // 3. Resolve ticket code
-  const { data: registration, error: fetchError } = await supabase
-    .from('event_registrations')
-    .select('*, profiles(full_name), events(coin_reward)')
-    .eq('ticket_code', ticketCode)
-    .single()
+  // 3. Resolve ticket code/user ID
+  let registration = null
+  let fetchError = null
 
-  if (fetchError || !registration) {
-    return { error: 'Ticket not found. Invalid registration code.' }
+  if (eventId) {
+    let resolvedUserId = scannedId.trim()
+    
+    // Support visual member ID format (e.g. YDC-12345678)
+    if (resolvedUserId.toUpperCase().startsWith('YDC-')) {
+      const hexPart = resolvedUserId.substring(4).toLowerCase()
+      const { data: matchProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .filter('id::text', 'like', `${hexPart}%`)
+        .maybeSingle()
+
+      if (profileError) {
+        return { error: `Profile lookup failed: ${profileError.message}` }
+      }
+      if (matchProfile) {
+        resolvedUserId = matchProfile.id
+      } else {
+        return { error: `No volunteer found with Member ID ${scannedId}` }
+      }
+    }
+
+    const { data: reg, error } = await supabase
+      .from('event_registrations')
+      .select('*, profiles(full_name), events(coin_reward)')
+      .eq('user_id', resolvedUserId)
+      .eq('event_id', eventId)
+      .maybeSingle()
+    
+    registration = reg
+    fetchError = error
+  } else {
+    // Fallback: scannedId is the ticket code
+    const { data: reg, error } = await supabase
+      .from('event_registrations')
+      .select('*, profiles(full_name), events(coin_reward)')
+      .eq('ticket_code', scannedId.trim())
+      .maybeSingle()
+    
+    registration = reg
+    fetchError = error
+  }
+
+  if (fetchError) {
+    return { error: fetchError.message }
+  }
+
+  if (!registration) {
+    return { error: 'Ticket not found. This user is not registered for the event.' }
   }
 
   if (registration.attended) {
@@ -438,6 +482,7 @@ export async function checkInTicket(ticketCode: string) {
     coinsAwarded: attendanceReward
   }
 }
+
 
 /**
  * Create a new event.
@@ -730,4 +775,235 @@ export async function updateEvent(
   revalidatePath('/dashboard/president')
   return { success: true }
 }
+
+/**
+ * Fetch a single user's detailed profile and histories.
+ */
+export async function getUserFullHistory(targetUserId: string) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_admins')
+  if (!allowed) return { error: 'Permission denied. You cannot view user details.' }
+
+  // 3. Verify division scoping for President role
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('division')
+      .eq('id', targetUserId)
+      .single()
+    
+    if (!targetProfile || targetProfile.division !== adminProfile.division) {
+      return { error: 'Permission denied. This user belongs to a different division.' }
+    }
+  }
+
+  // 4. Fetch profiles (full profile details)
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', targetUserId)
+    .single()
+
+  if (profileError || !profile) {
+    return { error: 'User profile not found.' }
+  }
+
+  // 5. Fetch streaks
+  const { data: streak } = await supabase
+    .from('streaks')
+    .select('*')
+    .eq('user_id', targetUserId)
+    .single()
+
+  // 6. Fetch coin transactions
+  const { data: coinTransactions } = await supabase
+    .from('coin_transactions')
+    .select('*')
+    .eq('user_id', targetUserId)
+    .order('created_at', { ascending: false })
+
+  // 7. Fetch event registrations with event details
+  const { data: registrations } = await supabase
+    .from('event_registrations')
+    .select('*, events(title, date, location, coin_reward)')
+    .eq('user_id', targetUserId)
+    .order('created_at', { ascending: false })
+
+  // 8. Fetch user progress with course and lesson details
+  const { data: progress } = await supabase
+    .from('user_progress')
+    .select('*, courses(title, title_ur), lessons(title, title_ur)')
+    .eq('user_id', targetUserId)
+    .order('completed_at', { ascending: false })
+
+  return {
+    success: true,
+    data: {
+      profile,
+      streak: streak || { current_streak: 0, longest_streak: 0, last_deed_date: null },
+      coinTransactions: coinTransactions || [],
+      registrations: registrations || [],
+      progress: progress || []
+    }
+  }
+}
+
+/**
+ * Update user profile from the admin console.
+ */
+export async function updateUserProfileAdmin(
+  targetUserId: string,
+  profileData: {
+    father_name: string
+    dob: string
+    whatsapp: string
+    phone: string
+    city: string
+    district: string
+    division: string
+    qualification: string
+    address: string
+  }
+) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_admins')
+  if (!allowed) return { error: 'Permission denied. You cannot modify user profiles.' }
+
+  // Fetch caller profile for division verification
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  if (!adminProfile) {
+    return { error: 'Admin profile not found.' }
+  }
+
+  // Fetch target profile division
+  const { data: targetProfile } = await supabase
+    .from('profiles')
+    .select('division')
+    .eq('id', targetUserId)
+    .single()
+
+  if (!targetProfile) {
+    return { error: 'Target user profile not found.' }
+  }
+
+  // Enforce President division scoping
+  if (adminProfile.role === 'president') {
+    if (targetProfile.division !== adminProfile.division) {
+      return { error: 'Permission denied. You can only manage members of your own division.' }
+    }
+    // President cannot move user to another division
+    if (profileData.division !== adminProfile.division) {
+      return { error: 'Permission denied. You cannot assign a user to another division.' }
+    }
+  }
+
+  // Update profile
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      father_name: profileData.father_name || null,
+      dob: profileData.dob || null,
+      whatsapp: profileData.whatsapp || null,
+      phone: profileData.phone || null,
+      city: profileData.city || null,
+      district: profileData.district || null,
+      division: profileData.division || null,
+      qualification: profileData.qualification || null,
+      address: profileData.address || null
+    })
+    .eq('id', targetUserId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+/**
+ * Delete a user profile (RLS triggers cascading cleanups).
+ */
+export async function deleteUserProfile(targetUserId: string) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_admins')
+  if (!allowed) return { error: 'Permission denied. You cannot delete users.' }
+
+  // Prevent self deletion
+  if (user.id === targetUserId) {
+    return { error: 'You cannot delete your own administrative account.' }
+  }
+
+  // Fetch caller profile for division verification
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', user.id)
+    .single()
+
+  if (!adminProfile) {
+    return { error: 'Admin profile not found.' }
+  }
+
+  // Fetch target user profile division
+  const { data: targetProfile } = await supabase
+    .from('profiles')
+    .select('role, division')
+    .eq('id', targetUserId)
+    .single()
+
+  if (!targetProfile) {
+    return { error: 'Target user profile not found.' }
+  }
+
+  // Enforce President division scoping
+  if (adminProfile.role === 'president') {
+    if (targetProfile.division !== adminProfile.division) {
+      return { error: 'Permission denied. You can only delete members of your own division.' }
+    }
+  }
+
+  // Delete profile row
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', targetUserId)
+
+  if (error) {
+    return { error: error.message }
+  }
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
 

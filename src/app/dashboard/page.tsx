@@ -408,7 +408,7 @@ export default async function UserDashboard() {
 
             <div className="bg-white p-2 rounded-xl shadow-inner shrink-0 ml-2">
               <QRCode 
-                value={memberId} 
+                value={profile.id} 
                 size={80}
                 style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                 viewBox={`0 0 256 256`}

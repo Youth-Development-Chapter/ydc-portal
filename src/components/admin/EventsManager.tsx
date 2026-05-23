@@ -93,6 +93,9 @@ export default function EventsManager({
   // Scanner Tab States
   const [ticketInput, setTicketInput] = useState('')
   const [isScanning, setIsScanning] = useState(false)
+  const [scanEventId, setScanEventId] = useState<string>(
+    initialEvents.length > 0 ? initialEvents[0].id : ''
+  )
 
   // Create Event States
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -118,7 +121,7 @@ export default function EventsManager({
     setIsScanning(true)
 
     try {
-      const res = await checkInTicket(ticketInput.trim())
+      const res = await checkInTicket(ticketInput.trim(), scanEventId || undefined)
       if (res?.error) {
         if (res.alreadyScanned) {
           toast.warning(`Already Checked In`, {
@@ -133,10 +136,16 @@ export default function EventsManager({
         })
         
         // Update local attendance status
+        const code = ticketInput.trim()
         setRegistrations(prev =>
-          prev.map(reg =>
-            reg.ticket_code === ticketInput.trim() ? { ...reg, attended: true, attended_at: new Date().toISOString() } : reg
-          )
+          prev.map(reg => {
+            const matches = scanEventId
+              ? (reg.user_id === code && reg.event_id === scanEventId)
+              : reg.ticket_code === code
+            return matches
+              ? { ...reg, attended: true, attended_at: new Date().toISOString() }
+              : reg
+          })
         )
         setTicketInput('')
       }
@@ -271,19 +280,39 @@ export default function EventsManager({
                 </div>
                 <CardTitle className="text-xl">Scan Volunteer Ticket</CardTitle>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Type or scan the unique ticket code from the volunteer&apos;s mobile app.
+                  Select the event checkpoint, then scan or type the volunteer&apos;s Member ID or User ID.
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
                 <form onSubmit={handleTicketScan} className="space-y-4">
                   <div className="space-y-2">
+                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">
+                      Select Event Checkpoint
+                    </label>
+                    <select
+                      value={scanEventId}
+                      onChange={(e) => setScanEventId(e.target.value)}
+                      className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
+                      disabled={isScanning}
+                      required
+                    >
+                      <option value="">Select an Event...</option>
+                      {events.map((ev) => (
+                        <option key={ev.id} value={ev.id}>
+                          {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
                     <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
-                      Ticket Code
+                      Volunteer Code / Member ID / User ID
                     </label>
                     <Input 
-                      placeholder="e.g. TKT-PION-XXXXXXXX"
+                      placeholder="Scan QR or type User UUID / Member ID"
                       value={ticketInput}
-                      onChange={(e) => setTicketInput(e.target.value.toUpperCase())}
+                      onChange={(e) => setTicketInput(e.target.value)}
                       className="text-center font-extrabold tracking-widest font-mono text-lg h-14 border-2 border-zinc-200 focus:border-[#0A9EDE] focus:ring-2 focus:ring-[#0A9EDE]/20 rounded-2xl bg-zinc-50/50 transition-all uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:font-normal"
                       disabled={isScanning}
                       required
@@ -301,7 +330,7 @@ export default function EventsManager({
                 {/* Mock Ticket Codes For Testing */}
                 <div className="border-t border-zinc-150 pt-4 space-y-2">
                   <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
-                    Quick Testing Codes
+                    Quick Testing Codes (User IDs)
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {registrations.slice(0, 4).map(reg => (
@@ -309,7 +338,7 @@ export default function EventsManager({
                         key={reg.id}
                         type="button"
                         onClick={() => {
-                          setTicketInput(reg.ticket_code)
+                          setTicketInput(reg.user_id)
                         }}
                         className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
                           reg.attended 
@@ -317,7 +346,7 @@ export default function EventsManager({
                             : 'bg-white border-zinc-250 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
                         }`}
                       >
-                        {reg.ticket_code.slice(0, 12)}...
+                        {reg.profiles.full_name} (ID: {reg.user_id.slice(0, 8)})
                       </button>
                     ))}
                   </div>

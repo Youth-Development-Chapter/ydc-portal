@@ -27,6 +27,7 @@ interface Event {
 
 interface ActiveTicket {
   ticket_code: string;
+  user_id: string;
   attended: boolean;
   event: {
     title: string;
@@ -223,12 +224,12 @@ export default function EventsClient({ events, activeTicket }: EventsClientProps
                   {/* QR Box */}
                   <div className="my-6 mx-auto w-44 aspect-square bg-[#FAFAFA] border border-[#E5E5E5] p-3 rounded-2xl flex flex-col items-center justify-center relative shadow-sm">
                     <QRCode 
-                      value={activeTicket.ticket_code} 
+                      value={activeTicket.user_id} 
                       size={140}
                       style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                     />
                     <div className="absolute -bottom-3 px-3 py-0.5 rounded-full bg-white border border-[#E5E5E5] text-[10px] font-mono text-[#555555] shadow-sm">
-                      {activeTicket.ticket_code}
+                      Member ID: YDC-{activeTicket.user_id.substring(0, 8).toUpperCase()}
                     </div>
                   </div>
 
