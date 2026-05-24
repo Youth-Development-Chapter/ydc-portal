@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createApiClient } from '@/utils/supabase/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = await createClient()
+    const supabase = await createApiClient(request)
 
     // Always derive the userId from the authenticated session — never trust
     // a client-supplied userId, as that would let any user forge progress

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createApiClient } from '@/utils/supabase/api'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { userId, courseId } = await params
-    const supabase = await createClient()
+    const supabase = await createApiClient(request)
 
     // Verify the caller is the same user whose progress is being requested.
     // Admins who need any user's progress should use a server action instead.

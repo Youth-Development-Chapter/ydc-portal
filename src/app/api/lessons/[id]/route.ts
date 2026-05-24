@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createApiClient } from '@/utils/supabase/api'
 
 // Kept for backward compatibility. In-app pages use `lib/lms-data.ts`.
 
@@ -9,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const supabase = await createClient()
+    const supabase = await createApiClient(request)
 
     // Fetch the lesson
     const { data: lesson, error: lessonError } = await supabase

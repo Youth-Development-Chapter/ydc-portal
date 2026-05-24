@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { createApiClient } from '@/utils/supabase/api'
 
 // Note: This route is kept for backward compatibility / external callers.
 // In-app pages query Supabase directly via `lib/lms-data.ts` to avoid an
 // extra server-to-server HTTP hop on Vercel.
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient()
+    const supabase = await createApiClient(request)
 
     // Fetch all courses
     const { data: coursesData, error: coursesError } = await supabase
