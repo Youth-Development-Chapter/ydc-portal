@@ -14,25 +14,20 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch user profile to get unit scoping
+  // Fetch user profile to get unit and division scoping
   const { data: profile } = await supabase
     .from("profiles")
-    .select("unit_id")
+    .select("unit_id, division")
     .eq("id", user.id)
     .single();
   const userUnitId = profile?.unit_id;
+  const userDivision = profile?.division || null;
 
-  // 1. Query events matching user unit
+  // 1. Query all events and filter them locally by visibility rules.
   let eventsQuery = supabase
     .from('events')
-    .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory')
+    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, division, is_compulsory')
     .order('date', { ascending: true });
-
-  if (userUnitId) {
-    eventsQuery = eventsQuery.or(`unit_id.is.null,unit_id.eq.${userUnitId}`);
-  } else {
-    eventsQuery = eventsQuery.is('unit_id', null);
-  }
 
   const [eventsResult, registrationsResult] = await Promise.all([
     eventsQuery,
@@ -54,7 +49,28 @@ export default async function EventsPage() {
   // Strip time for simple date comparison if events only use date fields
   const todayStr = now.toISOString().split('T')[0];
 
-  const processedEvents = dbEvents.map(event => {
+  const visibleEvents = dbEvents.filter((event) => {
+    const excludedUnits = Array.isArray(event.excluded_unit_ids) ? event.excluded_unit_ids : []
+    if (userUnitId && excludedUnits.includes(userUnitId)) {
+      return false
+    }
+
+    if (event.unit_id && userUnitId && event.unit_id !== userUnitId) {
+      return event.is_compulsory || event.division === userDivision
+    }
+
+    if (event.division && userDivision && event.division !== userDivision) {
+      return event.is_compulsory || !event.unit_id
+    }
+
+    if (!userUnitId && event.unit_id) {
+      return event.is_compulsory
+    }
+
+    return true
+  })
+
+  const processedEvents = visibleEvents.map(event => {
     const reg = registeredMap.get(event.id);
     let status = 'none';
     if (reg) {

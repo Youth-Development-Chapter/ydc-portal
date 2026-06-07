@@ -38,6 +38,28 @@ interface Registration {
   }
 }
 
+interface UnitMember {
+  id: string
+  full_name: string
+  unit_id: string | null
+  qualification: string
+  unit_name: string
+}
+
+interface RosterEntry {
+  id: string
+  user_id: string
+  full_name: string
+  unit_name: string
+  qualification: string
+  attended: boolean
+  ticket_code: string | null
+  status: string
+  leave_note: string | null
+  registration_id: string | null
+  is_synthetic: boolean
+}
+
 interface EventItem {
   id: string
   title: string
@@ -47,11 +69,14 @@ interface EventItem {
   location: string
   capacity: number
   coin_reward?: number
+  unit_id?: string | null
+  is_compulsory?: boolean
 }
 
 export default function EventsManager({
   initialEvents,
   initialRegistrations,
+  unitMembers,
   permissions,
   adminRole,
   adminUnitId,
@@ -60,6 +85,7 @@ export default function EventsManager({
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
+  unitMembers: UnitMember[]
   permissions: {
     can_scan_tickets: boolean
     can_manage_events: boolean
@@ -72,6 +98,7 @@ export default function EventsManager({
   const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
   const [registrations, setRegistrations] = useState<Registration[]>(initialRegistrations)
+  const [members] = useState<UnitMember[]>(unitMembers)
 
   // Inline event coin editing states
   const [eventRewards, setEventRewards] = useState<Record<string, number>>({})
@@ -281,6 +308,76 @@ export default function EventsManager({
     ? registrations.filter(r => r.event_id === selectedEvent.id)
     : []
 
+  const selectedEventRoster: RosterEntry[] = selectedEvent
+    ? (selectedEvent.is_compulsory
+      ? (() => {
+          const leaveStatuses = new Set(['leave_pending', 'leave_approved'])
+          const scopedMembers = members.filter((member) => {
+            if (!selectedEvent.unit_id) {
+              return true
+            }
+            return member.unit_id === selectedEvent.unit_id
+          })
+          const leaveApplicants = new Set(
+            selectedEventRegistrations
+              .filter((reg) => leaveStatuses.has(reg.status))
+              .map((reg) => reg.user_id)
+          )
+          const registrationByUser = new Map(selectedEventRegistrations.map((reg) => [reg.user_id, reg]))
+
+          return scopedMembers
+            .filter((member) => !leaveApplicants.has(member.id))
+            .map((member) => {
+              const registration = registrationByUser.get(member.id)
+              return {
+                id: registration?.id || member.id,
+                user_id: member.id,
+                full_name: member.full_name,
+                unit_name: member.unit_name,
+                qualification: member.qualification,
+                attended: registration?.attended || false,
+                ticket_code: registration?.ticket_code || null,
+                status: registration?.status || 'expected',
+                leave_note: registration?.leave_note || null,
+                registration_id: registration?.id || null,
+                is_synthetic: !registration,
+              }
+            })
+        })()
+      : selectedEventRegistrations.map((reg) => ({
+          id: reg.id,
+          user_id: reg.user_id,
+          full_name: reg.profiles.full_name,
+          unit_name: reg.profiles.unit_name,
+          qualification: reg.profiles.qualification,
+          attended: reg.attended,
+          ticket_code: reg.ticket_code,
+          status: reg.status,
+          leave_note: reg.leave_note,
+          registration_id: reg.id,
+          is_synthetic: false,
+        })))
+    : []
+
+  const handleRosterCheckIn = async (userId: string) => {
+    if (!selectedEvent) return
+
+    setIsTogglingAttendance(userId)
+    try {
+      const res = await checkInTicket(userId, selectedEvent.id)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success('Check-in confirmed!')
+        router.refresh()
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred.')
+    } finally {
+      setIsTogglingAttendance(null)
+    }
+  }
+
   return (
     <Tabs defaultValue={permissions.can_scan_tickets ? 'scanner' : 'events'}>
       <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
@@ -402,7 +499,7 @@ export default function EventsManager({
                           type="button"
                           onClick={() => setTicketInput(reg.user_id)}
                           className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
-                            reg.attended 
+                                reg.attended
                               ? 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through' 
                               : 'bg-white border-zinc-200 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
                           }`}
@@ -535,59 +632,77 @@ export default function EventsManager({
                   </button>
                 </CardHeader>
                 <CardContent className="p-0 max-h-[60vh] overflow-y-auto divide-y divide-zinc-150">
-                  {selectedEventRegistrations.length === 0 ? (
+                  {selectedEventRoster.length === 0 ? (
                     <div className="p-8 text-center text-zinc-400 text-xs">
-                      No registrations for this event yet.
+                          {selectedEvent?.is_compulsory
+                            ? 'No eligible volunteers found for this event scope.'
+                            : 'No registrations for this event yet.'}
                     </div>
                   ) : (
-                    selectedEventRegistrations.map((reg) => {
-                      const isToggling = isTogglingAttendance === reg.id
+                        selectedEventRoster.map((reg) => {
+                          const isToggling = isTogglingAttendance === reg.id || isTogglingAttendance === reg.user_id
                       return (
                         <div key={reg.id} className="p-4 flex items-center justify-between gap-3 hover:bg-zinc-50 transition-colors">
                           <div className="min-w-0 flex-1">
                             <span className="font-bold text-xs text-zinc-800 block truncate">
-                              {reg.profiles.full_name}
+                                  {reg.full_name}
                             </span>
                             <span className="text-[10px] text-zinc-400 font-mono block">
-                              Code: {reg.ticket_code.slice(0, 15)}...
+                                  {reg.ticket_code ? `Code: ${reg.ticket_code.slice(0, 15)}...` : 'No ticket yet'}
                             </span>
                             <span className="text-[10px] text-zinc-400 block">
-                              Unit: {reg.profiles.unit_name}
+                                  Unit: {reg.unit_name}
                             </span>
                             {reg.status === 'leave_pending' && (
                               <div className="mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
                                 <strong>Leave Note:</strong> {reg.leave_note}
                                 <div className="mt-2 flex gap-2">
-                                  <Button size="sm" variant="outline" className="h-6 text-[10px] bg-green-50 text-green-700 hover:bg-green-100" onClick={() => handleProcessLeave(reg.id, 'approve')} isLoading={isProcessingLeave === reg.id}>Approve Leave</Button>
-                                  <Button size="sm" variant="outline" className="h-6 text-[10px] bg-red-50 text-red-700 hover:bg-red-100" onClick={() => handleProcessLeave(reg.id, 'reject')} isLoading={isProcessingLeave === reg.id}>Reject</Button>
+                                      <Button size="sm" variant="outline" className="h-6 text-[10px] bg-green-50 text-green-700 hover:bg-green-100" onClick={() => handleProcessLeave(reg.registration_id || reg.id, 'approve')} isLoading={isProcessingLeave === (reg.registration_id || reg.id)}>Approve Leave</Button>
+                                      <Button size="sm" variant="outline" className="h-6 text-[10px] bg-red-50 text-red-700 hover:bg-red-100" onClick={() => handleProcessLeave(reg.registration_id || reg.id, 'reject')} isLoading={isProcessingLeave === (reg.registration_id || reg.id)}>Reject</Button>
                                 </div>
                               </div>
                             )}
                             {reg.status === 'leave_approved' && <span className="text-[10px] text-green-600 font-bold block">Leave Approved</span>}
                             {reg.status === 'leave_rejected' && <span className="text-[10px] text-red-600 font-bold block">Leave Rejected</span>}
+                                {reg.is_synthetic && selectedEvent?.is_compulsory && (
+                                  <span className="text-[10px] text-zinc-400 font-bold block">Expected for compulsory attendance</span>
+                                )}
                           </div>
 
-                          <Button
-                            onClick={() => handleToggleAttendance(reg.id, reg.attended)}
-                            variant={reg.attended ? 'primary' : 'outline'}
-                            size="sm"
-                            className={`h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 ${
-                              reg.attended 
-                                ? 'bg-[#0BA242] hover:bg-[#DD0408] border-[#0BA242] hover:border-[#DD0408] text-white w-24 group'
-                                : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24'
-                            }`}
-                            isLoading={isToggling}
-                            leftIcon={!isToggling && (reg.attended ? <Check size={12} /> : <Plus size={12} />)}
-                          >
-                            <span className={reg.attended ? "group-hover:hidden" : ""}>
-                              {reg.attended ? 'Checked In' : 'Check In'}
-                            </span>
-                            {reg.attended && (
-                              <span className="hidden group-hover:inline">
-                                Check Out
-                              </span>
-                            )}
-                          </Button>
+                              {reg.registration_id ? (
+                                <Button
+                                  onClick={() => handleToggleAttendance(reg.registration_id as string, reg.attended)}
+                                  variant={reg.attended ? 'primary' : 'outline'}
+                                  size="sm"
+                                  className={`h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 ${
+                                    reg.attended
+                                      ? 'bg-[#0BA242] hover:bg-[#DD0408] border-[#0BA242] hover:border-[#DD0408] text-white w-24 group'
+                                      : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24'
+                                  }`}
+                                  isLoading={isToggling}
+                                  leftIcon={!isToggling && (reg.attended ? <Check size={12} /> : <Plus size={12} />)}
+                                >
+                                  <span className={reg.attended ? "group-hover:hidden" : ""}>
+                                    {reg.attended ? 'Checked In' : 'Check In'}
+                                  </span>
+                                  {reg.attended && (
+                                    <span className="hidden group-hover:inline">
+                                      Check Out
+                                    </span>
+                                  )}
+                                </Button>
+                              ) : (
+                                <Button
+                                  onClick={() => handleRosterCheckIn(reg.user_id)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24"
+                                  isLoading={isToggling}
+                                  leftIcon={!isToggling && <Check size={12} />}
+                                >
+                                  Check In
+                                </Button>
+                              )}
                         </div>
                       )
                     })

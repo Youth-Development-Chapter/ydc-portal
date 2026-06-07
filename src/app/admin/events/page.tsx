@@ -35,6 +35,18 @@ export default async function AdminEventsPage() {
   // Fetch all units
   const { data: units } = await supabase.from('units').select('id, name').order('name');
 
+  let unitMembersQuery = supabase
+    .from('profiles')
+    .select('id, full_name, unit_id, qualification, units(name)')
+    .eq('role', 'volunteer')
+    .order('full_name', { ascending: true })
+
+  if (role === 'president' && adminUnitId) {
+    unitMembersQuery = unitMembersQuery.eq('unit_id', adminUnitId)
+  }
+
+  const { data: unitMembers } = await unitMembersQuery
+
   // 1. Fetch events (limited to unit if role is president)
   let eventsQuery = supabase.from('events').select('*')
   if (role === 'president' && adminUnitId) {
@@ -88,6 +100,13 @@ export default async function AdminEventsPage() {
       <EventsManager 
         initialEvents={events || []} 
         initialRegistrations={mappedRegistrations}
+        unitMembers={(unitMembers || []).map((member: any) => ({
+          id: member.id,
+          full_name: member.full_name || 'Anonymous Volunteer',
+          unit_id: member.unit_id || null,
+          qualification: member.qualification || 'Not specified',
+          unit_name: Array.isArray(member.units) ? member.units[0]?.name || 'Not specified' : member.units?.name || 'Not specified',
+        }))}
         permissions={permissions}
         adminRole={role}
         adminUnitId={adminUnitId}
