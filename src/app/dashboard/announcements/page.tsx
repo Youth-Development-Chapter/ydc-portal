@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowLeft, Megaphone, Pin, Clock } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
-import { getRecentAnnouncementsCached } from "@/lib/perf-data";
+import { getRecentAnnouncements } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,14 @@ export default async function AnnouncementsPage() {
     redirect("/auth/login");
   }
 
-  const announcements = await getRecentAnnouncementsCached();
+  // Fetch user's unit_id for unit-scoped filtering
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('unit_id')
+    .eq('id', user.id)
+    .single();
+
+  const announcements = await getRecentAnnouncements(supabase, profile?.unit_id || null);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24">

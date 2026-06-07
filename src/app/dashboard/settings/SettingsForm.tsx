@@ -12,13 +12,18 @@ interface Profile {
   whatsapp: string | null;
   phone: string | null;
   qualification: string | null;
-  division: string | null;
-  district: string | null;
-  city: string | null;
+  unit_id: string | null;
   address: string | null;
+  avatar_url: string | null;
 }
 
-export default function SettingsForm({ initialProfile }: { initialProfile: Profile }) {
+interface Unit {
+  id: string;
+  name: string;
+  province: string | null;
+}
+
+export default function SettingsForm({ initialProfile, units }: { initialProfile: Profile, units: Unit[] }) {
   const [profile, setProfile] = useState(initialProfile);
   const [isPending, startTransition] = useTransition();
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -38,10 +43,13 @@ export default function SettingsForm({ initialProfile }: { initialProfile: Profi
     formData.append("whatsapp", profile.whatsapp || "");
     formData.append("phone", profile.phone || "");
     formData.append("qualification", profile.qualification || "");
-    formData.append("division", profile.division || "");
-    formData.append("district", profile.district || "");
-    formData.append("city", profile.city || "");
+    formData.append("unit_id", profile.unit_id || "");
     formData.append("address", profile.address || "");
+
+    const fileInput = document.getElementById('profile_pic') as HTMLInputElement;
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      formData.append("profile_pic", fileInput.files[0]);
+    }
 
     startTransition(async () => {
       const res = await updateProfile(formData);
@@ -101,6 +109,19 @@ export default function SettingsForm({ initialProfile }: { initialProfile: Profi
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm focus:outline-none focus:border-[#0A9EDE] transition-colors"
                 placeholder="Enter your full name"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="profile_pic" className="text-xs font-bold text-[#555555] block mb-1">
+                Profile Picture
+              </label>
+              <input
+                id="profile_pic"
+                type="file"
+                name="profile_pic"
+                accept="image/*"
+                className="w-full px-4 py-2 rounded-xl border border-[#E5E5E5] text-sm focus:outline-none focus:border-[#0A9EDE] transition-colors file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#F5F5F5] file:text-[#1D1D1D] hover:file:bg-[#E5E5E5] cursor-pointer"
               />
             </div>
 
@@ -172,15 +193,20 @@ export default function SettingsForm({ initialProfile }: { initialProfile: Profi
             <label htmlFor="qualification" className="text-xs font-bold text-[#555555] block mb-1">
               Education / Qualification
             </label>
-            <input
+            <select
               id="qualification"
-              type="text"
               name="qualification"
               value={profile.qualification || ""}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm focus:outline-none focus:border-[#0A9EDE] transition-colors"
-              placeholder="e.g. Matric, Intermediate, BS CS, etc."
-            />
+              className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm bg-white focus:outline-none focus:border-[#0A9EDE] transition-colors"
+            >
+              <option value="">Select Qualification</option>
+              <option value="undergraduate">Undergraduate</option>
+              <option value="matric">Matric</option>
+              <option value="fsc">F.Sc / Intermediate</option>
+              <option value="graduate">Graduate</option>
+              <option value="ms">M.S / M.Phil</option>
+            </select>
           </div>
         </div>
 
@@ -193,57 +219,27 @@ export default function SettingsForm({ initialProfile }: { initialProfile: Profi
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="division" className="text-xs font-bold text-[#555555] block mb-1">
-                Division
+              <label htmlFor="unit_id" className="text-xs font-bold text-[#555555] block mb-1">
+                City / Unit
               </label>
               <select
-                id="division"
-                name="division"
-                value={profile.division || ""}
+                id="unit_id"
+                name="unit_id"
+                value={profile.unit_id || ""}
                 onChange={handleChange}
                 className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm bg-white focus:outline-none focus:border-[#0A9EDE] transition-colors"
               >
-                <option value="">Select Division</option>
-                <option value="Karachi">Karachi</option>
-                <option value="Hyderabad">Hyderabad</option>
-                <option value="Sukkur">Sukkur</option>
-                <option value="Larkana">Larkana</option>
-                <option value="Mirpur Khas">Mirpur Khas</option>
-                <option value="Shaheed Benazirabad">Shaheed Benazirabad</option>
+                <option value="">Select City / Unit</option>
+                {units.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name} {unit.province ? `(${unit.province})` : ''}
+                  </option>
+                ))}
               </select>
-            </div>
-
-            <div>
-              <label htmlFor="district" className="text-xs font-bold text-[#555555] block mb-1">
-                District
-              </label>
-              <input
-                id="district"
-                type="text"
-                name="district"
-                value={profile.district || ""}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm focus:outline-none focus:border-[#0A9EDE] transition-colors"
-                placeholder="District"
-              />
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label htmlFor="city" className="text-xs font-bold text-[#555555] block mb-1">
-                City / Town
-              </label>
-              <input
-                id="city"
-                type="text"
-                name="city"
-                value={profile.city || ""}
-                onChange={handleChange}
-                className="w-full px-4 py-3 rounded-xl border border-[#E5E5E5] text-sm focus:outline-none focus:border-[#0A9EDE] transition-colors"
-                placeholder="City Name"
-              />
-            </div>
 
             <div>
               <label htmlFor="address" className="text-xs font-bold text-[#555555] block mb-1">

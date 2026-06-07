@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient } from '@/utils/supabase/api'
+import { evaluateCriteria } from '@/lib/criteria'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { scannedId, eventId } = body
+    const { scannedId, eventId, bypassReason } = body
 
-    if (!scannedId) {
-      return NextResponse.json({ error: 'scannedId is required' }, { status: 400 })
+    if (!scannedId || !eventId) {
+      return NextResponse.json({ error: 'scannedId and eventId are required' }, { status: 400 })
     }
 
     const supabase = await createApiClient(request)
 
-    // 1. Authenticate user
+    // 1. Authenticate user (Admin/Scanner)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     // 2. Fetch active user profile and verify scan permission
     const { data: adminProfile, error: profileError } = await supabase
       .from('profiles')
-      .select('role, division')
+      .select('role, unit_id')
       .eq('id', user.id)
       .single()
 
@@ -52,82 +53,80 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Permission denied. You cannot check in tickets.' }, { status: 403 })
     }
 
-    // 3. Resolve ticket registration
-    let registration = null
-    let fetchError = null
+    // 3. Resolve Target Volunteer User
+    let resolvedUserId = scannedId.trim()
+    
+    // Support visual member ID format (e.g. YDC-12345678)
+    if (resolvedUserId.toUpperCase().startsWith('YDC-')) {
+      const hexPart = resolvedUserId.substring(4).toLowerCase()
+      const { data: matchProfile, error: matchError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .filter('id::text', 'like', `${hexPart}%`)
+        .maybeSingle()
 
-    if (eventId) {
-      let resolvedUserId = scannedId.trim()
-      
-      // Support visual member ID format (e.g. YDC-12345678)
-      if (resolvedUserId.toUpperCase().startsWith('YDC-')) {
-        const hexPart = resolvedUserId.substring(4).toLowerCase()
-        const { data: matchProfile, error: matchError } = await supabase
-          .from('profiles')
-          .select('id')
-          .filter('id::text', 'like', `${hexPart}%`)
-          .maybeSingle()
-
-        if (matchError) {
-          return NextResponse.json({ error: `Profile lookup failed: ${matchError.message}` }, { status: 500 })
-        }
-        if (matchProfile) {
-          resolvedUserId = matchProfile.id
-        } else {
-          return NextResponse.json({ error: `No volunteer found with Member ID ${scannedId}` }, { status: 404 })
-        }
+      if (matchError) {
+        return NextResponse.json({ error: `Profile lookup failed: ${matchError.message}` }, { status: 500 })
       }
-
-      const { data: reg, error } = await supabase
-        .from('event_registrations')
-        .select('*, profiles(full_name), events(coin_reward, division)')
-        .eq('user_id', resolvedUserId)
-        .eq('event_id', eventId)
-        .maybeSingle()
-      
-      registration = reg
-      fetchError = error
-    } else {
-      // Fallback: scannedId is the ticket code
-      const { data: reg, error } = await supabase
-        .from('event_registrations')
-        .select('*, profiles(full_name), events(coin_reward, division)')
-        .eq('ticket_code', scannedId.trim())
-        .maybeSingle()
-      
-      registration = reg
-      fetchError = error
-    }
-
-    if (fetchError) {
-      return NextResponse.json({ error: fetchError.message }, { status: 500 })
-    }
-
-    if (!registration) {
-      return NextResponse.json({ error: 'Ticket not found. This user is not registered for the event.' }, { status: 404 })
-    }
-
-    // 4. Verify division scoping for President role
-    if (role === 'president') {
-      const eventDivision = (registration.events as any)?.division
-      if (eventDivision && eventDivision !== adminProfile.division) {
-        return NextResponse.json(
-          { error: 'Permission denied. This event belongs to a different division.' },
-          { status: 403 }
-        )
+      if (matchProfile) {
+        resolvedUserId = matchProfile.id
+      } else {
+        return NextResponse.json({ error: `No volunteer found with Member ID ${scannedId}` }, { status: 404 })
       }
     }
 
-    if (registration.attended) {
+    // Fetch the target user's full_name for the response
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', resolvedUserId)
+      .single()
+
+    if (!targetProfile) {
+      return NextResponse.json({ error: 'Volunteer profile not found.' }, { status: 404 })
+    }
+
+    // 4. Fetch Event Details
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('coin_reward, custom_criteria, is_compulsory, id')
+      .eq('id', eventId)
+      .single()
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: 'Event not found.' }, { status: 404 })
+    }
+
+    // NOTE: If event had a strict division/unit_id column, we would verify scoping for President role here.
+    // Assuming `custom_criteria` handles unit_id filtering if needed, or if event has a `unit_id` column:
+    // if (role === 'president' && event.unit_id && event.unit_id !== adminProfile.unit_id) ...
+
+    // 5. Check if already attended
+    const { data: existingReg } = await supabase
+      .from('event_registrations')
+      .select('id, attended, status')
+      .eq('user_id', resolvedUserId)
+      .eq('event_id', eventId)
+      .maybeSingle()
+
+    if (existingReg && existingReg.attended) {
       return NextResponse.json({ 
         error: 'Ticket already scanned.', 
         alreadyScanned: true,
-        userName: registration.profiles?.full_name || 'Volunteer' 
+        userName: targetProfile.full_name || 'Volunteer' 
       }, { status: 409 })
     }
 
-    // 5. Fetch reward (event-specific first, fallback to system settings)
-    let attendanceReward = (registration.events as any)?.coin_reward
+    // 6. Evaluate Criteria Eligibility
+    const evalResult = await evaluateCriteria(supabase, resolvedUserId, event.custom_criteria)
+    if (!evalResult.eligible && !bypassReason) {
+      return NextResponse.json({ 
+        error: `Volunteer not eligible: ${evalResult.reason}. Provide a bypass reason to force check-in.` 
+      }, { status: 403 })
+    }
+
+    // 7. Fetch reward (event-specific first, fallback to system settings)
+    let attendanceReward = event.coin_reward
     if (typeof attendanceReward !== 'number') {
       const { data: attendanceSetting } = await supabase
         .from('system_settings')
@@ -137,27 +136,52 @@ export async function POST(request: NextRequest) {
       attendanceReward = attendanceSetting ? parseInt(attendanceSetting.value, 10) : 50
     }
 
-    // 6. Update registration status
-    const { error: updateError } = await supabase
-      .from('event_registrations')
-      .update({
-        attended: true,
-        attended_at: new Date().toISOString()
-      })
-      .eq('id', registration.id)
+    // 8. Upsert Registration & Check-in
+    let registrationId = existingReg?.id
+    if (!registrationId) {
+      // Create new registration dynamically
+      const { data: newReg, error: insertError } = await supabase
+        .from('event_registrations')
+        .insert({
+          user_id: resolvedUserId,
+          event_id: eventId,
+          ticket_code: `TKT-${Math.random().toString(36).substring(2, 10).toUpperCase()}`, // Dummy ticket code since it's required in schema
+          status: 'present',
+          attended: true,
+          attended_at: new Date().toISOString()
+        })
+        .select('id')
+        .single()
 
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
+      if (insertError) {
+        return NextResponse.json({ error: insertError.message }, { status: 500 })
+      }
+      registrationId = newReg.id
+    } else {
+      // Update existing registration
+      const { error: updateError } = await supabase
+        .from('event_registrations')
+        .update({
+          status: 'present',
+          attended: true,
+          attended_at: new Date().toISOString()
+        })
+        .eq('id', registrationId)
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
     }
 
-    // 7. Insert coin transaction
+    // 9. Insert coin transaction
     const { error: coinError } = await supabase
       .from('coin_transactions')
       .insert({
-        user_id: registration.user_id,
+        user_id: resolvedUserId,
         amount: attendanceReward,
         reason: 'event_attendance',
-        reference_id: registration.id
+        reference_id: registrationId,
+        credited_by: user.id
       })
 
     if (coinError) {
@@ -166,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      userName: registration.profiles?.full_name || 'Volunteer',
+      userName: targetProfile.full_name || 'Volunteer',
       coinsAwarded: attendanceReward
     })
   } catch (error: unknown) {

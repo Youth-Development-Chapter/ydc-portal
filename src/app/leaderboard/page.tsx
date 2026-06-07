@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Trophy, Medal, Flame, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
@@ -7,7 +8,9 @@ import { getLeaderboard } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage(props: { searchParams: Promise<{ filter?: string }> }) {
+  const searchParams = await props.searchParams;
+  const filter = searchParams?.filter === "city" ? "city" : "global";
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -15,11 +18,16 @@ export default async function LeaderboardPage() {
     redirect("/auth/login");
   }
 
+  const { data: profile } = await supabase.from('profiles').select('unit_id').eq('id', user.id).single();
+  const userUnitId = profile?.unit_id;
+
   // DB-side aggregation for top leaderboard entries
-  const entries = (await getLeaderboard(50)).map((row) => ({
+  const limit = filter === "city" ? 10 : 20;
+  const entries = (await getLeaderboard(limit, filter === "city" ? userUnitId : null)).map((row) => ({
     id: row.user_id,
     full_name: row.full_name,
-    division: row.division,
+    unit_name: row.unit_name,
+    avatar_url: row.avatar_url,
     coins: row.coins,
   }));
 
@@ -59,9 +67,29 @@ export default async function LeaderboardPage() {
           {myRank > 0 && (
             <div className="mt-4 bg-white/10 border border-white/20 rounded-xl px-4 py-2 inline-flex items-center gap-2">
               <Flame size={14} className="text-orange-400" />
-              <span className="text-sm font-semibold">Your rank: #{myRank}</span>
+              <span className="text-sm font-semibold">Your {filter === "city" ? "City" : "Global"} rank: #{myRank}</span>
             </div>
           )}
+        </div>
+
+        {/* Filter Toggle */}
+        <div className="flex p-1 bg-zinc-200/50 rounded-xl max-w-xs mx-auto">
+          <Link
+            href="?filter=global"
+            className={`flex-1 text-center py-2 text-sm font-bold rounded-lg transition-all ${
+              filter === "global" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"
+            }`}
+          >
+            Provincial (Top 20)
+          </Link>
+          <Link
+            href="?filter=city"
+            className={`flex-1 text-center py-2 text-sm font-bold rounded-lg transition-all ${
+              filter === "city" ? "bg-white shadow-sm text-zinc-900" : "text-zinc-500 hover:text-zinc-700"
+            }`}
+          >
+            My Unit (Top 10)
+          </Link>
         </div>
 
         {/* Podium - top 3 */}
@@ -69,8 +97,10 @@ export default async function LeaderboardPage() {
           <div className="grid grid-cols-3 gap-3 items-end">
             {/* 2nd place */}
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center mx-auto text-xl font-bold text-zinc-600">
-                {entries[1].full_name.charAt(0)}
+              <div className="w-14 h-14 rounded-full bg-zinc-200 flex items-center justify-center mx-auto text-xl font-bold text-zinc-600 overflow-hidden">
+                {entries[1].avatar_url ? (
+                  <img src={entries[1].avatar_url} alt={entries[1].full_name} className="w-full h-full object-cover" />
+                ) : entries[1].full_name.charAt(0)}
               </div>
               <p className="text-xs font-semibold truncate">{entries[1].full_name.split(" ")[0]}</p>
               <div className="bg-zinc-100 rounded-xl py-3 flex flex-col items-center">
@@ -80,8 +110,10 @@ export default async function LeaderboardPage() {
             </div>
             {/* 1st place */}
             <div className="text-center space-y-2 -mt-4">
-              <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto text-xl font-bold text-yellow-700 ring-4 ring-yellow-200">
-                {entries[0].full_name.charAt(0)}
+              <div className="w-16 h-16 rounded-full bg-yellow-100 flex items-center justify-center mx-auto text-xl font-bold text-yellow-700 ring-4 ring-yellow-200 overflow-hidden">
+                {entries[0].avatar_url ? (
+                  <img src={entries[0].avatar_url} alt={entries[0].full_name} className="w-full h-full object-cover" />
+                ) : entries[0].full_name.charAt(0)}
               </div>
               <p className="text-xs font-semibold truncate">{entries[0].full_name.split(" ")[0]}</p>
               <div className="bg-yellow-50 border border-yellow-200 rounded-xl py-4 flex flex-col items-center">
@@ -91,8 +123,10 @@ export default async function LeaderboardPage() {
             </div>
             {/* 3rd place */}
             <div className="text-center space-y-2">
-              <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center mx-auto text-xl font-bold text-orange-700">
-                {entries[2].full_name.charAt(0)}
+              <div className="w-14 h-14 rounded-full bg-orange-100 flex items-center justify-center mx-auto text-xl font-bold text-orange-700 overflow-hidden">
+                {entries[2].avatar_url ? (
+                  <img src={entries[2].avatar_url} alt={entries[2].full_name} className="w-full h-full object-cover" />
+                ) : entries[2].full_name.charAt(0)}
               </div>
               <p className="text-xs font-semibold truncate">{entries[2].full_name.split(" ")[0]}</p>
               <div className="bg-orange-50 rounded-xl py-3 flex flex-col items-center">
@@ -119,14 +153,16 @@ export default async function LeaderboardPage() {
                 <div className="w-8 flex items-center justify-center shrink-0">
                   {rankIcon(rank)}
                 </div>
-                <div className="w-9 h-9 rounded-full bg-[#F5F5F5] flex items-center justify-center font-bold text-sm shrink-0">
-                  {entry.full_name.charAt(0)}
+                <div className="w-9 h-9 rounded-full bg-[#F5F5F5] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+                  {entry.avatar_url ? (
+                    <img src={entry.avatar_url} alt={entry.full_name} className="w-full h-full object-cover" />
+                  ) : entry.full_name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`font-bold text-sm truncate ${isMe ? "text-[#0A9EDE]" : "text-[#1D1D1D]"}`}>
                     {entry.full_name} {isMe && <span className="text-[10px] text-[#0A9EDE]">(You)</span>}
                   </p>
-                  <p className="text-xs text-[#A3A3A3] truncate">{entry.division}</p>
+                  <p className="text-xs text-[#A3A3A3] truncate">{entry.unit_name}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${tier.color}`}>

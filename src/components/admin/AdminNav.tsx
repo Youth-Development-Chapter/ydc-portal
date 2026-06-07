@@ -14,6 +14,7 @@ import {
   Gift,
   ChevronDown,
   ChevronRight,
+  MapPin,
 } from 'lucide-react'
 
 interface AdminPermissions {
@@ -95,6 +96,12 @@ const SECTIONS: NavSection[] = [
         permission: 'can_manage_settings',
       },
       {
+        name: 'Unit Management',
+        href: '/admin/units',
+        icon: MapPin,
+        permission: 'can_manage_settings',
+      },
+      {
         name: 'Announcements',
         href: '/admin/announcements',
         icon: Megaphone,
@@ -171,6 +178,7 @@ export default function AdminNav({ role, permissions, mobileOnly, desktopOnly }:
     if (name === 'User Directory') return 'Users'
     if (name === 'Courses & LMS') return 'Courses'
     if (name === 'Global Settings') return 'Settings'
+    if (name === 'Unit Management') return 'Units'
     if (name === 'Announcements') return 'Alerts'
     if (name === 'Reward Shop') return 'Shop'
     return name

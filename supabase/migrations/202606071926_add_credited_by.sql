@@ -1,0 +1,1 @@
+ALTER TABLE public.coin_transactions ADD COLUMN credited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL;

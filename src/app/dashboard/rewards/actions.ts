@@ -79,6 +79,9 @@ export async function createReward(data: {
   description: string
   coin_cost: number
   quantity_available: number | null
+  inclusive_unit_ids?: string[] | null
+  exclusive_unit_ids?: string[] | null
+  custom_criteria?: any
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -97,6 +100,9 @@ export async function createReward(data: {
     description: data.description.trim() || null,
     coin_cost: data.coin_cost,
     quantity_available: data.quantity_available,
+    inclusive_unit_ids: data.inclusive_unit_ids || null,
+    exclusive_unit_ids: data.exclusive_unit_ids || null,
+    custom_criteria: data.custom_criteria || null,
     is_active: true,
   })
 
@@ -139,10 +145,52 @@ export async function fulfilRedemption(redemptionId: string) {
 
   const { error } = await supabase
     .from('reward_redemptions')
-    .update({ status: 'fulfilled' })
+    .update({ status: 'fulfilled', processed_by: user.id })
     .eq('id', redemptionId)
 
   if (error) return { error: error.message }
+
+  revalidatePath('/admin/rewards')
+  revalidateTag('rewards', 'max')
+  return { success: true as const }
+}
+
+export async function rejectRedemption(redemptionId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not signed in.' }
+
+  const allowed = await hasAdminPermission(user.id, 'can_manage_settings')
+  if (!allowed) return { error: 'Permission denied.' }
+
+  // 1. Fetch redemption details to refund coins
+  const { data: redemption, error: fetchErr } = await supabase
+    .from('reward_redemptions')
+    .select('user_id, coin_cost, status')
+    .eq('id', redemptionId)
+    .single()
+
+  if (fetchErr || !redemption) return { error: 'Redemption not found.' }
+  if (redemption.status !== 'pending') return { error: 'Redemption is already processed.' }
+
+  // 2. Update status
+  const { error } = await supabase
+    .from('reward_redemptions')
+    .update({ status: 'rejected', processed_by: user.id })
+    .eq('id', redemptionId)
+
+  if (error) return { error: error.message }
+
+  // 3. Refund coins
+  await supabase
+    .from('coin_transactions')
+    .insert({
+      user_id: redemption.user_id,
+      amount: redemption.coin_cost,
+      reason: 'reward_refund',
+      reference_id: redemptionId,
+      processed_by: user.id,
+    })
 
   revalidatePath('/admin/rewards')
   revalidateTag('rewards', 'max')

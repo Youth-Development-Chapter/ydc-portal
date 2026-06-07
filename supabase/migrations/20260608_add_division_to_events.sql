@@ -1,0 +1,1 @@
+ALTER TABLE public.events ADD COLUMN division TEXT; ALTER TABLE public.events ADD COLUMN excluded_divisions TEXT[] DEFAULT '{}';

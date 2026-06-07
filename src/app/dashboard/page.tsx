@@ -5,15 +5,17 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { logout } from "@/app/auth/actions";
 import { getCourses } from "@/lib/lms-data";
 import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
 import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
 import {
-  getRecentAnnouncementsCached,
+  getRecentAnnouncements,
   getUpcomingEventsForDivisionCached,
   getUserCoinBalance,
 } from "@/lib/perf-data";
+
 
 export default async function UserDashboard() {
   const extractEvent = (registration: { events?: unknown }) => {
@@ -23,12 +25,20 @@ export default async function UserDashboard() {
 
   const supabase = await createClient();
   
+  // Fetch cookies to inspect them
+  const cookieStore = await cookies();
+  const allCookies = cookieStore.getAll();
+  console.log('[Dashboard] Cookies present in request:', allCookies.map(c => `${c.name}=${c.value ? '[EXISTS]' : '[EMPTY]'}`));
+
   // Fetch secure user session
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  console.log('[Dashboard] getUser results - user ID:', user?.id || 'null', 'authError:', authError);
 
   if (authError || !user) {
+    console.log('[Dashboard] Redirecting to login because user is null or authError exists.');
     redirect("/auth/login");
   }
+
 
   const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
   const [
@@ -40,7 +50,7 @@ export default async function UserDashboard() {
   ] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, full_name, division, qualification, role')
+      .select('id, full_name, unit_id, qualification, role, avatar_url')
       .eq('id', user.id)
       .single(),
     supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
@@ -52,10 +62,15 @@ export default async function UserDashboard() {
     getUserCoinBalance(user.id),
   ]);
 
+  if (profileResult.error) {
+    console.error('[Dashboard] Error fetching user profile:', profileResult.error);
+  }
+
   const profile = profileResult.data;
 
   // If no profile exists, redirect to onboarding
   if (!profile) {
+    console.log('[Dashboard] Redirecting to onboarding because profile is null.');
     redirect("/onboarding");
   }
 
@@ -185,12 +200,13 @@ export default async function UserDashboard() {
     .gte('redeemed_at', twoDaysAgoStr)
     .order('redeemed_at', { ascending: false });
 
-  // 3 + 4. Fetch announcements and upcoming events via short-lived cache
-  const [announcementsCached, allUpcomingEventsCached] = await Promise.all([
-    getRecentAnnouncementsCached(),
+  // 3 + 4. Fetch announcements with auth client (respects RLS) and upcoming events via short-lived cache
+  const userUnitId = profile?.unit_id || null
+  const [announcementsResult, allUpcomingEventsCached] = await Promise.all([
+    getRecentAnnouncements(supabase, userUnitId),
     getUpcomingEventsForDivisionCached(null),
   ]);
-  const recentAnnouncements = announcementsCached.filter((a) => a.created_at >= twoDaysAgoStr);
+  const recentAnnouncements = announcementsResult.filter((a) => a.created_at >= twoDaysAgoStr);
   const allUpcomingEvents = allUpcomingEventsCached
     .filter((e) => e.date >= todayStr)
     .slice(0, 5);
@@ -387,8 +403,12 @@ export default async function UserDashboard() {
                 <span>Console</span>
               </Link>
             )}
-            <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm" title="Settings">
-              <Settings size={16} />
+            <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm overflow-hidden" title="Settings">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <Settings size={16} />
+              )}
             </Link>
             <form action={logout}>
               <button type="submit" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm cursor-pointer" title="Logout">

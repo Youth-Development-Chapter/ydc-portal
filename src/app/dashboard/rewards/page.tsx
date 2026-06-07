@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import RewardsClient from "./RewardsClient";
 import PageHeader from "@/components/ui/PageHeader";
 import { getUserCoinBalance } from "@/lib/perf-data";
+import { evaluateCriteria } from "@/lib/criteria";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +18,14 @@ export default async function RewardsPage() {
     redirect("/auth/login");
   }
 
+  const { data: profile } = await supabase.from("profiles").select("unit_id").eq("id", user.id).single();
+  const userUnitId = profile?.unit_id;
+
   // Fetch active rewards and user's redemption history in parallel
   const [rewardsResult, userBalance, redemptionsResult] = await Promise.all([
     supabase
       .from("rewards")
-      .select("id, title, description, coin_cost, quantity_available")
+      .select("id, title, description, coin_cost, quantity_available, inclusive_unit_ids, exclusive_unit_ids, custom_criteria")
       .eq("is_active", true)
       .order("coin_cost", { ascending: true }),
     getUserCoinBalance(user.id),
@@ -35,12 +39,41 @@ export default async function RewardsPage() {
 
   const redeemedIds = new Set((redemptionsResult.data || []).map((r) => r.reward_id));
 
-  const rewards = (rewardsResult.data || []).map((r) => ({
-    ...r,
-    description: r.description ?? null,
-    quantity_available: r.quantity_available ?? null,
-    redeemed: redeemedIds.has(r.id),
-  }));
+  const rewardsWithCriteria = await Promise.all(
+    (rewardsResult.data || []).map(async (r) => {
+      let isEligible = true;
+
+      // Legacy unit scoping check
+      if (r.inclusive_unit_ids && r.inclusive_unit_ids.length > 0) {
+        if (!userUnitId || !r.inclusive_unit_ids.includes(userUnitId)) isEligible = false;
+      }
+      if (r.exclusive_unit_ids && r.exclusive_unit_ids.length > 0) {
+        if (userUnitId && r.exclusive_unit_ids.includes(userUnitId)) isEligible = false;
+      }
+
+      // Advanced custom criteria check
+      if (isEligible && r.custom_criteria) {
+        const evalResult = await evaluateCriteria(supabase, user.id, r.custom_criteria);
+        isEligible = evalResult.eligible;
+      }
+
+      return {
+        ...r,
+        isEligible
+      };
+    })
+  );
+
+  const rewards = rewardsWithCriteria
+    .filter((r) => r.isEligible)
+    .map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description ?? null,
+      coin_cost: r.coin_cost,
+      quantity_available: r.quantity_available ?? null,
+      redeemed: redeemedIds.has(r.id),
+    }));
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">

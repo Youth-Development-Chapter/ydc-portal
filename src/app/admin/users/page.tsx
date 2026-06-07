@@ -21,88 +21,23 @@ export default async function AdminUsersPage() {
     redirect('/admin')
   }
 
-  // Fetch active admin profile division
+  // Fetch active admin profile unit
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('division')
+    .select('unit_id')
     .eq('id', user.id)
     .single()
 
-  const adminDivision = adminProfile?.division
+  const adminUnitId = adminProfile?.unit_id || undefined
 
-  // 1. Fetch profiles (limit to division if president)
-  let profilesQuery = supabase
-    .from('profiles')
-    .select('id, full_name, email, role, division, qualification, created_at')
+  // Fetch all units for dropdown selection
+  const { data: units } = await supabase
+    .from('units')
+    .select('id, name')
+    .order('name')
 
-  if (role === 'president' && adminDivision) {
-    profilesQuery = profilesQuery.eq('division', adminDivision)
-  }
-
-  const { data: profiles } = await profilesQuery.order('full_name')
-
-  // 2. Fetch streaks
-  const { data: streaks } = await supabase
-    .from('streaks')
-    .select('user_id, current_streak, longest_streak')
-
-  const streakMap = new Map(
-    streaks?.map((s) => [
-      s.user_id,
-      { current: s.current_streak, longest: s.longest_streak },
-    ]) || []
-  )
-
-  // 3. Fetch aggregated coin balances per user using a GROUP BY query via rpc,
-  //    instead of fetching every transaction row across all users.
-  const { data: coinAggs } = await supabase
-    .from('coin_transactions')
-    .select('user_id, amount')
-
-  const coinMap = new Map<string, number>()
-  ;(coinAggs || []).forEach((txn) => {
-    coinMap.set(txn.user_id, (coinMap.get(txn.user_id) || 0) + txn.amount)
-  })
-
-  // 4. Fetch granular admin permissions
-  const { data: adminPerms } = await supabase
-    .from('admin_permissions')
-    .select('*')
-
-  const permissionMap = new Map(
-    adminPerms?.map((p) => [
-      p.admin_id,
-      {
-        can_scan_tickets: p.can_scan_tickets,
-        can_approve_deeds: p.can_approve_deeds,
-        can_manage_events: p.can_manage_events,
-        can_manage_courses: p.can_manage_courses,
-        can_manage_settings: p.can_manage_settings,
-        can_manage_admins: p.can_manage_admins,
-      },
-    ]) || []
-  )
-
-  // Combine data
-  const mappedUsers = (profiles || []).map((prof) => ({
-    id: prof.id,
-    full_name: prof.full_name || 'Anonymous Volunteer',
-    email: prof.email || 'No email',
-    role: prof.role || 'volunteer',
-    division: prof.division || 'Not specified',
-    qualification: prof.qualification || 'Not specified',
-    created_at: prof.created_at,
-    coins: coinMap.get(prof.id) || 0,
-    streak: streakMap.get(prof.id) || { current: 0, longest: 0 },
-    permissions: permissionMap.get(prof.id) || {
-      can_scan_tickets: false,
-      can_approve_deeds: false,
-      can_manage_events: false,
-      can_manage_courses: false,
-      can_manage_settings: false,
-      can_manage_admins: false,
-    },
-  }))
+  const { getPaginatedUsers } = await import('@/app/admin/actions')
+  const { users } = await getPaginatedUsers(1, 50, '', 'all')
 
   return (
     <div className="space-y-6">
@@ -114,9 +49,11 @@ export default async function AdminUsersPage() {
       </div>
 
       <UserDirectory 
-        initialUsers={mappedUsers} 
+        initialUsers={users as any || []}
         activeAdminId={user.id}
         activeAdminRole={role}
+        adminUnitId={adminUnitId}
+        allUnits={units || []}
       />
     </div>
   )

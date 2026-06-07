@@ -25,25 +25,29 @@ export default async function AdminEventsPage() {
   // Fetch active admin profile division
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('division')
+    .select('unit_id, units(name)')
     .eq('id', user.id)
     .single()
   
-  const adminDivision = adminProfile?.division
+  const adminUnitId = adminProfile?.unit_id;
+  const adminUnitName = Array.isArray(adminProfile?.units) ? adminProfile?.units[0]?.name : (adminProfile?.units as any)?.name;
 
-  // 1. Fetch events (limited to division if role is president)
+  // Fetch all units
+  const { data: units } = await supabase.from('units').select('id, name').order('name');
+
+  // 1. Fetch events (limited to unit if role is president)
   let eventsQuery = supabase.from('events').select('*')
-  if (role === 'president' && adminDivision) {
-    eventsQuery = eventsQuery.eq('division', adminDivision)
+  if (role === 'president' && adminUnitId) {
+    eventsQuery = eventsQuery.eq('unit_id', adminUnitId)
   }
   const { data: events } = await eventsQuery.order('date', { ascending: false })
 
-  // 2. Fetch registrations (limited to the admin's division events if president)
+  // 2. Fetch registrations (limited to the admin's unit events if president)
   let registrationsQuery = supabase
     .from('event_registrations')
-    .select('*, profiles(full_name, division, qualification)')
+    .select('*, profiles(full_name, qualification, units(name))')
   
-  if (role === 'president' && adminDivision) {
+  if (role === 'president' && adminUnitId) {
     const eventIds = (events || []).map(e => e.id)
     if (eventIds.length > 0) {
       registrationsQuery = registrationsQuery.in('event_id', eventIds)
@@ -62,10 +66,12 @@ export default async function AdminEventsPage() {
     ticket_code: reg.ticket_code,
     attended: reg.attended,
     attended_at: reg.attended_at,
+    status: reg.status || 'registered',
+    leave_note: reg.leave_note || null,
     created_at: reg.created_at,
     profiles: {
       full_name: reg.profiles?.full_name || 'Anonymous Volunteer',
-      division: reg.profiles?.division || 'Not specified',
+      unit_name: reg.profiles?.units?.name || 'Not specified',
       qualification: reg.profiles?.qualification || 'Not specified',
     },
   }))
@@ -84,7 +90,9 @@ export default async function AdminEventsPage() {
         initialRegistrations={mappedRegistrations}
         permissions={permissions}
         adminRole={role}
-        adminDivision={adminDivision}
+        adminUnitId={adminUnitId}
+        adminUnitName={adminUnitName}
+        units={units || []}
       />
     </div>
   )

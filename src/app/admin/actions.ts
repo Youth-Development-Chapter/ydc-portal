@@ -1,8 +1,8 @@
-'use server'
+﻿'use server'
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { hasAdminPermission, AdminPermissions } from '@/lib/admin'
+import { hasAdminPermission, AdminPermissions, getAdminContext } from '@/lib/admin'
 
 /**
  * Approve a volunteer deed submission.
@@ -23,22 +23,22 @@ export async function approveDeedSubmission(
   const allowed = await hasAdminPermission(user.id, 'can_approve_deeds')
   if (!allowed) return { error: 'Permission denied. You cannot approve deeds.' }
 
-  // Verify division scoping for President role
+  // Verify unit scoping for President role
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
   if (adminProfile?.role === 'president') {
     const { data: submission } = await supabase
       .from('deed_submissions')
-      .select('*, profiles:user_id(division)')
+      .select('*, profiles:user_id(unit_id)')
       .eq('id', deedId)
       .single()
     
-    if (!submission || (submission.profiles as any)?.division !== adminProfile.division) {
-      return { error: 'Permission denied. This user belongs to a different division.' }
+    if (!submission || (submission.profiles as any)?.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. This user belongs to a different unit.' }
     }
   }
 
@@ -59,7 +59,8 @@ export async function approveDeedSubmission(
       bonus_coins: bonusCoins,
       admin_notes: adminNotes || null,
       verified_by: user.id,
-      verified_at: new Date().toISOString()
+      verified_at: new Date().toISOString(),
+      status_updated_by: user.id
     })
     .eq('id', deedId)
 
@@ -90,22 +91,22 @@ export async function rejectDeedSubmission(deedId: string, adminNotes: string) {
   const allowed = await hasAdminPermission(user.id, 'can_approve_deeds')
   if (!allowed) return { error: 'Permission denied. You cannot reject deeds.' }
 
-  // Verify division scoping for President role
+  // Verify unit scoping for President role
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
   if (adminProfile?.role === 'president') {
     const { data: submission } = await supabase
       .from('deed_submissions')
-      .select('*, profiles:user_id(division)')
+      .select('*, profiles:user_id(unit_id)')
       .eq('id', deedId)
       .single()
     
-    if (!submission || (submission.profiles as any)?.division !== adminProfile.division) {
-      return { error: 'Permission denied. This user belongs to a different division.' }
+    if (!submission || (submission.profiles as any)?.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. This user belongs to a different unit.' }
     }
   }
 
@@ -116,7 +117,8 @@ export async function rejectDeedSubmission(deedId: string, adminNotes: string) {
       status: 'rejected',
       admin_notes: adminNotes,
       verified_by: user.id,
-      verified_at: new Date().toISOString()
+      verified_at: new Date().toISOString(),
+      status_updated_by: user.id
     })
     .eq('id', deedId)
 
@@ -209,6 +211,7 @@ export async function adjustUserCoins(userId: string, amount: number, reason: st
       user_id: userId,
       amount,
       reason: `manual_adjustment: ${reason}`,
+      credited_by: user.id,
     })
 
   if (error) {
@@ -247,7 +250,7 @@ export async function updateUserAdminRole(
   // Fetch active admin profile
   const { data: activeAdminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
@@ -266,12 +269,12 @@ export async function updateUserAdminRole(
     // 1. Fetch target user profile
     const { data: targetProfile } = await supabase
       .from('profiles')
-      .select('role, division')
+      .select('role, unit_id')
       .eq('id', targetUserId)
       .single()
 
-    if (!targetProfile || targetProfile.division !== activeAdminProfile?.division) {
-      return { error: 'Permission denied. You can only manage members of your own division.' }
+    if (!targetProfile || targetProfile.unit_id !== activeAdminProfile?.unit_id) {
+      return { error: 'Permission denied. You can only manage members of your own unit.' }
     }
 
     // 2. Presidents can only assign volunteer or tier-3 roles
@@ -294,11 +297,11 @@ export async function updateUserAdminRole(
         return { error: 'Ticket Scanning permission must be enabled for an Event Scanner.' }
       }
 
-      // 4. Limit check: max 2 scanners per division
+      // 4. Limit check: max 2 scanners per unit
       const { data: tier3Profiles } = await supabase
         .from('profiles')
         .select('id')
-        .eq('division', activeAdminProfile?.division)
+        .eq('unit_id', activeAdminProfile?.unit_id)
         .eq('role', 'tier-3')
 
       if (tier3Profiles && tier3Profiles.length > 0) {
@@ -311,7 +314,7 @@ export async function updateUserAdminRole(
             .eq('can_scan_tickets', true)
 
           if (!countError && count !== null && count >= 2) {
-            return { error: 'Limit reached. You can only assign Event Scanner access to at most 2 users in your division.' }
+            return { error: 'Limit reached. You can only assign Event Scanner access to at most 2 users in your unit.' }
           }
         }
       }
@@ -466,7 +469,8 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
       user_id: registration.user_id,
       amount: attendanceReward,
       reason: 'event_attendance',
-      reference_id: registration.id
+      reference_id: registration.id,
+      credited_by: user.id
     })
 
   if (coinError) {
@@ -495,7 +499,10 @@ export async function createEvent(
   location: string,
   capacity: number,
   coinReward: number,
-  division?: string | null
+  unitId?: string | null,
+  excludedUnitIds?: string[] | null,
+  isCompulsory?: boolean,
+  customCriteria?: any
 ) {
   const supabase = await createClient()
 
@@ -511,22 +518,22 @@ export async function createEvent(
     return { error: 'Missing required event fields.' }
   }
 
-  // Retrieve active admin profile to enforce division restrictions
+  // Retrieve active admin profile to enforce unit restrictions
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
-  let eventDivision: string | null = null
+  let eventUnitId: string | null = null
 
   if (adminProfile?.role === 'president') {
-    eventDivision = adminProfile.division || null
-    if (!eventDivision) {
-      return { error: 'Active president is not assigned to a division.' }
+    eventUnitId = adminProfile.unit_id || null
+    if (!eventUnitId) {
+      return { error: 'Active president is not assigned to a unit.' }
     }
   } else {
-    eventDivision = division || null
+    eventUnitId = unitId || null
   }
 
   // 3. Insert event
@@ -538,9 +545,12 @@ export async function createEvent(
       date,
       time,
       location,
-      capacity: capacity || 100,
+      capacity,
       coin_reward: coinReward,
-      division: eventDivision,
+      division: eventUnitId,
+      excluded_divisions: excludedUnitIds || [],
+      is_compulsory: isCompulsory || false,
+      custom_criteria: customCriteria || null
     })
 
   if (error) {
@@ -568,17 +578,17 @@ export async function toggleManualAttendance(registrationId: string, attended: b
   const allowed = await hasAdminPermission(user.id, 'can_scan_tickets')
   if (!allowed) return { error: 'Permission denied. You cannot check in attendees.' }
 
-  // Fetch caller profile for division verification
+  // Fetch caller profile for unit verification
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
-  // 3. Fetch registration with events division
+  // 3. Fetch registration with events unit
   const { data: registration, error: fetchError } = await supabase
     .from('event_registrations')
-    .select('*, events(division, coin_reward)')
+    .select('*, events(unit_id, coin_reward)')
     .eq('id', registrationId)
     .single()
 
@@ -586,11 +596,11 @@ export async function toggleManualAttendance(registrationId: string, attended: b
     return { error: 'Registration record not found.' }
   }
 
-  // Verify division if caller is a President
+  // Verify unit if caller is a President
   if (adminProfile?.role === 'president') {
-    const eventDivision = (registration.events as any)?.division
-    if (eventDivision !== adminProfile.division) {
-      return { error: 'Permission denied. You can only manage attendees for events in your own division.' }
+    const eventUnit = (registration.events as any)?.unit_id
+    if (eventUnit !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only manage attendees for events in your own unit.' }
     }
   }
 
@@ -634,7 +644,8 @@ export async function toggleManualAttendance(registrationId: string, attended: b
       user_id: registration.user_id,
       amount: attended ? attendanceReward : -attendanceReward,
       reason: attended ? 'event_attendance' : 'event_attendance_revocation',
-      reference_id: registration.id
+      reference_id: registration.id,
+      credited_by: user.id
     })
 
   if (coinError) {
@@ -661,23 +672,23 @@ export async function updateEventCoinReward(eventId: string, coinReward: number)
   const allowed = await hasAdminPermission(user.id, 'can_manage_events')
   if (!allowed) return { error: 'Permission denied. You cannot edit event rewards.' }
 
-  // Fetch caller profile for division verification
+  // Fetch caller profile for unit verification
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
-  // Verify event division for President
+  // Verify event unit for President
   if (adminProfile?.role === 'president') {
     const { data: event } = await supabase
       .from('events')
-      .select('division')
+      .select('unit_id')
       .eq('id', eventId)
       .single()
     
-    if (!event || event.division !== adminProfile.division) {
-      return { error: 'Permission denied. You can only edit rewards for events in your own division.' }
+    if (!event || event.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only edit rewards for events in your own unit.' }
     }
   }
 
@@ -709,7 +720,8 @@ export async function updateEvent(
   location: string,
   capacity: number,
   coinReward: number,
-  division?: string | null
+  unitId?: string | null,
+  excludedUnitIds?: string[] | null
 ) {
   const supabase = await createClient()
 
@@ -725,33 +737,33 @@ export async function updateEvent(
     return { error: 'Missing required event fields.' }
   }
 
-  // Retrieve active admin profile to enforce division restrictions
+  // Retrieve active admin profile to enforce unit restrictions
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
-  let eventDivision: string | null = null
+  let eventUnitId: string | null = null
 
   if (adminProfile?.role === 'president') {
-    eventDivision = adminProfile.division || null
-    if (!eventDivision) {
-      return { error: 'Active president is not assigned to a division.' }
+    eventUnitId = adminProfile.unit_id || null
+    if (!eventUnitId) {
+      return { error: 'Active president is not assigned to a unit.' }
     }
     
-    // Check if the event to edit is in the president's division
+    // Check if the event to edit is in the president's unit
     const { data: event } = await supabase
       .from('events')
-      .select('division')
+      .select('unit_id')
       .eq('id', eventId)
       .single()
       
-    if (!event || event.division !== eventDivision) {
-      return { error: 'Permission denied. You can only edit events in your own division.' }
+    if (!event || event.unit_id !== eventUnitId) {
+      return { error: 'Permission denied. You can only edit events in your own unit.' }
     }
   } else {
-    eventDivision = division || null
+    eventUnitId = unitId || null
   }
 
   // 3. Update event
@@ -765,7 +777,8 @@ export async function updateEvent(
       location,
       capacity: capacity || 100,
       coin_reward: coinReward,
-      division: eventDivision,
+      unit_id: eventUnitId,
+      excluded_unit_ids: excludedUnitIds || [],
     })
     .eq('id', eventId)
 
@@ -794,22 +807,22 @@ export async function getUserFullHistory(targetUserId: string) {
   const allowed = await hasAdminPermission(user.id, 'can_manage_admins')
   if (!allowed) return { error: 'Permission denied. You cannot view user details.' }
 
-  // 3. Verify division scoping for President role
+  // 3. Verify unit scoping for President role
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
   if (adminProfile?.role === 'president') {
     const { data: targetProfile } = await supabase
       .from('profiles')
-      .select('division')
+      .select('unit_id')
       .eq('id', targetUserId)
       .single()
     
-    if (!targetProfile || targetProfile.division !== adminProfile.division) {
-      return { error: 'Permission denied. This user belongs to a different division.' }
+    if (!targetProfile || targetProfile.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. This user belongs to a different unit.' }
     }
   }
 
@@ -834,7 +847,7 @@ export async function getUserFullHistory(targetUserId: string) {
   // 6. Fetch coin transactions
   const { data: coinTransactions } = await supabase
     .from('coin_transactions')
-    .select('*')
+    .select('*, credited_by_profile:profiles!credited_by(full_name)')
     .eq('user_id', targetUserId)
     .order('created_at', { ascending: false })
 
@@ -880,9 +893,7 @@ export async function updateUserProfileAdmin(
     dob: string
     whatsapp: string
     phone: string
-    city: string
-    district: string
-    division: string
+    unit_id: string
     qualification: string
     address: string
   }
@@ -897,10 +908,10 @@ export async function updateUserProfileAdmin(
   const allowed = await hasAdminPermission(user.id, 'can_manage_admins')
   if (!allowed) return { error: 'Permission denied. You cannot modify user profiles.' }
 
-  // Fetch caller profile for division verification
+  // Fetch caller profile for unit verification
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
@@ -908,10 +919,10 @@ export async function updateUserProfileAdmin(
     return { error: 'Admin profile not found.' }
   }
 
-  // Fetch target profile division
+  // Fetch target profile unit
   const { data: targetProfile } = await supabase
     .from('profiles')
-    .select('division')
+    .select('unit_id')
     .eq('id', targetUserId)
     .single()
 
@@ -919,14 +930,14 @@ export async function updateUserProfileAdmin(
     return { error: 'Target user profile not found.' }
   }
 
-  // Enforce President division scoping
+  // Enforce President unit scoping
   if (adminProfile.role === 'president') {
-    if (targetProfile.division !== adminProfile.division) {
-      return { error: 'Permission denied. You can only manage members of your own division.' }
+    if (targetProfile.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only manage members of your own unit.' }
     }
-    // President cannot move user to another division
-    if (profileData.division !== adminProfile.division) {
-      return { error: 'Permission denied. You cannot assign a user to another division.' }
+    // President cannot move user to another unit
+    if (profileData.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You cannot assign a user to another unit.' }
     }
   }
 
@@ -938,9 +949,7 @@ export async function updateUserProfileAdmin(
       dob: profileData.dob || null,
       whatsapp: profileData.whatsapp || null,
       phone: profileData.phone || null,
-      city: profileData.city || null,
-      district: profileData.district || null,
-      division: profileData.division || null,
+      unit_id: profileData.unit_id || null,
       qualification: profileData.qualification || null,
       address: profileData.address || null
     })
@@ -973,10 +982,10 @@ export async function deleteUserProfile(targetUserId: string) {
     return { error: 'You cannot delete your own administrative account.' }
   }
 
-  // Fetch caller profile for division verification
+  // Fetch caller profile for unit verification
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', user.id)
     .single()
 
@@ -984,10 +993,10 @@ export async function deleteUserProfile(targetUserId: string) {
     return { error: 'Admin profile not found.' }
   }
 
-  // Fetch target user profile division
+  // Fetch target user profile unit
   const { data: targetProfile } = await supabase
     .from('profiles')
-    .select('role, division')
+    .select('role, unit_id')
     .eq('id', targetUserId)
     .single()
 
@@ -995,10 +1004,10 @@ export async function deleteUserProfile(targetUserId: string) {
     return { error: 'Target user profile not found.' }
   }
 
-  // Enforce President division scoping
+  // Enforce President unit scoping
   if (adminProfile.role === 'president') {
-    if (targetProfile.division !== adminProfile.division) {
-      return { error: 'Permission denied. You can only delete members of your own division.' }
+    if (targetProfile.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only delete members of your own unit.' }
     }
   }
 
@@ -1013,5 +1022,339 @@ export async function deleteUserProfile(targetUserId: string) {
   }
 
   revalidatePath('/admin/users')
+  return { success: true }
+}
+
+
+/**
+ * ==========================================
+ * UNIT MANAGEMENT
+ * ==========================================
+ */
+
+/**
+ * Create a new Unit.
+ * Superadmin only.
+ */
+export async function createUnit(name: string, province: string | null) {
+  if (!name) return { error: 'Unit name is required.' }
+
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role !== 'superadmin') {
+    return { error: 'Permission denied. Only Superadmins can create Units.' }
+  }
+
+  const { error } = await supabase
+    .from('units')
+    .insert({ name, province: province || null })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+/**
+ * Update a Unit.
+ * Superadmin only.
+ */
+export async function updateUnit(unitId: string, name: string, province: string | null) {
+  if (!name) return { error: 'Unit name is required.' }
+
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role !== 'superadmin') {
+    return { error: 'Permission denied. Only Superadmins can update Units.' }
+  }
+
+  const { error } = await supabase
+    .from('units')
+    .update({ name, province: province || null })
+    .eq('id', unitId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+/**
+ * Delete a Unit.
+ * Superadmin only.
+ */
+export async function deleteUnit(unitId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role !== 'superadmin') {
+    return { error: 'Permission denied. Only Superadmins can delete Units.' }
+  }
+
+  const { error } = await supabase
+    .from('units')
+    .delete()
+    .eq('id', unitId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin')
+  return { success: true }
+}
+
+export async function getPaginatedUsers(page: number, limit: number, searchTerm: string, roleFilter: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const { role, permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_admins) return { error: 'Permission denied' }
+
+  let query = supabase.from('profiles').select('id, full_name, email, role, unit_id, units(name), qualification, created_at', { count: 'exact' })
+
+  if (role === 'president') {
+    const { data: adminProfile } = await supabase.from('profiles').select('unit_id').eq('id', user.id).single()
+    if (adminProfile?.unit_id) {
+      query = query.eq('unit_id', adminProfile.unit_id)
+    }
+  }
+
+  if (searchTerm) {
+    query = query.ilike('full_name', `%${searchTerm}%`)
+  }
+  if (roleFilter && roleFilter !== 'all') {
+    query = query.eq('role', roleFilter)
+  }
+
+  const { data: profiles, count, error } = await query
+    .range((page - 1) * limit, page * limit - 1)
+    .order('full_name')
+
+  if (error || !profiles) return { error: error?.message || 'Error fetching users' }
+
+  const userIds = profiles.map(p => p.id)
+  const [{ data: streaks }, { data: txns }, { data: adminPerms }] = await Promise.all([
+    supabase.from('streaks').select('user_id, current_streak, longest_streak').in('user_id', userIds),
+    supabase.from('coin_transactions').select('user_id, amount').in('user_id', userIds),
+    supabase.from('admin_permissions').select('*').in('admin_id', userIds)
+  ])
+
+  const streakMap = new Map(streaks?.map(s => [s.user_id, s]) || [])
+  const coinMap = new Map()
+  txns?.forEach(t => {
+    const current = coinMap.get(t.user_id) || 0
+    coinMap.set(t.user_id, current + t.amount)
+  })
+
+  const permissionMap = new Map(adminPerms?.map(p => [p.admin_id, p]) || [])
+
+  const enrichedUsers = profiles.map(p => ({
+    ...p,
+    coins: coinMap.get(p.id) || 0,
+    streak: {
+      current: streakMap.get(p.id)?.current_streak || 0,
+      longest: streakMap.get(p.id)?.longest_streak || 0,
+    },
+    permissions: permissionMap.get(p.id) || {
+      can_scan_tickets: false,
+      can_approve_deeds: false,
+      can_manage_events: false,
+      can_manage_courses: false,
+      can_manage_settings: false,
+      can_manage_admins: false,
+    }
+  }))
+
+  return { users: enrichedUsers, totalCount: count || 0 }
+}
+
+export async function processEventLeave(registrationId: string, action: 'approve' | 'reject') {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  // Check admin perms
+  const { role, permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_events) return { error: 'Permission denied' }
+
+  const status = action === 'approve' ? 'leave_approved' : 'leave_rejected'
+  
+  const { error } = await supabase
+    .from('event_registrations')
+    .update({ status })
+    .eq('id', registrationId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}
+
+/**
+ * Flag a deed submission as inappropriate content.
+ * Deducts coins from the volunteer's balance (can go negative).
+ */
+export async function flagDeedSubmission(
+  deedId: string,
+  coinDeduction: number,
+  adminNotes: string
+) {
+  if (!adminNotes?.trim()) return { error: 'A reason is required when flagging a deed.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const allowed = await hasAdminPermission(user.id, 'can_approve_deeds')
+  if (!allowed) return { error: 'Permission denied.' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, unit_id')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const { data: submission } = await supabase
+      .from('deed_submissions')
+      .select('*, profiles:user_id(unit_id)')
+      .eq('id', deedId)
+      .single()
+    if (!submission || (submission.profiles as any)?.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. This user belongs to a different unit.' }
+    }
+  }
+
+  const { data: deed, error: deedError } = await supabase
+    .from('deed_submissions')
+    .update({
+      status: 'flagged',
+      admin_notes: adminNotes.trim(),
+      verified_by: user.id,
+      verified_at: new Date().toISOString(),
+      status_updated_by: user.id,
+    })
+    .eq('id', deedId)
+    .select('user_id')
+    .single()
+
+  if (deedError || !deed) return { error: deedError?.message || 'Failed to flag deed.' }
+
+  if (coinDeduction > 0) {
+    await supabase.from('coin_transactions').insert({
+      user_id: deed.user_id,
+      amount: -Math.abs(coinDeduction),
+      reason: 'flagged_deed',
+      reference_id: deedId,
+      credited_by: user.id,
+    })
+  }
+
+  revalidatePath('/admin/approvals')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
+/**
+ * Override a past deed decision. Only superadmin/admin (not president) can override.
+ */
+export async function overrideDeedDecision(
+  deedId: string,
+  newStatus: 'approved' | 'rejected' | 'flagged',
+  adminNotes: string,
+  coinDeduction?: number
+) {
+  if (!adminNotes?.trim()) return { error: 'Notes are required for overriding a decision.' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!adminProfile || !['superadmin', 'admin'].includes(adminProfile.role)) {
+    return { error: 'Permission denied. Only admins can override past decisions.' }
+  }
+
+  const { data: existingDeed, error: fetchError } = await supabase
+    .from('deed_submissions')
+    .select('status, coin_reward, bonus_coins, user_id')
+    .eq('id', deedId)
+    .single()
+
+  if (fetchError || !existingDeed) return { error: 'Deed not found.' }
+
+  const wasApproved = existingDeed.status === 'approved'
+  const willBeApproved = newStatus === 'approved'
+
+  const { error: updateError } = await supabase
+    .from('deed_submissions')
+    .update({
+      status: newStatus,
+      admin_notes: adminNotes.trim(),
+      status_updated_by: user.id,
+      verified_by: user.id,
+      verified_at: new Date().toISOString(),
+    })
+    .eq('id', deedId)
+
+  if (updateError) return { error: updateError.message }
+
+  if (wasApproved && !willBeApproved) {
+    const totalPrev = (existingDeed.coin_reward || 0) + (existingDeed.bonus_coins || 0)
+    if (totalPrev > 0) {
+      await supabase.from('coin_transactions').insert({
+        user_id: existingDeed.user_id, amount: -totalPrev,
+        reason: 'deed_approval_revoked', reference_id: deedId, credited_by: user.id,
+      })
+    }
+  }
+
+  if (!wasApproved && willBeApproved) {
+    const { data: baseSetting } = await supabase.from('system_settings').select('value').eq('key', 'daily_deed_reward').single()
+    const baseReward = baseSetting ? parseInt(baseSetting.value, 10) : 10
+    await supabase.from('coin_transactions').insert({
+      user_id: existingDeed.user_id, amount: baseReward,
+      reason: 'daily_deed', reference_id: deedId, credited_by: user.id,
+    })
+  }
+
+  if (newStatus === 'flagged' && coinDeduction && coinDeduction > 0) {
+    await supabase.from('coin_transactions').insert({
+      user_id: existingDeed.user_id, amount: -Math.abs(coinDeduction),
+      reason: 'flagged_deed', reference_id: deedId, credited_by: user.id,
+    })
+  }
+
+  revalidatePath('/admin/approvals')
+  revalidatePath('/dashboard')
   return { success: true }
 }

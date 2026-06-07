@@ -35,7 +35,7 @@ interface Registration {
   created_at: string
   profiles: {
     full_name: string
-    division: string
+    unit_name: string
     qualification: string
   }
 }
@@ -49,7 +49,7 @@ interface EventItem {
   location: string
   capacity: number
   coin_reward?: number
-  division?: string | null
+  unit_id?: string | null
 }
 
 export default function PresidentEventsManager({
@@ -231,7 +231,7 @@ export default function PresidentEventsManager({
         editLocation,
         capacityVal,
         coinRewardVal,
-        selectedEvent.division
+        selectedEvent.unit_id
       )
 
       if (res?.error) {
@@ -351,7 +351,7 @@ export default function PresidentEventsManager({
       <div className="flex items-center justify-between px-1 pt-2">
         <div>
           <h2 className="text-lg font-bold text-zinc-900">Events Directory</h2>
-          <p className="text-xs text-zinc-500">List and manage events for {adminDivision || 'your division'}.</p>
+          <p className="text-xs text-zinc-500">List and manage events for {adminDivision || 'your unit'}.</p>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
@@ -369,7 +369,7 @@ export default function PresidentEventsManager({
             <CardContent className="p-12 text-center text-zinc-400">
               <Calendar size={40} className="mx-auto mb-3 text-zinc-300 bg-zinc-50 p-2.5 rounded-full h-12 w-12" />
               <h3 className="font-bold text-zinc-700 text-sm mb-1">No Events Found</h3>
-              <p className="text-xs">Schedule your first division event using the Create button.</p>
+              <p className="text-xs">Schedule your first unit event using the Create button.</p>
             </CardContent>
           </Card>
         ) : (

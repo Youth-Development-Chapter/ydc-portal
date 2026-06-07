@@ -6,7 +6,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   // Session guard: if already authenticated, go straight to next page or dashboard
   const { next } = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (e) {
+    // Ignore auth api errors when not logged in
+  }
+  
   if (user) {
     redirect(next || "/dashboard");
   }

@@ -36,11 +36,16 @@ export default function SettingsManager({
     initialSettings.find((s) => s.key === 'event_attendance_reward')?.value || '50'
   )
 
+  const [rankTiers, setRankTiers] = useState<string>(
+    initialSettings.find((s) => s.key === 'rank_tiers')?.value || '[\n  { "name": "Bronze", "min_coins": 0, "color": "#CD7F32" },\n  { "name": "Silver", "min_coins": 500, "color": "#C0C0C0" },\n  { "name": "Gold", "min_coins": 2000, "color": "#FFD700" },\n  { "name": "Platinum", "min_coins": 5000, "color": "#E5E4E2" },\n  { "name": "Diamond", "min_coins": 10000, "color": "#B9F2FF" }\n]'
+  )
+
   // Local state for courses
   const [courses, setCourses] = useState<CourseItem[]>(initialCourses)
 
   // Saving states
   const [isSavingGlobal, setIsSavingGlobal] = useState(false)
+  const [isSavingRanks, setIsSavingRanks] = useState(false)
   const [savingCourseId, setSavingCourseId] = useState<string | null>(null)
 
   // Handles saving global settings
@@ -61,6 +66,28 @@ export default function SettingsManager({
       toast.error(err instanceof Error ? err.message : 'An error occurred.')
     } finally {
       setIsSavingGlobal(false)
+    }
+  }
+
+  // Handles saving rank tiers
+  const handleSaveRankTiers = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSavingRanks(true)
+
+    try {
+      // Validate JSON
+      JSON.parse(rankTiers)
+      
+      const res = await updateSystemSetting('rank_tiers', rankTiers)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success('Rank Tiers saved successfully.')
+      }
+    } catch (err: unknown) {
+      toast.error('Invalid JSON format.')
+    } finally {
+      setIsSavingRanks(false)
     }
   }
 
@@ -157,6 +184,43 @@ export default function SettingsManager({
                 leftIcon={<Save size={16} />}
               >
                 Save Action Coins
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* RANK TIERS CONFIGURATION */}
+        <h2 className="text-lg font-bold text-zinc-900 mt-8">Gamification System</h2>
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-sm font-extrabold uppercase tracking-wider text-zinc-500">
+              Rank Tiers Configuration (JSON)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSaveRankTiers} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <textarea
+                    value={rankTiers}
+                    onChange={(e) => setRankTiers(e.target.value)}
+                    rows={8}
+                    className="w-full text-sm font-mono p-3 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-zinc-900 bg-zinc-50"
+                    required
+                  />
+                  <p className="text-[11px] text-zinc-400">
+                    Define rank tiers here. Must be valid JSON with name, min_coins, and color.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-[#1D1D1D] hover:bg-black text-white py-2.5 rounded-xl font-semibold transition-all duration-200 shadow-sm"
+                isLoading={isSavingRanks}
+                leftIcon={<Save size={16} />}
+              >
+                Save Rank Tiers
               </Button>
             </form>
           </CardContent>

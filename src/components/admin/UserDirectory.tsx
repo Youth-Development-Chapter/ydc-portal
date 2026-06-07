@@ -59,7 +59,8 @@ interface DirectoryUser {
   full_name: string
   email: string
   role: string
-  division: string
+  unit_name: string
+  unit_id: string
   qualification: string
   created_at: string
   coins: number
@@ -71,15 +72,19 @@ export default function UserDirectory({
   initialUsers,
   activeAdminId,
   activeAdminRole,
+  adminUnitId,
+  allUnits = [],
 }: {
   initialUsers: DirectoryUser[]
   activeAdminId: string
   activeAdminRole: string
+  adminUnitId?: string
+  allUnits?: { id: string; name: string }[]
 }) {
   const [users, setUsers] = useState<DirectoryUser[]>(initialUsers)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
-  const [divisionFilter, setDivisionFilter] = useState('all')
+  const [unitFilter, setUnitFilter] = useState('all')
   const [qualificationFilter, setQualificationFilter] = useState('all')
 
   // Selected user detailed state
@@ -94,15 +99,13 @@ export default function UserDirectory({
     dob: '',
     whatsapp: '',
     phone: '',
-    city: '',
-    district: '',
-    division: '',
+    unit_id: '',
     qualification: '',
     address: ''
   })
 
   // Generate unique filter options dynamically from user list
-  const uniqueDivisions = Array.from(new Set(initialUsers.map(u => u.division).filter(Boolean))).sort()
+  const uniqueUnits = Array.from(new Set(initialUsers.map(u => u.unit_name).filter(Boolean))).sort()
   const uniqueQualifications = Array.from(new Set(initialUsers.map(u => u.qualification).filter(Boolean))).sort()
 
   // Modals state
@@ -145,9 +148,7 @@ export default function UserDirectory({
             dob: prof.dob || '',
             whatsapp: prof.whatsapp || '',
             phone: prof.phone || '',
-            city: prof.city || '',
-            district: prof.district || '',
-            division: prof.division || '',
+            unit_id: prof.unit_id || '',
             qualification: prof.qualification || '',
             address: prof.address || ''
           })
@@ -303,7 +304,7 @@ export default function UserDirectory({
         setUsers(prev => 
           prev.map(u => 
             u.id === selectedUserId 
-              ? { ...u, division: profileForm.division, qualification: profileForm.qualification } 
+              ? { ...u, unit_id: profileForm.unit_id, qualification: profileForm.qualification } 
               : u
           )
         )
@@ -353,22 +354,22 @@ export default function UserDirectory({
     const matchesSearch = 
       user.full_name.toLowerCase().includes(query) || 
       user.email.toLowerCase().includes(query) ||
-      user.division.toLowerCase().includes(query) ||
+      user.unit_name.toLowerCase().includes(query) ||
       user.qualification.toLowerCase().includes(query)
     
     const matchesRole = 
       roleFilter === 'all' || 
       user.role === roleFilter
 
-    const matchesDivision = 
-      divisionFilter === 'all' || 
-      user.division === divisionFilter
+    const matchesUnit = 
+      unitFilter === 'all' || 
+      user.unit_name === unitFilter
 
     const matchesQualification = 
       qualificationFilter === 'all' || 
       user.qualification === qualificationFilter
 
-    return matchesSearch && matchesRole && matchesDivision && matchesQualification
+    return matchesSearch && matchesRole && matchesUnit && matchesQualification
   })
 
   // CSV Export logic
@@ -379,7 +380,7 @@ export default function UserDirectory({
       user.full_name,
       user.email,
       roleLabels[user.role] || user.role,
-      user.division,
+      user.unit_name,
       user.qualification,
       user.coins,
       user.streak.current,
@@ -510,7 +511,7 @@ export default function UserDirectory({
                     <div className="flex items-center gap-2 mt-1">
                       <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 font-semibold">
                         <MapPin size={12} className="text-zinc-400" />
-                        {detailData.profile.division ? detailData.profile.division.toUpperCase() : 'NO DIVISION'}
+                        {detailData.profile.unit_name ? detailData.profile.unit_name.toUpperCase() : 'NO UNIT'}
                       </span>
                     </div>
                   </div>
@@ -612,26 +613,19 @@ export default function UserDirectory({
                           value={profileForm.phone}
                           onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
                         />
-                        <Input
-                          label="City"
-                          value={profileForm.city}
-                          onChange={(e) => setProfileForm(prev => ({ ...prev, city: e.target.value }))}
-                        />
-                        <Input
-                          label="District"
-                          value={profileForm.district}
-                          onChange={(e) => setProfileForm(prev => ({ ...prev, district: e.target.value }))}
-                        />
                         <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Division</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Unit (City Branch)</span>
                           <Select
-                            value={profileForm.division}
-                            onChange={(e) => setProfileForm(prev => ({ ...prev, division: e.target.value }))}
-                            disabled={activeAdminRole === 'president'} // President cannot shift divisions
+                            value={profileForm.unit_id || ''}
+                            onChange={(e) => setProfileForm(prev => ({ ...prev, unit_id: e.target.value || '' }))}
+                            disabled={activeAdminRole === 'president'}
                           >
-                            <option value="multan">Multan</option>
-                            <option value="bahawalpur">Bahawalpur</option>
-                            <option value="dgkhan">D.G. Khan</option>
+                            <option value="">No Unit Assigned</option>
+                            {allUnits.map((u) => (
+                              <option key={u.id} value={u.id}>
+                                {u.name}
+                              </option>
+                            ))}
                           </Select>
                         </div>
                         <div className="space-y-1">
@@ -676,16 +670,8 @@ export default function UserDirectory({
                           <span className="font-semibold text-zinc-800 block text-sm">{detailData.profile.phone || '—'}</span>
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">City</span>
-                          <span className="font-semibold text-zinc-800 block text-sm">{detailData.profile.city || '—'}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">District</span>
-                          <span className="font-semibold text-zinc-800 block text-sm">{detailData.profile.district || '—'}</span>
-                        </div>
-                        <div className="space-y-1">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Regional Division</span>
-                          <span className="font-semibold text-zinc-800 block text-sm uppercase">{detailData.profile.division || '—'}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Unit</span>
+                          <span className="font-semibold text-zinc-800 block text-sm uppercase">{detailData.profile.unit_name || '—'}</span>
                         </div>
                         <div className="space-y-1">
                           <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Highest Education</span>
@@ -1178,17 +1164,17 @@ export default function UserDirectory({
               </Select>
             </div>
 
-            {/* Division Filter */}
+            {/* Unit Filter */}
             <div className="space-y-1">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Division</span>
+              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Unit</span>
               <Select 
-                value={divisionFilter}
-                onChange={(e) => setDivisionFilter(e.target.value)}
+                value={unitFilter}
+                onChange={(e) => setUnitFilter(e.target.value)}
                 className="h-9 text-xs"
               >
-                <option value="all">All Divisions</option>
-                {uniqueDivisions.map(div => (
-                  <option key={div} value={div}>{div.toUpperCase()}</option>
+                <option value="all">All Units</option>
+                {uniqueUnits.map(unit => (
+                  <option key={unit} value={unit}>{unit.toUpperCase()}</option>
                 ))}
               </Select>
             </div>
@@ -1220,7 +1206,7 @@ export default function UserDirectory({
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-150 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
                   <th className="py-3 px-4">Name & Email</th>
-                  <th className="py-3 px-4">Division</th>
+                  <th className="py-3 px-4">Unit</th>
                   <th className="py-3 px-4">Education</th>
                   <th className="py-3 px-4">Role</th>
                   <th className="py-3 px-4 text-center">Coins</th>
@@ -1252,7 +1238,7 @@ export default function UserDirectory({
                           </div>
                         </td>
                         <td className="py-2.5 px-4 font-semibold text-zinc-600 uppercase">
-                          {user.division}
+                          {user.unit_name}
                         </td>
                         <td className="py-2.5 px-4 text-zinc-600 capitalize">
                           {user.qualification}
@@ -1360,7 +1346,7 @@ export default function UserDirectory({
                     <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-zinc-500">
                       <div className="flex items-center gap-1">
                         <MapPin size={12} className="text-zinc-400" />
-                        <span className="uppercase">{user.division}</span>
+                        <span className="uppercase">{user.unit_name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <GraduationCap size={12} className="text-zinc-400" />

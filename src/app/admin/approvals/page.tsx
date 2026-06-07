@@ -21,21 +21,29 @@ export default async function AdminApprovalsPage() {
     redirect('/admin')
   }
 
-  // Fetch active admin profile division
+  // Fetch active admin profile — use unit_id (new) for scoping
   const { data: adminProfile } = await supabase
     .from('profiles')
-    .select('division')
+    .select('unit_id')
     .eq('id', user.id)
     .single()
   
-  const adminDivision = adminProfile?.division
+  const adminUnitId = adminProfile?.unit_id || null
 
-  // Fetch pending submissions with profile details
+  // Fetch pending submissions with profile details (include unit info)
   const { data: submissions } = await supabase
     .from('deed_submissions')
-    .select('*, profiles:user_id(*)')
+    .select('*, profiles:user_id(id, full_name, unit_id, qualification, units(name))')
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
+
+  // Fetch resolved submissions for history tab (last 50)
+  const { data: resolvedSubmissions } = await supabase
+    .from('deed_submissions')
+    .select('*, profiles:user_id(id, full_name, unit_id, qualification, units(name)), verifier:verified_by(full_name)')
+    .in('status', ['approved', 'rejected', 'flagged'])
+    .order('verified_at', { ascending: false })
+    .limit(50)
 
   // Fetch streaks to map them
   const { data: streaks } = await supabase
@@ -46,8 +54,8 @@ export default async function AdminApprovalsPage() {
     streaks?.map((s) => [s.user_id, s.current_streak]) || []
   )
 
-  // Map user streaks to submissions and filter by division if president
-  let mappedSubmissions = (submissions || []).map((sub) => ({
+  // Helper to map a submission with unit data
+  const mapSubmission = (sub: any) => ({
     id: sub.id,
     user_id: sub.user_id,
     description: sub.description,
@@ -55,16 +63,48 @@ export default async function AdminApprovalsPage() {
     created_at: sub.created_at,
     profiles: {
       full_name: sub.profiles?.full_name || 'Anonymous Member',
-      division: sub.profiles?.division || 'Not specified',
+      unit_id: sub.profiles?.unit_id || null,
+      unit_name: (Array.isArray(sub.profiles?.units) ? sub.profiles.units[0]?.name : sub.profiles?.units?.name) || 'Not specified',
       qualification: sub.profiles?.qualification || 'Not specified',
       id: sub.profiles?.id,
     },
     streak: streakMap.get(sub.user_id) || 0,
-  }))
+  })
 
-  if (role === 'president' && adminDivision) {
+  let mappedSubmissions = (submissions || []).map(mapSubmission)
+
+  // President: filter by unit_id
+  if (role === 'president' && adminUnitId) {
     mappedSubmissions = mappedSubmissions.filter(
-      (sub) => sub.profiles.division?.toLowerCase() === adminDivision.toLowerCase()
+      (sub) => sub.profiles.unit_id === adminUnitId
+    )
+  }
+
+  // Map resolved submissions for history tab
+  const mapResolved = (sub: any) => ({
+    id: sub.id,
+    user_id: sub.user_id,
+    description: sub.description,
+    proof_url: sub.proof_url,
+    created_at: sub.created_at,
+    status: sub.status,
+    admin_notes: sub.admin_notes || null,
+    verified_at: sub.verified_at || null,
+    verifier_name: (Array.isArray(sub.verifier) ? sub.verifier[0]?.full_name : sub.verifier?.full_name) || null,
+    profiles: {
+      full_name: sub.profiles?.full_name || 'Anonymous Member',
+      unit_id: sub.profiles?.unit_id || null,
+      unit_name: (Array.isArray(sub.profiles?.units) ? sub.profiles.units[0]?.name : sub.profiles?.units?.name) || 'Not specified',
+      qualification: sub.profiles?.qualification || 'Not specified',
+      id: sub.profiles?.id,
+    },
+  })
+
+  let mappedResolved = (resolvedSubmissions || []).map(mapResolved)
+
+  if (role === 'president' && adminUnitId) {
+    mappedResolved = mappedResolved.filter(
+      (sub) => sub.profiles.unit_id === adminUnitId
     )
   }
 
@@ -73,11 +113,15 @@ export default async function AdminApprovalsPage() {
       <div className="space-y-1">
         <h1 className="text-2xl font-extrabold text-zinc-950">Deed Approvals</h1>
         <p className="text-zinc-500 text-sm">
-          Review daily deeds submitted by volunteers, award bonus points, or reject submissions with comments.
+          Review daily deeds submitted by volunteers, award bonus points, flag inappropriate content, or reject submissions with comments.
         </p>
       </div>
 
-      <ApprovalsQueue initialSubmissions={mappedSubmissions} />
+      <ApprovalsQueue 
+        initialSubmissions={mappedSubmissions} 
+        resolvedSubmissions={mappedResolved}
+        adminRole={role}
+      />
     </div>
   )
 }

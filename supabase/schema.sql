@@ -82,6 +82,10 @@ CREATE TABLE IF NOT EXISTS public.events (
     location TEXT NOT NULL,
     capacity INTEGER NOT NULL DEFAULT 100,
     coin_reward INTEGER NOT NULL DEFAULT 50,
+    custom_criteria JSONB DEFAULT '{}'::jsonb,
+    is_compulsory BOOLEAN DEFAULT false NOT NULL,
+    division TEXT,
+    excluded_divisions TEXT[] DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -105,6 +109,8 @@ CREATE TABLE IF NOT EXISTS public.event_registrations (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     ticket_code TEXT UNIQUE NOT NULL, -- e.g., "TKT-PION-XXXXXXXX"
     attended BOOLEAN DEFAULT false NOT NULL,
+    status TEXT DEFAULT 'registered' CHECK (status IN ('registered', 'present', 'absent', 'leave_pending', 'leave_approved', 'leave_rejected')),
+    leave_note TEXT,
     attended_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     UNIQUE(user_id, event_id)
@@ -201,6 +207,7 @@ CREATE TABLE IF NOT EXISTS public.coin_transactions (
     amount INTEGER NOT NULL, -- positive for earnings, negative for purchases
     reason TEXT NOT NULL, -- e.g. 'course_completion', 'event_attendance', 'daily_deed', 'reward_redeem'
     reference_id UUID, -- reference to event_registration, deed_submission, etc.
+    credited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -497,6 +504,7 @@ CREATE TABLE IF NOT EXISTS public.rewards (
     coin_cost INTEGER NOT NULL CHECK (coin_cost > 0),
     quantity_available INTEGER,   -- NULL = unlimited
     is_active BOOLEAN DEFAULT true NOT NULL,
+    custom_criteria JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -556,44 +564,80 @@ CREATE POLICY "Allow admins to manage redemptions"
 CREATE OR REPLACE FUNCTION public.handle_deed_approval()
 RETURNS TRIGGER AS $$
 DECLARE
-    today_date DATE := NEW.local_date;
+    today_date DATE := CURRENT_DATE;
     user_streak_record RECORD;
-    new_streak INTEGER := 1;
+    new_streak INTEGER := 0;
+    max_streak INTEGER := 1;
     total_coins INTEGER;
+    current_check_date DATE;
+    has_valid_deed BOOLEAN;
 BEGIN
-    -- Only run on transition to 'approved'
-    IF NEW.status = 'approved' AND (OLD.status IS NULL OR OLD.status != 'approved') THEN
+    -- Run on transition to 'approved' OR 'rejected'
+    IF (NEW.status = 'approved' OR NEW.status = 'rejected') AND (OLD.status IS NULL OR OLD.status != NEW.status) THEN
         
-        -- Check if user has a streak record, insert if not
         SELECT * INTO user_streak_record FROM public.streaks WHERE user_id = NEW.user_id;
         
+        -- Recalculate streak
+        current_check_date := today_date;
+        new_streak := 0;
+
+        -- First check today
+        SELECT EXISTS (
+            SELECT 1 FROM public.deed_submissions 
+            WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
+        ) INTO has_valid_deed;
+
+        IF has_valid_deed THEN
+            new_streak := 1;
+        ELSE
+            -- If no deed today, check yesterday. If no deed yesterday, streak is 0.
+            current_check_date := today_date - INTERVAL '1 day';
+            SELECT EXISTS (
+                SELECT 1 FROM public.deed_submissions 
+                WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
+            ) INTO has_valid_deed;
+            
+            IF NOT has_valid_deed THEN
+                new_streak := 0;
+            END IF;
+        END IF;
+
+        IF new_streak > 0 OR has_valid_deed THEN
+            -- Count backwards as long as there's a valid deed
+            LOOP
+                current_check_date := current_check_date - INTERVAL '1 day';
+                SELECT EXISTS (
+                    SELECT 1 FROM public.deed_submissions 
+                    WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
+                ) INTO has_valid_deed;
+
+                IF has_valid_deed THEN
+                    new_streak := new_streak + 1;
+                ELSE
+                    EXIT;
+                END IF;
+            END LOOP;
+        END IF;
+
         IF NOT FOUND THEN
             INSERT INTO public.streaks (user_id, current_streak, longest_streak, last_deed_date, updated_at)
-            VALUES (NEW.user_id, 1, 1, today_date, now());
+            VALUES (NEW.user_id, new_streak, new_streak, NEW.local_date, now());
         ELSE
-            -- Streak calculation
-            IF user_streak_record.last_deed_date = today_date THEN
-                new_streak := user_streak_record.current_streak;
-            ELSIF user_streak_record.last_deed_date = today_date - INTERVAL '1 day' THEN
-                new_streak := user_streak_record.current_streak + 1;
-            ELSE
-                new_streak := 1;
-            END IF;
-            
+            max_streak := GREATEST(new_streak, user_streak_record.longest_streak);
             UPDATE public.streaks 
             SET current_streak = new_streak,
-                longest_streak = GREATEST(new_streak, longest_streak),
-                last_deed_date = today_date,
+                longest_streak = max_streak,
+                last_deed_date = NEW.local_date,
                 updated_at = now()
             WHERE user_id = NEW.user_id;
         END IF;
 
-        -- Sum base reward and bonus coins
-        total_coins := NEW.coin_reward + NEW.bonus_coins;
-
-        -- Insert coin transaction
-        INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id)
-        VALUES (NEW.user_id, total_coins, 'daily_deed', NEW.id);
+        -- Insert coins ONLY if transitioning to 'approved'
+        IF NEW.status = 'approved' THEN
+            total_coins := NEW.coin_reward + NEW.bonus_coins;
+            INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, credited_by)
+            VALUES (NEW.user_id, total_coins, 'daily_deed', NEW.id, NEW.verified_by);
+        END IF;
 
     END IF;
     RETURN NEW;

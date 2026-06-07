@@ -2,7 +2,6 @@ import React from "react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import EventsClient from "./EventsClient";
-import { getUpcomingEventsForDivisionCached } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,31 +14,67 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch user profile to get division scope
+  // Fetch user profile to get unit scoping
   const { data: profile } = await supabase
     .from("profiles")
-    .select("division")
+    .select("unit_id")
     .eq("id", user.id)
     .single();
-  const userDivision = profile?.division;
+  const userUnitId = profile?.unit_id;
 
-  // Fetch events and current user registrations in parallel
-  const [dbEvents, registrationsResult] = await Promise.all([
-    getUpcomingEventsForDivisionCached(userDivision || null),
+  // 1. Query events matching user unit
+  let eventsQuery = supabase
+    .from('events')
+    .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory')
+    .order('date', { ascending: true });
+
+  if (userUnitId) {
+    eventsQuery = eventsQuery.or(`unit_id.is.null,unit_id.eq.${userUnitId}`);
+  } else {
+    eventsQuery = eventsQuery.is('unit_id', null);
+  }
+
+  const [eventsResult, registrationsResult] = await Promise.all([
+    eventsQuery,
     supabase
       .from("event_registrations")
-      .select("id, event_id, user_id, ticket_code, attended, attended_at")
+      .select("id, event_id, user_id, ticket_code, attended, attended_at, status")
       .eq("user_id", user.id),
   ]);
-  const registrations = registrationsResult.data;
+
+  const dbEvents = eventsResult.data || [];
+  const registrations = registrationsResult.data || [];
 
   const registeredMap = new Map();
-  registrations?.forEach(reg => {
+  registrations.forEach(reg => {
     registeredMap.set(reg.event_id, reg);
   });
 
-  const events = (dbEvents || []).map(event => {
+  const now = new Date();
+  // Strip time for simple date comparison if events only use date fields
+  const todayStr = now.toISOString().split('T')[0];
+
+  const processedEvents = dbEvents.map(event => {
     const reg = registeredMap.get(event.id);
+    let status = 'none';
+    if (reg) {
+      if (reg.status === 'present' || reg.attended) status = 'present';
+      else if (reg.status === 'leave_pending') status = 'leave_pending';
+      else if (reg.status === 'leave_approved') status = 'leave_approved';
+      else if (reg.status === 'leave_rejected') status = 'leave_rejected';
+      else status = 'registered';
+    }
+
+    // Determine past vs upcoming. We compare date.
+    const isPast = event.date < todayStr;
+    
+    // If it's compulsory and past, and not present/leave, it's absent
+    if (isPast && event.is_compulsory && status === 'none') {
+      status = 'absent';
+    } else if (isPast && event.is_compulsory && status === 'registered') {
+      status = 'absent';
+    }
+
     return {
       id: event.id,
       title: event.title,
@@ -48,36 +83,23 @@ export default async function EventsPage() {
       time: event.time,
       location: event.location,
       capacity: event.capacity,
-      joined: !!reg,
-      ticketCode: reg ? reg.ticket_code : null,
-      attended: reg ? reg.attended : false
+      is_compulsory: event.is_compulsory || false,
+      status: status as any,
+      rawDate: event.date // internal sorting field
     };
   });
 
-  // Find active registration for QR code display
-  const activeRegWithEvent = (registrations || [])
-    .filter(reg => !reg.attended)
-    .map(reg => {
-      const ev = (dbEvents || []).find(e => e.id === reg.event_id);
-      return {
-        ...reg,
-        event: ev
-      };
-    })
-    .find(reg => reg.event) as ({
-      ticket_code: string;
-      user_id: string;
-      attended: boolean;
-      event: { title: string; date: string; location: string };
-    } | undefined);
+  const upcomingEvents = processedEvents.filter(e => e.rawDate >= todayStr);
+  const pastEvents = processedEvents.filter(e => e.rawDate < todayStr).reverse(); // show most recent past first
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
       <div className="fluid-top-gradient"></div>
       <main className="max-w-lg mx-auto w-full px-4 py-6 relative z-10">
         <EventsClient 
-          events={events} 
-          activeTicket={activeRegWithEvent || null} 
+          upcomingEvents={upcomingEvents}
+          pastEvents={pastEvents}
+          userId={user.id}
         />
       </main>
     </div>

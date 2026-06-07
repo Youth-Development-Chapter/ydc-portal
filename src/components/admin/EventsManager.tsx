@@ -16,9 +16,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
-import { checkInTicket, createEvent, toggleManualAttendance, updateEventCoinReward } from '@/app/admin/actions'
+import { checkInTicket, createEvent, toggleManualAttendance, updateEventCoinReward, processEventLeave } from '@/app/admin/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import QrScannerWidget from '@/components/admin/QrScannerWidget'
 
 interface Registration {
   id: string
@@ -27,10 +28,12 @@ interface Registration {
   ticket_code: string
   attended: boolean
   attended_at: string | null
+  status: string
+  leave_note: string | null
   created_at: string
   profiles: {
     full_name: string
-    division: string
+    unit_name: string
     qualification: string
   }
 }
@@ -51,7 +54,9 @@ export default function EventsManager({
   initialRegistrations,
   permissions,
   adminRole,
-  adminDivision,
+  adminUnitId,
+  adminUnitName,
+  units,
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
@@ -60,7 +65,9 @@ export default function EventsManager({
     can_manage_events: boolean
   }
   adminRole: string
-  adminDivision?: string | null
+  adminUnitId?: string | null
+  adminUnitName?: string | null
+  units: { id: string; name: string }[]
 }) {
   const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
@@ -107,11 +114,33 @@ export default function EventsManager({
   const [newCapacity, setNewCapacity] = useState('100')
   const [newCoinReward, setNewCoinReward] = useState('50')
   const [isCreating, setIsCreating] = useState(false)
-  const [newDivision, setNewDivision] = useState('')
+  const [newUnitId, setNewUnitId] = useState('')
+  const [newIsCompulsory, setNewIsCompulsory] = useState(false)
+  const [newCustomCriteria, setNewCustomCriteria] = useState('{\n  "min_age": 0,\n  "required_rank": "none"\n}')
 
   // Manage Attendees States
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null)
   const [isTogglingAttendance, setIsTogglingAttendance] = useState<string | null>(null)
+  const [isProcessingLeave, setIsProcessingLeave] = useState<string | null>(null)
+
+  const handleProcessLeave = async (regId: string, action: 'approve' | 'reject') => {
+    setIsProcessingLeave(regId)
+    try {
+      const res = await processEventLeave(regId, action)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success(`Leave ${action}d.`)
+        setRegistrations(prev =>
+          prev.map(reg => reg.id === regId ? { ...reg, status: action === 'approve' ? 'leave_approved' : 'leave_rejected' } : reg)
+        )
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error processing leave')
+    } finally {
+      setIsProcessingLeave(null)
+    }
+  }
 
   // Handle Scanning / Manual Ticket Check-in
   const handleTicketScan = async (e?: React.FormEvent) => {
@@ -172,7 +201,16 @@ export default function EventsManager({
         newLocation,
         capacityVal,
         coinRewardVal,
-        adminRole === 'president' ? (adminDivision || null) : (newDivision || null)
+        adminRole === 'president' ? (adminUnitId || null) : (newUnitId || null),
+        [], // excludedUnitIds
+        newIsCompulsory,
+        (() => {
+          try {
+            return JSON.parse(newCustomCriteria)
+          } catch {
+            return {}
+          }
+        })()
       )
 
       if (res?.error) {
@@ -189,7 +227,9 @@ export default function EventsManager({
         setNewLocation('')
         setNewCapacity('100')
         setNewCoinReward('50')
-        setNewDivision('')
+        setNewUnitId('')
+        setNewIsCompulsory(false)
+        setNewCustomCriteria('{\n  "min_age": 0,\n  "required_rank": "none"\n}')
 
         const newEvt: EventItem = {
           id: Math.random().toString(36).substring(2, 9), // temp id, path will refresh
@@ -280,77 +320,99 @@ export default function EventsManager({
                 </div>
                 <CardTitle className="text-xl">Scan Volunteer Ticket</CardTitle>
                 <p className="text-xs text-zinc-400 mt-1">
-                  Select the event checkpoint, then scan or type the volunteer&apos;s Member ID or User ID.
+                  Select the event, scan the QR code with your camera, or type the Member ID manually.
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <form onSubmit={handleTicketScan} className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">
-                      Select Event Checkpoint
-                    </label>
-                    <select
-                      value={scanEventId}
-                      onChange={(e) => setScanEventId(e.target.value)}
-                      className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
-                      disabled={isScanning}
-                      required
-                    >
-                      <option value="">Select an Event...</option>
-                      {events.map((ev) => (
-                        <option key={ev.id} value={ev.id}>
-                          {ev.title} ({new Date(ev.date).toLocaleDateString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
-                      Volunteer Code / Member ID / User ID
-                    </label>
-                    <Input 
-                      placeholder="Scan QR or type User UUID / Member ID"
-                      value={ticketInput}
-                      onChange={(e) => setTicketInput(e.target.value)}
-                      className="text-center font-extrabold tracking-widest font-mono text-lg h-14 border-2 border-zinc-200 focus:border-[#0A9EDE] focus:ring-2 focus:ring-[#0A9EDE]/20 rounded-2xl bg-zinc-50/50 transition-all uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:font-normal"
-                      disabled={isScanning}
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-[#0BA242] border-[#0BA242] hover:bg-[#0BA242]/90 text-white font-bold h-11 rounded-xl shadow-sm transition-all"
-                    isLoading={isScanning}
+                {/* Event selector */}
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
+                    Select Event Checkpoint
+                  </label>
+                  <select
+                    value={scanEventId}
+                    onChange={(e) => setScanEventId(e.target.value)}
+                    className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
+                    disabled={isScanning}
+                    required
                   >
-                    Check In Ticket
-                  </Button>
-                </form>
-
-                {/* Mock Ticket Codes For Testing */}
-                <div className="border-t border-zinc-150 pt-4 space-y-2">
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
-                    Quick Testing Codes (User IDs)
-                  </span>
-                  <div className="flex flex-wrap gap-2">
-                    {registrations.slice(0, 4).map(reg => (
-                      <button
-                        key={reg.id}
-                        type="button"
-                        onClick={() => {
-                          setTicketInput(reg.user_id)
-                        }}
-                        className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
-                          reg.attended 
-                            ? 'bg-zinc-100 border-zinc-250 text-zinc-400 line-through' 
-                            : 'bg-white border-zinc-250 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
-                        }`}
-                      >
-                        {reg.profiles.full_name} (ID: {reg.user_id.slice(0, 8)})
-                      </button>
+                    <option value="">Select an Event...</option>
+                    {events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
+
+                {/* Camera QR Scanner */}
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
+                    Camera Scanner
+                  </label>
+                  <QrScannerWidget
+                    onScan={(value) => {
+                      setTicketInput(value)
+                      // Auto-submit after scan
+                      setTimeout(() => {
+                        if (value.trim() && scanEventId) {
+                          handleTicketScan()
+                        }
+                      }, 300)
+                    }}
+                  />
+                </div>
+
+                {/* Manual input fallback */}
+                <div className="border-t border-zinc-100 pt-4">
+                  <form onSubmit={handleTicketScan} className="space-y-3">
+                    <div className="space-y-2">
+                      <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
+                        Or Enter Code Manually
+                      </label>
+                      <Input 
+                        placeholder="User UUID, Member ID, or Ticket Code"
+                        value={ticketInput}
+                        onChange={(e) => setTicketInput(e.target.value)}
+                        className="text-center font-extrabold tracking-widest font-mono text-lg h-14 border-2 border-zinc-200 focus:border-[#0A9EDE] focus:ring-2 focus:ring-[#0A9EDE]/20 rounded-2xl bg-zinc-50/50 transition-all uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:font-normal"
+                        disabled={isScanning}
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-[#0BA242] border-[#0BA242] hover:bg-[#0BA242]/90 text-white font-bold h-11 rounded-xl shadow-sm transition-all"
+                      isLoading={isScanning}
+                      disabled={!ticketInput.trim() || !scanEventId}
+                    >
+                      Check In Ticket
+                    </Button>
+                  </form>
+                </div>
+
+                {/* Quick test codes */}
+                {registrations.length > 0 && (
+                  <div className="border-t border-zinc-100 pt-4 space-y-2">
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
+                      Quick Testing Codes
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {registrations.slice(0, 4).map(reg => (
+                        <button
+                          key={reg.id}
+                          type="button"
+                          onClick={() => setTicketInput(reg.user_id)}
+                          className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                            reg.attended 
+                              ? 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through' 
+                              : 'bg-white border-zinc-200 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
+                          }`}
+                        >
+                          {reg.profiles.full_name} ({reg.user_id.slice(0, 8)})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -490,8 +552,19 @@ export default function EventsManager({
                               Code: {reg.ticket_code.slice(0, 15)}...
                             </span>
                             <span className="text-[10px] text-zinc-400 block">
-                              Division: {reg.profiles.division}
+                              Unit: {reg.profiles.unit_name}
                             </span>
+                            {reg.status === 'leave_pending' && (
+                              <div className="mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                                <strong>Leave Note:</strong> {reg.leave_note}
+                                <div className="mt-2 flex gap-2">
+                                  <Button size="sm" variant="outline" className="h-6 text-[10px] bg-green-50 text-green-700 hover:bg-green-100" onClick={() => handleProcessLeave(reg.id, 'approve')} isLoading={isProcessingLeave === reg.id}>Approve Leave</Button>
+                                  <Button size="sm" variant="outline" className="h-6 text-[10px] bg-red-50 text-red-700 hover:bg-red-100" onClick={() => handleProcessLeave(reg.id, 'reject')} isLoading={isProcessingLeave === reg.id}>Reject</Button>
+                                </div>
+                              </div>
+                            )}
+                            {reg.status === 'leave_approved' && <span className="text-[10px] text-green-600 font-bold block">Leave Approved</span>}
+                            {reg.status === 'leave_rejected' && <span className="text-[10px] text-red-600 font-bold block">Leave Rejected</span>}
                           </div>
 
                           <Button
@@ -576,29 +649,54 @@ export default function EventsManager({
                   />
                 </div>
 
-                {/* Division Scope Field */}
+                {/* Unit Scope Field */}
                 {(adminRole === 'superadmin' || adminRole === 'admin') ? (
                   <div className="space-y-1">
-                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Division Scope</label>
+                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Unit Scope</label>
                     <select
-                      value={newDivision}
-                      onChange={(e) => setNewDivision(e.target.value)}
+                      value={newUnitId}
+                      onChange={(e) => setNewUnitId(e.target.value)}
                       className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
                     >
-                      <option value="">Overall (South Punjab)</option>
-                      <option value="multan">Multan Division</option>
-                      <option value="bahawalpur">Bahawalpur Division</option>
-                      <option value="dgkhan">D.G. Khan Division</option>
+                      <option value="">Overall (All Units)</option>
+                      {units.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
                     </select>
                   </div>
                 ) : (
                   <div className="space-y-1 bg-zinc-50 border border-zinc-150 p-3 rounded-xl">
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Division Scope</span>
+                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Unit Scope</span>
                     <span className="text-xs font-bold text-zinc-800 uppercase">
-                      {adminDivision || 'No Division'} Division (Local Event)
+                      {adminUnitName || 'No Unit'} (Local Event)
                     </span>
                   </div>
                 )}
+
+                <div className="space-y-4 pt-4 border-t border-zinc-100">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox"
+                      id="isCompulsory"
+                      checked={newIsCompulsory}
+                      onChange={(e) => setNewIsCompulsory(e.target.checked)}
+                      className="rounded border-zinc-300 text-[#0A9EDE] focus:ring-[#0A9EDE]"
+                    />
+                    <label htmlFor="isCompulsory" className="text-sm font-bold text-zinc-700">Is Compulsory?</label>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-0">If checked, eligible members will be expected to attend and marked absent if they miss without a leave request.</p>
+                </div>
+
+                <div className="space-y-1 pt-4 border-t border-zinc-100">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Custom Eligibility Criteria (JSON)</label>
+                  <textarea
+                    value={newCustomCriteria}
+                    onChange={(e) => setNewCustomCriteria(e.target.value)}
+                    rows={4}
+                    className="w-full text-sm font-mono p-3 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-zinc-900 bg-zinc-50"
+                  />
+                  <p className="text-[10px] text-zinc-500 mt-1">Specify custom criteria in JSON format (e.g., min_age, required_rank, min_streak).</p>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">

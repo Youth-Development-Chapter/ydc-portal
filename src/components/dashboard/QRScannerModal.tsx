@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { X, Camera, Scan, AlertCircle, KeyboardIcon, RefreshCw } from "lucide-react";
+import jsQR from "jsqr";
 
 interface QRScannerModalProps {
   onScan: (code: string) => void;
@@ -11,6 +12,7 @@ interface QRScannerModalProps {
 export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<"denied" | "notfound" | "other" | null>(null);
@@ -20,8 +22,6 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
   const [showManual, setShowManual] = useState(false);
 
   useEffect(() => {
-    let detector: any = null;
-
     const startCamera = async () => {
       try {
         // Request rear camera preferentially (mobile UX)
@@ -33,34 +33,11 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute("playsinline", "true");
           await videoRef.current.play();
-        }
-
-        // Use native BarcodeDetector if available (Chrome 83+, Samsung, Edge)
-        if ("BarcodeDetector" in window) {
-          detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-          scanLoop(detector);
-        } else {
-          // Fallback: try html5-qrcode dynamically if available
-          try {
-            const { Html5Qrcode } = await import("html5-qrcode");
-            const qr = new Html5Qrcode("qr-scanner-container");
-            await qr.start(
-              { facingMode: "environment" },
-              { fps: 10, qrbox: { width: 220, height: 220 } },
-              (decodedText: string) => {
-                handleSuccessfulScan(decodedText);
-                qr.stop().catch(() => {});
-              },
-              () => {}
-            );
-            // Store cleanup
-            (window as any).__qrInstance = qr;
-          } catch {
-            setError("Your browser doesn't support QR scanning. Please enter the User ID manually below.");
-            setErrorType("other");
-            setShowManual(true);
-          }
+          
+          canvasRef.current = document.createElement("canvas");
+          scanLoop();
         }
       } catch (err: any) {
         if (err.name === "NotAllowedError") {
@@ -81,16 +58,33 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
       }
     };
 
-    const scanLoop = async (det: any) => {
-      if (!videoRef.current || videoRef.current.readyState < 2 || !scanning) return;
+    const scanLoop = () => {
+      if (!videoRef.current || videoRef.current.readyState < 2 || !scanning || !canvasRef.current) {
+        animFrameRef.current = requestAnimationFrame(scanLoop);
+        return;
+      }
       try {
-        const barcodes = await det.detect(videoRef.current);
-        if (barcodes.length > 0) {
-          handleSuccessfulScan(barcodes[0].rawValue);
-          return; // Stop looping after a successful scan
+        const video = videoRef.current;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        
+        if (ctx) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          });
+          
+          if (code) {
+            handleSuccessfulScan(code.data);
+            return;
+          }
         }
       } catch {}
-      animFrameRef.current = requestAnimationFrame(() => scanLoop(det));
+      animFrameRef.current = requestAnimationFrame(scanLoop);
     };
 
     const handleSuccessfulScan = (code: string) => {
@@ -113,12 +107,6 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-    }
-    // Stop html5-qrcode if running
-    const qr = (window as any).__qrInstance;
-    if (qr) {
-      qr.stop().catch(() => {});
-      delete (window as any).__qrInstance;
     }
   };
 
@@ -246,8 +234,7 @@ export default function QRScannerModal({ onScan, onClose }: QRScannerModalProps)
             </div>
           )}
 
-          {/* Fallback html5-qrcode container */}
-          <div id="qr-scanner-container" className="hidden"></div>
+          {/* End of scanner */}
         </div>
       </div>
 

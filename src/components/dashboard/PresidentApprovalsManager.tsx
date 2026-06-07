@@ -25,7 +25,7 @@ interface MappedSubmission {
   created_at: string
   profiles: {
     full_name: string
-    division: string
+    unit_name: string
     qualification: string
     id: string
   }
@@ -128,7 +128,7 @@ export default function PresidentApprovalsManager({
                 <div>
                   <h4 className="font-bold text-sm text-zinc-900">{deed.profiles.full_name}</h4>
                   <div className="flex items-center gap-2 mt-0.5 text-[10px] text-zinc-500 font-medium">
-                    <span>{deed.profiles.division}</span>
+                    <span>{deed.profiles.unit_name}</span>
                     <span>•</span>
                     <span>{deed.profiles.qualification}</span>
                   </div>

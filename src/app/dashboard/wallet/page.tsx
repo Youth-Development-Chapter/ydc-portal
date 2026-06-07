@@ -8,7 +8,13 @@ import { getUserCoinBalance } from "@/lib/perf-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function WalletPage() {
+export default async function WalletPage(props: { searchParams: Promise<{ page?: string }> }) {
+  const searchParams = await props.searchParams;
+  const page = parseInt(searchParams?.page || "1", 10);
+  const pageSize = 15;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   const supabase = await createClient();
 
   // Verify authentication
@@ -17,12 +23,38 @@ export default async function WalletPage() {
     redirect("/auth/login");
   }
 
-  // Fetch all transactions for this user
-  const { data: transactions } = await supabase
-    .from("coin_transactions")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  // Fetch all transactions for this user for stats, and paginated for display
+  const [paginatedResult, allResult] = await Promise.all([
+    supabase
+      .from("coin_transactions")
+      .select("*", { count: "exact" })
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .range(from, to),
+    supabase
+      .from("coin_transactions")
+      .select("amount, reason")
+      .eq("user_id", user.id)
+  ]);
+
+  const transactions = paginatedResult.data;
+  const totalCount = paginatedResult.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Fetch rank tiers
+  const { data: rankTiersSetting } = await supabase
+    .from('system_settings')
+    .select('value')
+    .eq('key', 'rank_tiers')
+    .single();
+  
+  const rankTiers = rankTiersSetting?.value ? JSON.parse(rankTiersSetting.value) : [
+    { name: "Bronze", min_coins: 0, color: "#CD7F32" },
+    { name: "Silver", min_coins: 500, color: "#C0C0C0" },
+    { name: "Gold", min_coins: 2000, color: "#FFD700" },
+    { name: "Platinum", min_coins: 5000, color: "#E5E4E2" },
+    { name: "Diamond", min_coins: 10000, color: "#B9F2FF" }
+  ];
 
   // Calculate sum of coins
   const balance = await getUserCoinBalance(user.id);
@@ -34,7 +66,7 @@ export default async function WalletPage() {
   let otherCoins = 0;
   let redeemedCoins = 0;
 
-  (transactions || []).forEach(txn => {
+  (allResult.data || []).forEach(txn => {
     if (txn.amount < 0) {
       redeemedCoins += Math.abs(txn.amount);
     } else {
@@ -66,6 +98,22 @@ export default async function WalletPage() {
     return reason;
   };
 
+  // Calculate current and next rank
+  let currentRank = rankTiers[0];
+  let nextRank = null;
+  for (let i = 0; i < rankTiers.length; i++) {
+    if (totalEarned >= rankTiers[i].min_coins) {
+      currentRank = rankTiers[i];
+      if (i + 1 < rankTiers.length) {
+        nextRank = rankTiers[i + 1];
+      } else {
+        nextRank = null;
+      }
+    }
+  }
+
+  const rankProgress = nextRank ? ((totalEarned - currentRank.min_coins) / (nextRank.min_coins - currentRank.min_coins)) * 100 : 100;
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden animate-fade-in">
       <div className="fluid-top-gradient"></div>
@@ -92,6 +140,39 @@ export default async function WalletPage() {
             <span className="text-4xl font-extrabold font-coolvetica tracking-tight">{balance}</span>
             <span className="text-sm font-bold text-yellow-100">YDC Coins</span>
           </div>
+        </div>
+
+        {/* RANK PROGRESS BAR */}
+        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="flex justify-between items-end">
+            <div>
+              <h4 className="font-bold text-sm text-[#1D1D1D] uppercase tracking-wider">Current Rank</h4>
+              <p className="text-2xl font-black font-coolvetica" style={{ color: currentRank.color || '#EAB308' }}>{currentRank.name}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-[#555555]">Lifetime Earnings</p>
+              <p className="text-sm font-bold text-[#1D1D1D]">{totalEarned} YDC</p>
+            </div>
+          </div>
+          
+          {nextRank && (
+            <div className="space-y-1.5 pt-2 border-t border-[#F5F5F5]">
+              <div className="flex justify-between text-[10px] font-bold text-[#A3A3A3]">
+                <span>{currentRank.min_coins}</span>
+                <span className="text-[#1D1D1D]">Next Rank: {nextRank.name}</span>
+                <span>{nextRank.min_coins}</span>
+              </div>
+              <div className="w-full bg-[#FAFAFA] border border-[#E5E5E5] h-3 rounded-full overflow-hidden relative">
+                <div 
+                  className="absolute top-0 left-0 h-full transition-all duration-1000 ease-out rounded-full"
+                  style={{ width: `${Math.min(100, Math.max(0, rankProgress))}%`, backgroundColor: currentRank.color || '#EAB308' }}
+                ></div>
+              </div>
+              <p className="text-[10px] text-center text-[#555555]">
+                {nextRank.min_coins - totalEarned} more coins needed to reach {nextRank.name}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* QUICK ACTION CARDS (Spend / Earn more) */}
@@ -245,6 +326,33 @@ export default async function WalletPage() {
               })
             )}
           </div>
+          {totalPages > 1 && (
+            <div className="flex justify-between items-center mt-4">
+              {page > 1 ? (
+                <Link
+                  href={`?page=${page - 1}`}
+                  className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-semibold bg-white text-zinc-900 hover:bg-zinc-50"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <div />
+              )}
+              <span className="text-sm font-semibold text-zinc-500">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages ? (
+                <Link
+                  href={`?page=${page + 1}`}
+                  className="px-4 py-2 border border-zinc-200 rounded-lg text-sm font-semibold bg-white text-zinc-900 hover:bg-zinc-50"
+                >
+                  Next
+                </Link>
+              ) : (
+                <div />
+              )}
+            </div>
+          )}
         </div>
 
       </main>

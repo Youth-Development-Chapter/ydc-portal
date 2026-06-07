@@ -66,11 +66,23 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
   const dob = formData.get('dob') as string
   const whatsapp = formData.get('whatsapp') as string
   const phone = formData.get('phone') as string
-  const city = formData.get('city') as string
-  const district = formData.get('district') as string
-  const division = formData.get('division') as string
+  const unit_id = formData.get('unit_id') as string
   const qualification = formData.get('qualification') as string
   const address = formData.get('address') as string
+
+  // Min age 5 check
+  if (dob) {
+    const birthDate = new Date(dob)
+    const today = new Date()
+    let age = today.getFullYear() - birthDate.getFullYear()
+    const m = today.getMonth() - birthDate.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+    if (age < 5) {
+      return { error: 'You must be at least 5 years old to register.' }
+    }
+  }
   const profile_pic = formData.get('profile_pic') as File | null
 
   let avatarUrl = null
@@ -110,9 +122,7 @@ export async function completeProfile(prevState: unknown, formData: FormData) {
       dob: dob || null,
       whatsapp,
       phone: phone || null,
-      city,
-      district,
-      division,
+      unit_id: unit_id || null,
       qualification,
       address,
       avatar_url: avatarUrl,
