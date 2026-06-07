@@ -14,19 +14,18 @@ export default async function EventsPage() {
     redirect("/auth/login");
   }
 
-  // Fetch user profile to get unit and division scoping
+  // Fetch user profile to get unit scoping
   const { data: profile } = await supabase
     .from("profiles")
-    .select("unit_id, division")
+    .select("unit_id")
     .eq("id", user.id)
     .single();
-  const userUnitId = profile?.unit_id;
-  const userDivision = profile?.division || null;
+  const userUnitId = profile?.unit_id ?? null;
 
   // 1. Query all events and filter them locally by visibility rules.
   let eventsQuery = supabase
     .from('events')
-    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, division, is_compulsory')
+    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory')
     .order('date', { ascending: true });
 
   const [eventsResult, registrationsResult] = await Promise.all([
@@ -50,23 +49,23 @@ export default async function EventsPage() {
   const todayStr = now.toISOString().split('T')[0];
 
   const visibleEvents = dbEvents.filter((event) => {
+    // 1. Excluded units check
     const excludedUnits = Array.isArray(event.excluded_unit_ids) ? event.excluded_unit_ids : []
     if (userUnitId && excludedUnits.includes(userUnitId)) {
       return false
     }
 
-    if (event.unit_id && userUnitId && event.unit_id !== userUnitId) {
-      return event.is_compulsory || event.division === userDivision
+    // 2. Compulsory events are always visible
+    if (event.is_compulsory) {
+      return true
     }
 
-    if (event.division && userDivision && event.division !== userDivision) {
-      return event.is_compulsory || !event.unit_id
+    // 3. Unit-specific optional event — only visible to members of that unit
+    if (event.unit_id) {
+      return userUnitId === event.unit_id
     }
 
-    if (!userUnitId && event.unit_id) {
-      return event.is_compulsory
-    }
-
+    // 4. Global/National optional event (no unit_id) — visible to everyone
     return true
   })
 
