@@ -35,7 +35,7 @@ export default async function PresidentConsolePage(props: {
   
   const adminUnitId = adminProfile?.unit_id || null
 
-  // Fetch units early for mapping unit_id to division name
+  // Fetch units early for mapping unit_id to unit name
   const { data: unitsData } = await supabase.from('units').select('id, name').order('name')
   const unitMap = new Map((unitsData || []).map(u => [u.id, u.name]))
 

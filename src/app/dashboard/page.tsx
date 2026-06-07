@@ -5,14 +5,13 @@ import QRCode from "react-qr-code";
 import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { logout } from "@/app/auth/actions";
 import { getCourses } from "@/lib/lms-data";
 import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
 import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
 import {
   getRecentAnnouncements,
-  getUpcomingEventsForDivisionCached,
+  getUpcomingEventsForUnitCached,
   getUserCoinBalance,
 } from "@/lib/perf-data";
 
@@ -24,18 +23,11 @@ export default async function UserDashboard() {
   };
 
   const supabase = await createClient();
-  
-  // Fetch cookies to inspect them
-  const cookieStore = await cookies();
-  const allCookies = cookieStore.getAll();
-  console.log('[Dashboard] Cookies present in request:', allCookies.map(c => `${c.name}=${c.value ? '[EXISTS]' : '[EMPTY]'}`));
 
   // Fetch secure user session
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  console.log('[Dashboard] getUser results - user ID:', user?.id || 'null', 'authError:', authError);
 
   if (authError || !user) {
-    console.log('[Dashboard] Redirecting to login because user is null or authError exists.');
     redirect("/auth/login");
   }
 
@@ -70,7 +62,6 @@ export default async function UserDashboard() {
 
   // If no profile exists, redirect to onboarding
   if (!profile) {
-    console.log('[Dashboard] Redirecting to onboarding because profile is null.');
     redirect("/onboarding");
   }
 
@@ -204,7 +195,7 @@ export default async function UserDashboard() {
   const userUnitId = profile?.unit_id || null
   const [announcementsResult, allUpcomingEventsCached] = await Promise.all([
     getRecentAnnouncements(supabase, userUnitId),
-    getUpcomingEventsForDivisionCached(null),
+    getUpcomingEventsForUnitCached(userUnitId),
   ]);
   const recentAnnouncements = announcementsResult.filter((a) => a.created_at >= twoDaysAgoStr);
   const allUpcomingEvents = allUpcomingEventsCached
@@ -692,7 +683,7 @@ export default async function UserDashboard() {
                   <div>
                     <span className="text-[8px] font-extrabold uppercase tracking-widest text-red-500">Administrative Portal</span>
                     <h3 className="font-bold text-sm font-coolvetica text-white mt-0.5">President Admin Console</h3>
-                    <p className="text-[10px] text-[#A3A3A3] mt-0.5">Manage approvals, division events, and scan registrations</p>
+                    <p className="text-[10px] text-[#A3A3A3] mt-0.5">Manage approvals, unit events, and scan registrations</p>
                   </div>
                 </div>
                 <div className="w-7 h-7 rounded-full bg-[#262626] border border-[#333333] flex items-center justify-center shrink-0 group-hover:bg-red-950 group-hover:border-red-500/30 transition duration-200">

@@ -22,7 +22,7 @@ export default async function AdminEventsPage() {
     redirect('/admin')
   }
 
-  // Fetch active admin profile division
+  // Fetch active admin profile unit
   const { data: adminProfile } = await supabase
     .from('profiles')
     .select('unit_id, units(name)')

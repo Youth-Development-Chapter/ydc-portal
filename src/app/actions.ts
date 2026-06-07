@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { randomBytes } from 'crypto'
+import { evaluateCriteria } from '@/lib/criteria'
 
 
 /** 5 MB upload limit for proof images */
@@ -25,6 +26,35 @@ export async function claimTicket(eventId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
     return { error: 'You must be logged in to claim a ticket.' }
+  }
+
+  const { data: event, error: eventError } = await supabase
+    .from('events')
+    .select('id, unit_id, custom_criteria, is_compulsory')
+    .eq('id', eventId)
+    .single()
+
+  if (eventError || !event) {
+    return { error: 'Event not found.' }
+  }
+  if (event.is_compulsory) {
+    return { error: 'This compulsory event is already assigned to eligible members.' }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('unit_id')
+    .eq('id', user.id)
+    .single()
+
+  if (event.unit_id && event.unit_id !== profile?.unit_id) {
+    return { error: 'This event is not available for your unit.' }
+  }
+  if (event.custom_criteria && Object.keys(event.custom_criteria).length > 0) {
+    const criteria = await evaluateCriteria(supabase, user.id, event.custom_criteria)
+    if (!criteria.eligible) {
+      return { error: criteria.reason || 'You are not eligible for this event yet.' }
+    }
   }
 
   // Generate a cryptographically random unique ticket code

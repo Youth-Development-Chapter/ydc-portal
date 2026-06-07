@@ -15,16 +15,20 @@ export default async function AdminRewardsPage() {
   const { permissions } = await getAdminContext(user.id);
   if (!permissions.can_manage_settings) redirect("/admin");
 
-  const [rewardsResult, pendingResult] = await Promise.all([
+  const [rewardsResult, pendingResult, unitsResult] = await Promise.all([
     supabase
       .from("rewards")
-      .select("id, title, description, coin_cost, quantity_available, is_active, created_at")
+      .select("id, title, description, coin_cost, quantity_available, is_active, inclusive_unit_ids, exclusive_unit_ids, custom_criteria, created_at")
       .order("created_at", { ascending: false }),
     supabase
       .from("reward_redemptions")
       .select("id, user_id, reward_id, coin_cost, status, redeemed_at, profiles:user_id(full_name)")
       .eq("status", "pending")
       .order("redeemed_at", { ascending: true }),
+    supabase
+      .from("units")
+      .select("id, name")
+      .order("name", { ascending: true }),
   ]);
 
   return (
@@ -39,6 +43,7 @@ export default async function AdminRewardsPage() {
       <AdminRewardsManager
         initialRewards={rewardsResult.data || []}
         pendingRedemptions={pendingResult.data || []}
+        units={unitsResult.data || []}
       />
     </div>
   );

@@ -348,7 +348,7 @@ export default function UserDirectory({
     }
   }
 
-  // Filter users based on query, role, division, and qualification filters
+  // Filter users based on query, role, unit, and qualification filters
   const filteredUsers = users.filter(user => {
     const query = search.toLowerCase()
     const matchesSearch = 
@@ -1117,7 +1117,7 @@ export default function UserDirectory({
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative flex items-center">
               <Input 
-                placeholder="Search volunteers by name, email, division, or education..."
+                placeholder="Search volunteers by name, email, unit, or education..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 h-10 w-full"

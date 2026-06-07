@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     // Fetch the target user's full_name for the response
     const { data: targetProfile } = await supabase
       .from('profiles')
-      .select('full_name')
+      .select('full_name, unit_id')
       .eq('id', resolvedUserId)
       .single()
 
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     // 4. Fetch Event Details
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('coin_reward, custom_criteria, is_compulsory, id')
+      .select('coin_reward, custom_criteria, is_compulsory, id, unit_id')
       .eq('id', eventId)
       .single()
 
@@ -97,9 +97,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Event not found.' }, { status: 404 })
     }
 
-    // NOTE: If event had a strict division/unit_id column, we would verify scoping for President role here.
-    // Assuming `custom_criteria` handles unit_id filtering if needed, or if event has a `unit_id` column:
-    // if (role === 'president' && event.unit_id && event.unit_id !== adminProfile.unit_id) ...
+    if (role === 'president' && event.unit_id !== adminProfile.unit_id) {
+      return NextResponse.json(
+        { error: 'Permission denied. You can only scan events in your own unit.' },
+        { status: 403 }
+      )
+    }
+    if (event.unit_id && event.unit_id !== targetProfile.unit_id) {
+      return NextResponse.json({ error: 'This volunteer belongs to a different unit.' }, { status: 403 })
+    }
 
     // 5. Check if already attended
     const { data: existingReg } = await supabase

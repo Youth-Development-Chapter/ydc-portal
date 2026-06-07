@@ -50,6 +50,7 @@ interface EventItem {
   capacity: number
   coin_reward?: number
   unit_id?: string | null
+  is_compulsory?: boolean
 }
 
 export default function PresidentEventsManager({
@@ -57,11 +58,13 @@ export default function PresidentEventsManager({
   initialRegistrations,
   adminRole,
   adminDivision,
+  adminUnitName,
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
   adminRole: string
   adminDivision?: string | null
+  adminUnitName?: string | null
 }) {
   const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
@@ -89,6 +92,7 @@ export default function PresidentEventsManager({
   const [createLocation, setCreateLocation] = useState('')
   const [createCapacity, setCreateCapacity] = useState('100')
   const [createCoinReward, setCreateCoinReward] = useState('50')
+  const [createIsCompulsory, setCreateIsCompulsory] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
   // Edit Form fields
@@ -99,6 +103,7 @@ export default function PresidentEventsManager({
   const [editLocation, setEditLocation] = useState('')
   const [editCapacity, setEditCapacity] = useState('100')
   const [editCoinReward, setEditCoinReward] = useState('50')
+  const [editIsCompulsory, setEditIsCompulsory] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
 
   // Attendees list state
@@ -169,7 +174,9 @@ export default function PresidentEventsManager({
         createLocation,
         capacityVal,
         coinRewardVal,
-        adminDivision || null
+        adminDivision || null,
+        null,
+        createIsCompulsory
       )
 
       if (res?.error) {
@@ -186,6 +193,7 @@ export default function PresidentEventsManager({
         setCreateLocation('')
         setCreateCapacity('100')
         setCreateCoinReward('50')
+        setCreateIsCompulsory(false)
         
         router.refresh()
         // Wait briefly and update state
@@ -210,6 +218,7 @@ export default function PresidentEventsManager({
     setEditLocation(event.location)
     setEditCapacity(String(event.capacity || 100))
     setEditCoinReward(String(event.coin_reward || 50))
+    setEditIsCompulsory(!!event.is_compulsory)
     setShowEditModal(true)
   }
 
@@ -231,7 +240,9 @@ export default function PresidentEventsManager({
         editLocation,
         capacityVal,
         coinRewardVal,
-        selectedEvent.unit_id
+        selectedEvent.unit_id,
+        null,
+        editIsCompulsory
       )
 
       if (res?.error) {
@@ -351,7 +362,7 @@ export default function PresidentEventsManager({
       <div className="flex items-center justify-between px-1 pt-2">
         <div>
           <h2 className="text-lg font-bold text-zinc-900">Events Directory</h2>
-          <p className="text-xs text-zinc-500">List and manage events for {adminDivision || 'your unit'}.</p>
+          <p className="text-xs text-zinc-500">List and manage events for {adminUnitName || 'your unit'}.</p>
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
@@ -380,9 +391,20 @@ export default function PresidentEventsManager({
                 <div className="p-4 space-y-3">
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-sm text-zinc-950 leading-tight">{event.title}</h3>
-                    <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-full shrink-0">
-                      <Coins size={11} className="text-yellow-600" />
-                      <span className="font-extrabold text-[9px] text-yellow-700 font-mono">{event.coin_reward ?? 50} C</span>
+                    <div className="flex gap-1.5 items-center shrink-0">
+                      {event.is_compulsory ? (
+                        <span className="text-[9px] font-black uppercase bg-red-50 border border-red-200 text-[#DD0408] px-2 py-0.5 rounded-full">
+                          Compulsory
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-black uppercase bg-zinc-100 border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">
+                          Optional
+                        </span>
+                      )}
+                      <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-full shrink-0">
+                        <Coins size={11} className="text-yellow-600" />
+                        <span className="font-extrabold text-[9px] text-yellow-700 font-mono">{event.coin_reward ?? 50} C</span>
+                      </div>
                     </div>
                   </div>
 
@@ -526,6 +548,19 @@ export default function PresidentEventsManager({
                 </div>
               </div>
 
+              <div className="flex items-center gap-2 py-1">
+                <input
+                  type="checkbox"
+                  id="createIsCompulsory"
+                  checked={createIsCompulsory}
+                  onChange={(e) => setCreateIsCompulsory(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0A9EDE] border-zinc-300 focus:ring-[#0A9EDE] cursor-pointer"
+                />
+                <label htmlFor="createIsCompulsory" className="text-xs font-semibold text-zinc-700 cursor-pointer select-none">
+                  Make this event Compulsory (Required for all members)
+                </label>
+              </div>
+
               <div className="px-5 py-3 border-t border-zinc-150 bg-zinc-50 -mx-5 -mb-5 flex justify-end gap-2 pt-4">
                 <Button 
                   type="button" 
@@ -639,6 +674,19 @@ export default function PresidentEventsManager({
                     required
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2 py-1">
+                <input
+                  type="checkbox"
+                  id="editIsCompulsory"
+                  checked={editIsCompulsory}
+                  onChange={(e) => setEditIsCompulsory(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0A9EDE] border-zinc-300 focus:ring-[#0A9EDE] cursor-pointer"
+                />
+                <label htmlFor="editIsCompulsory" className="text-xs font-semibold text-zinc-700 cursor-pointer select-none">
+                  Make this event Compulsory (Required for all members)
+                </label>
               </div>
 
               <div className="px-5 py-3 border-t border-zinc-150 bg-zinc-50 -mx-5 -mb-5 flex justify-end gap-2 pt-4">

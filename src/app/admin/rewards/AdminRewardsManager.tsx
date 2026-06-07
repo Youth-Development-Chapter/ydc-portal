@@ -12,6 +12,8 @@ type Reward = {
   coin_cost: number;
   quantity_available: number | null;
   is_active: boolean;
+  inclusive_unit_ids?: string[] | null;
+  exclusive_unit_ids?: string[] | null;
   custom_criteria?: any;
   created_at: string;
 };
@@ -29,9 +31,11 @@ type PendingRedemption = {
 export default function AdminRewardsManager({
   initialRewards,
   pendingRedemptions,
+  units,
 }: {
   initialRewards: Reward[];
   pendingRedemptions: PendingRedemption[];
+  units: { id: string; name: string }[];
 }) {
   const [rewards, setRewards] = useState<Reward[]>(initialRewards);
   const [pending, setPending] = useState<PendingRedemption[]>(pendingRedemptions);
@@ -40,7 +44,9 @@ export default function AdminRewardsManager({
   const [description, setDescription] = useState("");
   const [coinCost, setCoinCost] = useState("50");
   const [quantity, setQuantity] = useState("");
-  const [customCriteria, setCustomCriteria] = useState('{\n  "min_age": 0,\n  "required_rank": "none"\n}');
+  const [inclusiveUnitIds, setInclusiveUnitIds] = useState<string[]>([]);
+  const [exclusiveUnitIds, setExclusiveUnitIds] = useState<string[]>([]);
+  const [customCriteria, setCustomCriteria] = useState('{\n  "minAge": 0,\n  "minStreak": 0,\n  "coursesCompletedCount": 0,\n  "rankTier": "none"\n}');
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +74,8 @@ export default function AdminRewardsManager({
         description,
         coin_cost: parsedCost,
         quantity_available: Number.isNaN(parsedQty as number) ? null : parsedQty,
+        inclusive_unit_ids: inclusiveUnitIds.length > 0 ? inclusiveUnitIds : null,
+        exclusive_unit_ids: exclusiveUnitIds.length > 0 ? exclusiveUnitIds : null,
         custom_criteria: parsedCriteria,
       });
       if (!result.success) {
@@ -80,9 +88,21 @@ export default function AdminRewardsManager({
       setDescription("");
       setCoinCost("50");
       setQuantity("");
-      setCustomCriteria('{\n  "min_age": 0,\n  "required_rank": "none"\n}');
+      setInclusiveUnitIds([]);
+      setExclusiveUnitIds([]);
+      setCustomCriteria('{\n  "minAge": 0,\n  "minStreak": 0,\n  "coursesCompletedCount": 0,\n  "rankTier": "none"\n}');
       window.location.reload();
     });
+  };
+
+  const toggleUnit = (setter: React.Dispatch<React.SetStateAction<string[]>>, unitId: string) => {
+    setter((prev) => prev.includes(unitId) ? prev.filter((id) => id !== unitId) : [...prev, unitId]);
+  };
+
+  const unitNames = (ids?: string[] | null) => {
+    if (!ids?.length) return null;
+    const names = ids.map((id) => units.find((unit) => unit.id === id)?.name).filter(Boolean);
+    return names.length > 0 ? names.join(", ") : null;
   };
 
   const onToggleActive = (id: string, current: boolean) => {
@@ -180,11 +200,51 @@ export default function AdminRewardsManager({
               <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">Custom Criteria (JSON)</label>
               <textarea
                 className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm font-mono bg-zinc-50"
-                rows={3}
+                rows={5}
                 value={customCriteria}
                 onChange={(e) => setCustomCriteria(e.target.value)}
               />
             </div>
+
+            {units.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="border border-zinc-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Available To</p>
+                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                    {units.map((unit) => (
+                      <label key={unit.id} className="flex items-center gap-2 text-xs font-medium text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={inclusiveUnitIds.includes(unit.id)}
+                          onChange={() => toggleUnit(setInclusiveUnitIds, unit.id)}
+                          className="rounded border-zinc-300 text-[#0A9EDE]"
+                        />
+                        {unit.name}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-zinc-400">Leave empty for all units.</p>
+                </div>
+
+                <div className="border border-zinc-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-wider">Exclude Units</p>
+                  <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
+                    {units.map((unit) => (
+                      <label key={unit.id} className="flex items-center gap-2 text-xs font-medium text-zinc-700">
+                        <input
+                          type="checkbox"
+                          checked={exclusiveUnitIds.includes(unit.id)}
+                          onChange={() => toggleUnit(setExclusiveUnitIds, unit.id)}
+                          className="rounded border-zinc-300 text-[#DD0408]"
+                        />
+                        {unit.name}
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-zinc-400">Excluded units cannot redeem this reward.</p>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button
@@ -221,6 +281,13 @@ export default function AdminRewardsManager({
                 <p className="text-xs text-zinc-400 mt-1">
                   {reward.coin_cost} coins • {reward.quantity_available ?? "Unlimited"} qty
                 </p>
+                {(unitNames(reward.inclusive_unit_ids) || unitNames(reward.exclusive_unit_ids)) && (
+                  <p className="text-[10px] text-zinc-400 mt-1">
+                    {unitNames(reward.inclusive_unit_ids) && `Available: ${unitNames(reward.inclusive_unit_ids)}`}
+                    {unitNames(reward.inclusive_unit_ids) && unitNames(reward.exclusive_unit_ids) ? " | " : ""}
+                    {unitNames(reward.exclusive_unit_ids) && `Excluded: ${unitNames(reward.exclusive_unit_ids)}`}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => onToggleActive(reward.id, reward.is_active)}

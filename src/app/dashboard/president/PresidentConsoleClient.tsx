@@ -59,6 +59,7 @@ interface Announcement {
   content: string
   is_pinned: boolean
   created_at: string
+  unit_id?: string | null
 }
 
 type ActiveTab = 'approvals' | 'events' | 'scanner' | 'announcements' | 'users'
@@ -237,6 +238,7 @@ export default function PresidentConsoleClient({
               initialRegistrations={registrations}
               adminRole={adminRole}
               adminDivision={resolvedUnitId}
+              adminUnitName={units.find(u => u.id === resolvedUnitId)?.name || null}
             />
           )}
 
@@ -357,22 +359,26 @@ export default function PresidentConsoleClient({
                         <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{ann.content}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => handleTogglePin(ann.id, ann.is_pinned)}
-                          disabled={isPending}
-                          className={`p-1.5 rounded-lg transition-colors ${ann.is_pinned ? 'text-[#0A9EDE] bg-[#0A9EDE]/10' : 'text-zinc-400 hover:text-zinc-600'}`}
-                          title={ann.is_pinned ? 'Unpin' : 'Pin'}
-                        >
-                          <Pin size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteAnnouncement(ann.id)}
-                          disabled={isPending}
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
-                          title="Delete"
-                        >
-                          <X size={13} />
-                        </button>
+                        {(adminRole === 'superadmin' || adminRole === 'admin' || (adminRole === 'president' && ann.unit_id === resolvedUnitId)) && (
+                          <>
+                            <button
+                              onClick={() => handleTogglePin(ann.id, ann.is_pinned)}
+                              disabled={isPending}
+                              className={`p-1.5 rounded-lg transition-colors ${ann.is_pinned ? 'text-[#0A9EDE] bg-[#0A9EDE]/10' : 'text-zinc-400 hover:text-zinc-600'}`}
+                              title={ann.is_pinned ? 'Unpin' : 'Pin'}
+                            >
+                              <Pin size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAnnouncement(ann.id)}
+                              disabled={isPending}
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
+                              title="Delete"
+                            >
+                              <X size={13} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     <p className="text-[10px] text-zinc-400 font-semibold">

@@ -1,8 +1,10 @@
-﻿'use server'
+'use server'
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { hasAdminPermission, AdminPermissions, getAdminContext } from '@/lib/admin'
+import { evaluateCriteria } from '@/lib/criteria'
+import { randomBytes } from 'crypto'
 
 /**
  * Approve a volunteer deed submission.
@@ -375,9 +377,16 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
   const allowed = await hasAdminPermission(user.id, 'can_scan_tickets')
   if (!allowed) return { error: 'Permission denied. You cannot check in tickets.' }
 
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, unit_id')
+    .eq('id', user.id)
+    .single()
+
   // 3. Resolve ticket code/user ID
   let registration = null
   let fetchError = null
+  let eventForCheckIn: any = null
 
   if (eventId) {
     let resolvedUserId = scannedId.trim()
@@ -403,23 +412,82 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
 
     const { data: reg, error } = await supabase
       .from('event_registrations')
-      .select('*, profiles(full_name), events(coin_reward)')
+      .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
       .eq('user_id', resolvedUserId)
       .eq('event_id', eventId)
       .maybeSingle()
     
     registration = reg
     fetchError = error
+
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('id, unit_id, coin_reward, custom_criteria')
+      .eq('id', eventId)
+      .single()
+
+    if (eventError || !event) {
+      return { error: 'Event not found.' }
+    }
+    eventForCheckIn = event
+
+    if (adminProfile?.role === 'president' && event.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only scan events in your own unit.' }
+    }
+
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('id, full_name, unit_id')
+      .eq('id', resolvedUserId)
+      .single()
+
+    if (!targetProfile) {
+      return { error: 'Volunteer profile not found.' }
+    }
+    if (event.unit_id && event.unit_id !== targetProfile.unit_id) {
+      return { error: 'This volunteer belongs to a different unit.' }
+    }
+    if (event.custom_criteria && Object.keys(event.custom_criteria).length > 0) {
+      const criteria = await evaluateCriteria(supabase, resolvedUserId, event.custom_criteria)
+      if (!criteria.eligible) {
+        return { error: criteria.reason || 'Volunteer is not eligible for this event.' }
+      }
+    }
+
+    if (!registration && !fetchError) {
+      const ticketCode = `TKT-${eventId.substring(0, 4).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`
+      const { data: newReg, error: insertError } = await supabase
+        .from('event_registrations')
+        .insert({
+          event_id: eventId,
+          user_id: resolvedUserId,
+          ticket_code: ticketCode,
+          attended: false,
+          status: 'registered',
+        })
+        .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
+        .single()
+
+      if (insertError) {
+        return { error: insertError.message }
+      }
+      registration = newReg
+    }
   } else {
     // Fallback: scannedId is the ticket code
     const { data: reg, error } = await supabase
       .from('event_registrations')
-      .select('*, profiles(full_name), events(coin_reward)')
+      .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
       .eq('ticket_code', scannedId.trim())
       .maybeSingle()
     
     registration = reg
     fetchError = error
+    eventForCheckIn = (reg?.events as any) || null
+
+    if (adminProfile?.role === 'president' && eventForCheckIn?.unit_id !== adminProfile.unit_id) {
+      return { error: 'Permission denied. You can only scan events in your own unit.' }
+    }
   }
 
   if (fetchError) {
@@ -439,7 +507,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
   }
 
   // 4. Fetch reward (event-specific first, fallback to system settings)
-  let attendanceReward = (registration.events as any)?.coin_reward
+  let attendanceReward = eventForCheckIn?.coin_reward ?? (registration.events as any)?.coin_reward
   if (typeof attendanceReward !== 'number') {
     const { data: attendanceSetting } = await supabase
       .from('system_settings')
@@ -454,7 +522,8 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
     .from('event_registrations')
     .update({
       attended: true,
-      attended_at: new Date().toISOString()
+      attended_at: new Date().toISOString(),
+      status: 'present',
     })
     .eq('id', registration.id)
 
@@ -547,8 +616,8 @@ export async function createEvent(
       location,
       capacity,
       coin_reward: coinReward,
-      division: eventUnitId,
-      excluded_divisions: excludedUnitIds || [],
+      unit_id: eventUnitId,
+      excluded_unit_ids: excludedUnitIds || [],
       is_compulsory: isCompulsory || false,
       custom_criteria: customCriteria || null
     })
@@ -721,7 +790,8 @@ export async function updateEvent(
   capacity: number,
   coinReward: number,
   unitId?: string | null,
-  excludedUnitIds?: string[] | null
+  excludedUnitIds?: string[] | null,
+  isCompulsory?: boolean
 ) {
   const supabase = await createClient()
 
@@ -779,6 +849,7 @@ export async function updateEvent(
       coin_reward: coinReward,
       unit_id: eventUnitId,
       excluded_unit_ids: excludedUnitIds || [],
+      is_compulsory: isCompulsory !== undefined ? isCompulsory : false,
     })
     .eq('id', eventId)
 
@@ -829,12 +900,22 @@ export async function getUserFullHistory(targetUserId: string) {
   // 4. Fetch profiles (full profile details)
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, units(name)')
     .eq('id', targetUserId)
     .single()
 
   if (profileError || !profile) {
     return { error: 'User profile not found.' }
+  }
+
+  // Resolve unit name
+  let unitName = ''
+  if (profile.units) {
+    if (Array.isArray(profile.units)) {
+      unitName = profile.units[0]?.name || ''
+    } else if (typeof profile.units === 'object') {
+      unitName = (profile.units as any).name || ''
+    }
   }
 
   // 5. Fetch streaks
@@ -873,6 +954,7 @@ export async function getUserFullHistory(targetUserId: string) {
     data: {
       profile: {
         ...profile,
+        unit_name: unitName,
         coins: totalCoins,
       },
       streak: streak || { current_streak: 0, longest_streak: 0, last_deed_date: null },
@@ -1174,22 +1256,33 @@ export async function getPaginatedUsers(page: number, limit: number, searchTerm:
 
   const permissionMap = new Map(adminPerms?.map(p => [p.admin_id, p]) || [])
 
-  const enrichedUsers = profiles.map(p => ({
-    ...p,
-    coins: coinMap.get(p.id) || 0,
-    streak: {
-      current: streakMap.get(p.id)?.current_streak || 0,
-      longest: streakMap.get(p.id)?.longest_streak || 0,
-    },
-    permissions: permissionMap.get(p.id) || {
-      can_scan_tickets: false,
-      can_approve_deeds: false,
-      can_manage_events: false,
-      can_manage_courses: false,
-      can_manage_settings: false,
-      can_manage_admins: false,
+  const enrichedUsers = profiles.map(p => {
+    let unitName = 'No Unit Assigned'
+    if (p.units) {
+      if (Array.isArray(p.units)) {
+        unitName = p.units[0]?.name || 'No Unit Assigned'
+      } else if (typeof p.units === 'object') {
+        unitName = (p.units as any).name || 'No Unit Assigned'
+      }
     }
-  }))
+    return {
+      ...p,
+      unit_name: unitName,
+      coins: coinMap.get(p.id) || 0,
+      streak: {
+        current: streakMap.get(p.id)?.current_streak || 0,
+        longest: streakMap.get(p.id)?.longest_streak || 0,
+      },
+      permissions: permissionMap.get(p.id) || {
+        can_scan_tickets: false,
+        can_approve_deeds: false,
+        can_manage_events: false,
+        can_manage_courses: false,
+        can_manage_settings: false,
+        can_manage_admins: false,
+      }
+    }
+  })
 
   return { users: enrichedUsers, totalCount: count || 0 }
 }

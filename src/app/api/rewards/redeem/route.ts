@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createApiClient } from '@/utils/supabase/api'
+import { evaluateCriteria } from '@/lib/criteria'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     // 2. Fetch the reward
     const { data: reward, error: rewardErr } = await supabase
       .from('rewards')
-      .select('id, title, coin_cost, quantity_available, is_active')
+      .select('id, title, coin_cost, quantity_available, is_active, inclusive_unit_ids, exclusive_unit_ids, custom_criteria')
       .eq('id', rewardId)
       .single()
 
@@ -32,6 +33,29 @@ export async function POST(request: NextRequest) {
     }
     if (!reward.is_active) {
       return NextResponse.json({ error: 'This reward is no longer available.' }, { status: 400 })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('unit_id')
+      .eq('id', user.id)
+      .single()
+
+    const userUnitId = profile?.unit_id || null
+    if (reward.inclusive_unit_ids?.length && (!userUnitId || !reward.inclusive_unit_ids.includes(userUnitId))) {
+      return NextResponse.json({ error: 'This reward is not available for your unit.' }, { status: 403 })
+    }
+    if (reward.exclusive_unit_ids?.length && userUnitId && reward.exclusive_unit_ids.includes(userUnitId)) {
+      return NextResponse.json({ error: 'This reward is not available for your unit.' }, { status: 403 })
+    }
+    if (reward.custom_criteria && Object.keys(reward.custom_criteria).length > 0) {
+      const criteria = await evaluateCriteria(supabase, user.id, reward.custom_criteria)
+      if (!criteria.eligible) {
+        return NextResponse.json(
+          { error: criteria.reason || 'You are not eligible for this reward yet.' },
+          { status: 403 }
+        )
+      }
     }
 
     // 3. Check if quantity is exhausted

@@ -24,6 +24,31 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS public.units (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT UNIQUE NOT NULL,
+    province TEXT,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+ALTER TABLE public.units ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read access to units" ON public.units;
+CREATE POLICY "Allow public read access to units"
+    ON public.units FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow superadmins to manage units" ON public.units;
+CREATE POLICY "Allow superadmins to manage units"
+    ON public.units FOR ALL
+    USING (
+        auth.uid() IN (
+            SELECT id FROM public.profiles WHERE role = 'superadmin'
+        )
+    );
+
+ALTER TABLE public.profiles
+    ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES public.units(id) ON DELETE SET NULL;
+
 -- Enable RLS
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -89,6 +114,11 @@ CREATE TABLE IF NOT EXISTS public.events (
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES public.units(id) ON DELETE CASCADE;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS excluded_unit_ids UUID[];
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS custom_criteria JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS is_compulsory BOOLEAN DEFAULT false NOT NULL;
+
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read access to events" ON public.events;
@@ -145,10 +175,11 @@ CREATE TABLE IF NOT EXISTS public.deed_submissions (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     description TEXT NOT NULL,
     proof_url TEXT NOT NULL, -- Path in Supabase Storage bucket 'deeds'
-    status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+    status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'approved', 'rejected', 'flagged')),
     admin_notes TEXT,
     verified_at TIMESTAMPTZ,
     verified_by UUID REFERENCES public.profiles(id),
+    status_updated_by UUID REFERENCES public.profiles(id),
     coin_reward INTEGER DEFAULT 10 NOT NULL,
     bonus_coins INTEGER DEFAULT 0 NOT NULL,
     local_date DATE NOT NULL,
@@ -208,6 +239,7 @@ CREATE TABLE IF NOT EXISTS public.coin_transactions (
     reason TEXT NOT NULL, -- e.g. 'course_completion', 'event_attendance', 'daily_deed', 'reward_redeem'
     reference_id UUID, -- reference to event_registration, deed_submission, etc.
     credited_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    processed_by UUID REFERENCES public.profiles(id),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -267,8 +299,10 @@ ON CONFLICT (key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS public.courses (
     id TEXT PRIMARY KEY, -- e.g. 'deenyat', 'seerat'
     title TEXT NOT NULL,
+    title_ur TEXT,
     author TEXT NOT NULL,
     description TEXT,
+    description_ur TEXT,
     image_url TEXT,
     reward_points INTEGER DEFAULT 50 NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
@@ -292,6 +326,7 @@ CREATE TABLE IF NOT EXISTS public.modules (
     id TEXT PRIMARY KEY, -- e.g. 'd_m1', 'd_m2'
     course_id TEXT REFERENCES public.courses(id) ON DELETE CASCADE NOT NULL,
     title TEXT NOT NULL,
+    title_ur TEXT,
     duration TEXT NOT NULL,
     order_index INTEGER NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
@@ -315,6 +350,7 @@ CREATE TABLE IF NOT EXISTS public.lessons (
     id TEXT PRIMARY KEY,
     module_id TEXT REFERENCES public.modules(id) ON DELETE CASCADE NOT NULL,
     title TEXT NOT NULL,
+    title_ur TEXT,
     video_url TEXT,
     video_url_ur TEXT,
     text_content TEXT NOT NULL,
@@ -345,6 +381,7 @@ CREATE TABLE IF NOT EXISTS public.mcqs (
     options JSONB NOT NULL, -- JSON array of strings
     options_ur JSONB, -- JSON array of strings in Urdu
     correct_answer_index INTEGER NOT NULL,
+    difficulty TEXT DEFAULT 'beginner' NOT NULL CHECK (difficulty IN ('beginner', 'advanced', 'expert')),
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -367,10 +404,33 @@ CREATE TABLE IF NOT EXISTS public.user_progress (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     course_id TEXT REFERENCES public.courses(id) ON DELETE CASCADE NOT NULL,
     lesson_id TEXT REFERENCES public.lessons(id) ON DELETE CASCADE NOT NULL,
+    language TEXT DEFAULT 'en' NOT NULL CHECK (language IN ('en', 'ur')),
+    difficulty TEXT DEFAULT 'beginner' NOT NULL CHECK (difficulty IN ('beginner', 'advanced', 'expert')),
     completed BOOLEAN DEFAULT true NOT NULL,
     completed_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-    UNIQUE(user_id, course_id, lesson_id)
+    UNIQUE(user_id, course_id, lesson_id, language, difficulty)
 );
+
+CREATE TABLE IF NOT EXISTS public.user_course_settings (
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    course_id TEXT REFERENCES public.courses(id) ON DELETE CASCADE NOT NULL,
+    language TEXT NOT NULL CHECK (language IN ('en', 'ur')),
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    PRIMARY KEY (user_id, course_id)
+);
+
+ALTER TABLE public.user_course_settings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow users to read their own course settings" ON public.user_course_settings;
+CREATE POLICY "Allow users to read their own course settings"
+    ON public.user_course_settings FOR SELECT
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Allow users to manage their own course settings" ON public.user_course_settings;
+CREATE POLICY "Allow users to manage their own course settings"
+    ON public.user_course_settings FOR ALL
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
 
 ALTER TABLE public.user_progress ENABLE ROW LEVEL SECURITY;
 
@@ -434,6 +494,9 @@ CREATE TABLE IF NOT EXISTS public.announcements (
     content TEXT NOT NULL,
     is_pinned BOOLEAN DEFAULT false NOT NULL,
     created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    unit_id UUID REFERENCES public.units(id) ON DELETE CASCADE,
+    excluded_unit_ids UUID[],
+    target_users UUID[],
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
@@ -504,6 +567,8 @@ CREATE TABLE IF NOT EXISTS public.rewards (
     coin_cost INTEGER NOT NULL CHECK (coin_cost > 0),
     quantity_available INTEGER,   -- NULL = unlimited
     is_active BOOLEAN DEFAULT true NOT NULL,
+    inclusive_unit_ids UUID[],
+    exclusive_unit_ids UUID[],
     custom_criteria JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
@@ -530,7 +595,8 @@ CREATE TABLE IF NOT EXISTS public.reward_redemptions (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     reward_id UUID REFERENCES public.rewards(id) ON DELETE CASCADE NOT NULL,
     coin_cost INTEGER NOT NULL,
-    status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'fulfilled', 'cancelled')),
+    status TEXT DEFAULT 'pending' NOT NULL CHECK (status IN ('pending', 'fulfilled', 'cancelled', 'rejected')),
+    processed_by UUID REFERENCES public.profiles(id),
     redeemed_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -560,136 +626,206 @@ CREATE POLICY "Allow admins to manage redemptions"
 -- 11. DATABASE AUTOMATIONS & TRIGGERS
 -- =========================================================================
 
--- Trigger to update Streaks & Credit Coins upon Deed Approval
-CREATE OR REPLACE FUNCTION public.handle_deed_approval()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.update_user_streak(target_user_id UUID)
+RETURNS VOID AS $$
 DECLARE
-    today_date DATE := CURRENT_DATE;
-    user_streak_record RECORD;
-    new_streak INTEGER := 0;
-    max_streak INTEGER := 1;
-    total_coins INTEGER;
-    current_check_date DATE;
-    has_valid_deed BOOLEAN;
+    streak_count INTEGER := 0;
+    check_date DATE;
+    has_deed BOOLEAN;
+    latest_deed_date DATE;
+    longest INTEGER := 0;
 BEGIN
-    -- Run on transition to 'approved' OR 'rejected'
-    IF (NEW.status = 'approved' OR NEW.status = 'rejected') AND (OLD.status IS NULL OR OLD.status != NEW.status) THEN
-        
-        SELECT * INTO user_streak_record FROM public.streaks WHERE user_id = NEW.user_id;
-        
-        -- Recalculate streak
-        current_check_date := today_date;
-        new_streak := 0;
+    SELECT MAX(local_date) INTO latest_deed_date
+    FROM public.deed_submissions
+    WHERE user_id = target_user_id AND status IN ('approved', 'pending');
 
-        -- First check today
-        SELECT EXISTS (
-            SELECT 1 FROM public.deed_submissions 
-            WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
-        ) INTO has_valid_deed;
-
-        IF has_valid_deed THEN
-            new_streak := 1;
-        ELSE
-            -- If no deed today, check yesterday. If no deed yesterday, streak is 0.
-            current_check_date := today_date - INTERVAL '1 day';
-            SELECT EXISTS (
-                SELECT 1 FROM public.deed_submissions 
-                WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
-            ) INTO has_valid_deed;
-            
-            IF NOT has_valid_deed THEN
-                new_streak := 0;
-            END IF;
-        END IF;
-
-        IF new_streak > 0 OR has_valid_deed THEN
-            -- Count backwards as long as there's a valid deed
-            LOOP
-                current_check_date := current_check_date - INTERVAL '1 day';
-                SELECT EXISTS (
-                    SELECT 1 FROM public.deed_submissions 
-                    WHERE user_id = NEW.user_id AND local_date = current_check_date AND status IN ('approved', 'pending')
-                ) INTO has_valid_deed;
-
-                IF has_valid_deed THEN
-                    new_streak := new_streak + 1;
-                ELSE
-                    EXIT;
-                END IF;
-            END LOOP;
-        END IF;
-
-        IF NOT FOUND THEN
-            INSERT INTO public.streaks (user_id, current_streak, longest_streak, last_deed_date, updated_at)
-            VALUES (NEW.user_id, new_streak, new_streak, NEW.local_date, now());
-        ELSE
-            max_streak := GREATEST(new_streak, user_streak_record.longest_streak);
-            UPDATE public.streaks 
-            SET current_streak = new_streak,
-                longest_streak = max_streak,
-                last_deed_date = NEW.local_date,
-                updated_at = now()
-            WHERE user_id = NEW.user_id;
-        END IF;
-
-        -- Insert coins ONLY if transitioning to 'approved'
-        IF NEW.status = 'approved' THEN
-            total_coins := NEW.coin_reward + NEW.bonus_coins;
-            INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, credited_by)
-            VALUES (NEW.user_id, total_coins, 'daily_deed', NEW.id, NEW.verified_by);
-        END IF;
-
+    IF latest_deed_date IS NULL THEN
+        UPDATE public.streaks
+        SET current_streak = 0, last_deed_date = NULL, updated_at = now()
+        WHERE user_id = target_user_id;
+        RETURN;
     END IF;
-    RETURN NEW;
+
+    check_date := latest_deed_date;
+
+    LOOP
+        SELECT EXISTS (
+            SELECT 1 FROM public.deed_submissions
+            WHERE user_id = target_user_id
+              AND local_date = check_date
+              AND status IN ('approved', 'pending')
+        ) INTO has_deed;
+
+        IF has_deed THEN
+            streak_count := streak_count + 1;
+            check_date := check_date - INTERVAL '1 day';
+        ELSE
+            EXIT;
+        END IF;
+    END LOOP;
+
+    SELECT longest_streak INTO longest FROM public.streaks WHERE user_id = target_user_id;
+    IF longest IS NULL THEN longest := 0; END IF;
+
+    INSERT INTO public.streaks (user_id, current_streak, longest_streak, last_deed_date, updated_at)
+    VALUES (target_user_id, streak_count, GREATEST(streak_count, longest), latest_deed_date, now())
+    ON CONFLICT (user_id) DO UPDATE
+    SET current_streak = EXCLUDED.current_streak,
+        longest_streak = GREATEST(public.streaks.longest_streak, EXCLUDED.longest_streak),
+        last_deed_date = EXCLUDED.last_deed_date,
+        updated_at = EXCLUDED.updated_at;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.trigger_update_streak()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        PERFORM public.update_user_streak(OLD.user_id);
+        RETURN OLD;
+    ELSE
+        PERFORM public.update_user_streak(NEW.user_id);
+        RETURN NEW;
+    END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS on_deed_approval ON public.deed_submissions;
-CREATE TRIGGER on_deed_approval
+DROP FUNCTION IF EXISTS public.handle_deed_approval();
+
+DROP TRIGGER IF EXISTS on_deed_change_update_streak ON public.deed_submissions;
+CREATE TRIGGER on_deed_change_update_streak
+    AFTER INSERT OR UPDATE OF status, local_date OR DELETE ON public.deed_submissions
+    FOR EACH ROW
+    EXECUTE FUNCTION public.trigger_update_streak();
+
+CREATE OR REPLACE FUNCTION public.handle_deed_coins()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'approved' AND (OLD.status IS NULL OR OLD.status != 'approved') THEN
+        INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, processed_by)
+        VALUES (NEW.user_id, NEW.coin_reward + NEW.bonus_coins, 'daily_deed', NEW.id, NEW.status_updated_by);
+
+    ELSIF NEW.status = 'flagged' AND (OLD.status IS NULL OR OLD.status != 'flagged') THEN
+        INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, processed_by)
+        VALUES (NEW.user_id, -10, 'deed_flagged', NEW.id, NEW.status_updated_by);
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_deed_status_coins ON public.deed_submissions;
+CREATE TRIGGER on_deed_status_coins
     AFTER UPDATE OF status ON public.deed_submissions
     FOR EACH ROW
-    EXECUTE FUNCTION public.handle_deed_approval();
+    EXECUTE FUNCTION public.handle_deed_coins();
 
--- Trigger to Automatically Reward Coins on Course Completion
 CREATE OR REPLACE FUNCTION public.handle_course_completion()
 RETURNS TRIGGER AS $$
 DECLARE
+    total_modules INTEGER;
+    module_idx INTEGER;
+    course_reward INTEGER;
+    base_chapter_coins INTEGER;
+    difficulty_multiplier NUMERIC;
+    calculated_chapter_coins INTEGER;
+    max_earned_coins INTEGER := 0;
+    coins_to_award INTEGER;
+    chapter_reason TEXT;
+
     total_lessons INTEGER;
     completed_lessons INTEGER;
-    course_reward INTEGER;
     already_awarded BOOLEAN;
+    completion_bonus INTEGER;
+    completion_reason TEXT;
 BEGIN
-    -- Get total number of lessons in this course
-    SELECT COUNT(*) INTO total_lessons 
+    SELECT COALESCE(reward_points, 50) INTO course_reward
+    FROM public.courses
+    WHERE id = NEW.course_id;
+
+    SELECT COUNT(*) INTO total_modules
+    FROM public.modules
+    WHERE course_id = NEW.course_id;
+
+    SELECT order_index_pos INTO module_idx
+    FROM (
+        SELECT id, ROW_NUMBER() OVER (ORDER BY order_index ASC) as order_index_pos
+        FROM public.modules
+        WHERE course_id = NEW.course_id
+    ) t
+    WHERE id = (
+        SELECT module_id FROM public.lessons WHERE id = NEW.lesson_id
+    );
+
+    IF total_modules IS NULL OR total_modules = 0 THEN
+        total_modules := 1;
+    END IF;
+    IF module_idx IS NULL OR module_idx = 0 THEN
+        module_idx := 1;
+    END IF;
+
+    base_chapter_coins := FLOOR((0.6 * course_reward * module_idx) / total_modules) -
+                          FLOOR((0.6 * course_reward * (module_idx - 1)) / total_modules);
+
+    IF NEW.difficulty = 'beginner' THEN
+        difficulty_multiplier := 0.7;
+    ELSIF NEW.difficulty = 'expert' THEN
+        difficulty_multiplier := 1.3;
+    ELSE
+        difficulty_multiplier := 1.0;
+    END IF;
+
+    calculated_chapter_coins := ROUND(base_chapter_coins * difficulty_multiplier);
+
+    chapter_reason := 'chapter_completion:' || NEW.course_id || ':' || NEW.lesson_id;
+
+        SELECT COALESCE(SUM(amount), 0) INTO max_earned_coins
+        FROM public.coin_transactions
+        WHERE user_id = NEW.user_id
+            AND reason LIKE (chapter_reason || '%');
+
+    coins_to_award := calculated_chapter_coins - max_earned_coins;
+
+    IF coins_to_award > 0 THEN
+        INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id)
+        VALUES (
+            NEW.user_id,
+            coins_to_award,
+            chapter_reason || ':' || NEW.difficulty,
+            NEW.id
+        );
+    END IF;
+
+    SELECT COUNT(*) INTO total_lessons
     FROM public.lessons l
     JOIN public.modules m ON l.module_id = m.id
     WHERE m.course_id = NEW.course_id;
 
-    -- Get number of completed lessons for this user and course
-    SELECT COUNT(*) INTO completed_lessons
+    SELECT COUNT(DISTINCT lesson_id) INTO completed_lessons
     FROM public.user_progress
-    WHERE user_id = NEW.user_id AND course_id = NEW.course_id AND completed = true;
+    WHERE user_id = NEW.user_id
+      AND course_id = NEW.course_id
+      AND language = NEW.language
+      AND completed = true;
 
-    -- Check if course is fully completed
     IF completed_lessons >= total_lessons AND total_lessons > 0 THEN
-        -- Check if we already rewarded the user for this course completion
+        completion_reason := 'course_completion:' || NEW.course_id || ':' || NEW.language;
+
         SELECT EXISTS(
             SELECT 1 FROM public.coin_transactions
-            WHERE user_id = NEW.user_id 
-              AND reason = 'course_completion:' || NEW.course_id
+            WHERE user_id = NEW.user_id
+              AND reason = completion_reason
         ) INTO already_awarded;
 
         IF NOT already_awarded THEN
-            -- Get course reward points
-            SELECT COALESCE(reward_points, 50) INTO course_reward 
-            FROM public.courses 
-            WHERE id = NEW.course_id;
+            completion_bonus := course_reward - FLOOR(0.6 * course_reward);
 
-            -- Award coins
             INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id)
-            VALUES (NEW.user_id, course_reward, 'course_completion:' || NEW.course_id, NULL);
+            VALUES (NEW.user_id, completion_bonus, completion_reason, NEW.id);
         END IF;
     END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -777,6 +913,55 @@ CREATE INDEX IF NOT EXISTS idx_reward_redemptions_user
 
 CREATE INDEX IF NOT EXISTS idx_rewards_active
   ON public.rewards (is_active, coin_cost);
+
+-- ---------------------------------------------------------------------------
+-- 14. SERVER-SIDE AGGREGATION RPCs
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.get_user_coin_balance(p_user_id UUID)
+RETURNS INTEGER
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT COALESCE(SUM(ct.amount), 0)::INTEGER
+    FROM public.coin_transactions ct
+    WHERE ct.user_id = p_user_id
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_user_coin_balance(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.get_leaderboard(p_limit INTEGER DEFAULT 50, p_unit_id UUID DEFAULT NULL)
+RETURNS TABLE (
+    user_id UUID,
+    full_name TEXT,
+    unit_name TEXT,
+    avatar_url TEXT,
+    coins BIGINT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT
+        p.id AS user_id,
+        COALESCE(p.full_name, 'Anonymous Member') AS full_name,
+        COALESCE(u.name, 'Unknown') AS unit_name,
+        p.avatar_url AS avatar_url,
+        SUM(ct.amount)::BIGINT AS coins
+    FROM public.coin_transactions ct
+    INNER JOIN public.profiles p ON p.id = ct.user_id
+    LEFT JOIN public.units u ON u.id = p.unit_id
+    WHERE (p_unit_id IS NULL OR p.unit_id = p_unit_id)
+    GROUP BY p.id, p.full_name, u.name, p.avatar_url
+    HAVING SUM(ct.amount) > 0
+    ORDER BY SUM(ct.amount) DESC
+    LIMIT GREATEST(COALESCE(p_limit, 50), 1)
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_leaderboard(INTEGER, UUID) TO authenticated;
 
 -- Trigger to set email on profile insert if null
 CREATE OR REPLACE FUNCTION public.set_profile_email()

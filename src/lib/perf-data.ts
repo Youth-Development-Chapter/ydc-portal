@@ -48,6 +48,7 @@ export async function getRecentAnnouncements(supabase: SupabaseClient, unitId?: 
   content: string
   is_pinned: boolean
   created_at: string
+  unit_id?: string | null
 }[]> {
   let query = supabase
     .from('announcements')
@@ -102,20 +103,22 @@ export const getRecentAnnouncementsCached = unstable_cache(
   { revalidate: 60, tags: ['announcements'] },
 )
 
-export async function getUpcomingEventsForDivisionCached(division: string | null) {
-  const key = division ? `events:division:${division}` : 'events:division:none'
+export async function getUpcomingEventsForUnitCached(unitId: string | null) {
+  const key = unitId ? `events:unit:${unitId}` : 'events:unit:none'
   const query = unstable_cache(
     async () => {
       const supabase = createPublicSupabaseServerClient()
-      let eventsQuery = supabase.from('events').select('id, title, description, date, time, location, capacity, division')
-      if (division) {
-        eventsQuery = eventsQuery.or(`division.is.null,division.eq.${division}`)
+      let eventsQuery = supabase
+        .from('events')
+        .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory')
+      if (unitId) {
+        eventsQuery = eventsQuery.or(`unit_id.is.null,unit_id.eq.${unitId}`)
       } else {
-        eventsQuery = eventsQuery.is('division', null)
+        eventsQuery = eventsQuery.is('unit_id', null)
       }
       const { data, error } = await eventsQuery.order('date', { ascending: true })
       if (error) {
-        console.error('getUpcomingEventsForDivisionCached error:', error)
+        console.error('getUpcomingEventsForUnitCached error:', error)
         return []
       }
       return data || []
@@ -125,3 +128,5 @@ export async function getUpcomingEventsForDivisionCached(division: string | null
   )
   return query()
 }
+
+export const getUpcomingEventsForDivisionCached = getUpcomingEventsForUnitCached

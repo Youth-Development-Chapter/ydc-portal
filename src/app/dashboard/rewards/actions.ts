@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { hasAdminPermission } from '@/lib/admin'
 import { getUserCoinBalance } from '@/lib/perf-data'
+import { evaluateCriteria } from '@/lib/criteria'
 
 export async function redeemReward(rewardId: string): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient()
@@ -13,12 +14,32 @@ export async function redeemReward(rewardId: string): Promise<{ success?: true; 
   // Fetch the reward
   const { data: reward, error: rewardErr } = await supabase
     .from('rewards')
-    .select('id, title, coin_cost, quantity_available, is_active')
+    .select('id, title, coin_cost, quantity_available, is_active, inclusive_unit_ids, exclusive_unit_ids, custom_criteria')
     .eq('id', rewardId)
     .single()
 
   if (rewardErr || !reward) return { error: 'Reward not found.' }
   if (!reward.is_active) return { error: 'This reward is no longer available.' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('unit_id')
+    .eq('id', user.id)
+    .single()
+
+  const userUnitId = profile?.unit_id || null
+  if (reward.inclusive_unit_ids?.length && (!userUnitId || !reward.inclusive_unit_ids.includes(userUnitId))) {
+    return { error: 'This reward is not available for your unit.' }
+  }
+  if (reward.exclusive_unit_ids?.length && userUnitId && reward.exclusive_unit_ids.includes(userUnitId)) {
+    return { error: 'This reward is not available for your unit.' }
+  }
+  if (reward.custom_criteria && Object.keys(reward.custom_criteria).length > 0) {
+    const criteria = await evaluateCriteria(supabase, user.id, reward.custom_criteria)
+    if (!criteria.eligible) {
+      return { error: criteria.reason || 'You are not eligible for this reward yet.' }
+    }
+  }
 
   // Check if quantity is exhausted
   if (reward.quantity_available !== null) {
