@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS public.events (
     is_compulsory BOOLEAN DEFAULT false NOT NULL,
     division TEXT,
     excluded_divisions TEXT[] DEFAULT '{}',
+    is_archived BOOLEAN DEFAULT false NOT NULL,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
@@ -118,12 +119,18 @@ ALTER TABLE public.events ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES publi
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS excluded_unit_ids UUID[];
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS custom_criteria JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS is_compulsory BOOLEAN DEFAULT false NOT NULL;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT false NOT NULL;
 
 ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read access to events" ON public.events;
 CREATE POLICY "Allow public read access to events"
-    ON public.events FOR SELECT USING (true);
+    ON public.events FOR SELECT USING (
+        is_archived = false OR 
+        (auth.uid() IS NOT NULL AND auth.uid() IN (
+            SELECT id FROM public.profiles WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+        ))
+    );
 
 DROP POLICY IF EXISTS "Allow administrators write access to events" ON public.events;
 CREATE POLICY "Allow administrators write access to events"

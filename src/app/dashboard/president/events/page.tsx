@@ -35,7 +35,7 @@ export default async function PresidentEventsPage() {
 
   let eventsQuery = supabase.from('events').select('*')
   if (role === 'president' && adminUnitId) {
-    eventsQuery = eventsQuery.eq('unit_id', adminUnitId)
+    eventsQuery = eventsQuery.eq('unit_id', adminUnitId).eq('is_archived', false)
   }
   const { data: events } = await eventsQuery.order('date', { ascending: false })
 

@@ -48,6 +48,7 @@ export default async function AdminDashboardOverview() {
   const { count: upcomingEvents } = await supabase
     .from('events')
     .select('*', { count: 'exact', head: true })
+    .eq('is_archived', false)
     .gte('date', todayStr)
 
   // 5. Fetch recent deed submissions
@@ -61,6 +62,7 @@ export default async function AdminDashboardOverview() {
   const { data: recentEvents } = await supabase
     .from('events')
     .select('*')
+    .eq('is_archived', false)
     .order('date', { ascending: true })
     .gte('date', todayStr)
     .limit(3)

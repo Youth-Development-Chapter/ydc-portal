@@ -182,3 +182,133 @@ export async function logDeed(prevState: unknown, formData: FormData) {
   revalidateTag('events', 'max')
   return { success: true }
 }
+
+export async function getEventsFromServer(
+  offset: number,
+  limit: number,
+  filterType: 'upcoming' | 'past' | 'compulsory' | 'optional' | 'checked_in' | 'leave' | 'all'
+) {
+  const supabase = await createClient()
+
+  // Authenticate user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: 'Unauthorized. Please log in.' }
+  }
+
+  // Fetch user profile to get unit scoping
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('unit_id')
+    .eq('id', user.id)
+    .single()
+  const userUnitId = profile?.unit_id ?? null
+
+  // Fetch all active events (excluding archived)
+  const { data: dbEvents, error: eventsError } = await supabase
+    .from('events')
+    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
+    .eq('is_archived', false)
+    .order('date', { ascending: true })
+
+  if (eventsError) {
+    return { error: eventsError.message }
+  }
+
+  // Fetch all event registrations for this user
+  const { data: registrations, error: regError } = await supabase
+    .from('event_registrations')
+    .select('id, event_id, user_id, ticket_code, attended, attended_at, status')
+    .eq('user_id', user.id)
+
+  if (regError) {
+    return { error: regError.message }
+  }
+
+  const registeredMap = new Map()
+  registrations.forEach(reg => {
+    registeredMap.set(reg.event_id, reg)
+  })
+
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  // Filter visible events
+  const visibleEvents = (dbEvents || []).filter((event) => {
+    const excludedUnits = Array.isArray(event.excluded_unit_ids) ? event.excluded_unit_ids : []
+    if (userUnitId && excludedUnits.includes(userUnitId)) {
+      return false
+    }
+    if (event.is_compulsory) {
+      return true
+    }
+    if (event.unit_id) {
+      return userUnitId === event.unit_id
+    }
+    return true
+  })
+
+  // Map to processed structure
+  const processedEvents = visibleEvents.map(event => {
+    const reg = registeredMap.get(event.id)
+    let status = 'none'
+    if (reg) {
+      if (reg.status === 'present' || reg.attended) status = 'present'
+      else if (reg.status === 'leave_pending') status = 'leave_pending'
+      else if (reg.status === 'leave_approved') status = 'leave_approved'
+      else if (reg.status === 'leave_rejected') status = 'leave_rejected'
+      else status = 'registered'
+    }
+
+    const isPast = event.date < todayStr
+    if (isPast && event.is_compulsory && (status === 'none' || status === 'registered')) {
+      status = 'absent'
+    }
+
+    return {
+      id: event.id,
+      title: event.title,
+      description: event.description || '',
+      date: new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      time: event.time,
+      location: event.location,
+      capacity: event.capacity,
+      is_compulsory: event.is_compulsory || false,
+      status: status as any,
+      rawDate: event.date,
+      poster_url: event.poster_url || null,
+      poster_color: event.poster_color || null,
+      isUpcoming: !isPast
+    }
+  })
+
+  // Sort
+  const upcoming = processedEvents.filter(e => e.isUpcoming)
+  const past = processedEvents.filter(e => !e.isUpcoming).reverse()
+
+  let finalEvents = []
+  if (filterType === 'upcoming') {
+    finalEvents = upcoming
+  } else if (filterType === 'past') {
+    finalEvents = past
+  } else {
+    const combined = [...upcoming, ...past]
+    if (filterType === 'compulsory') {
+      finalEvents = combined.filter(e => e.is_compulsory)
+    } else if (filterType === 'optional') {
+      finalEvents = combined.filter(e => !e.is_compulsory)
+    } else if (filterType === 'checked_in') {
+      finalEvents = combined.filter(e => e.status === 'present')
+    } else if (filterType === 'leave') {
+      finalEvents = combined.filter(e => e.status.startsWith('leave'))
+    } else {
+      finalEvents = combined
+    }
+  }
+
+  const sliced = finalEvents.slice(offset, offset + limit)
+  return {
+    events: sliced,
+    totalCount: finalEvents.length,
+    hasMore: offset + limit < finalEvents.length
+  }
+}

@@ -50,7 +50,18 @@ export async function getRecentAnnouncements(supabase: SupabaseClient, unitId?: 
   created_at: string
   unit_id?: string | null
 }[]> {
-  let query = supabase
+  interface AnnouncementRow {
+    id: string
+    title: string
+    content: string
+    is_pinned: boolean
+    created_at: string
+    unit_id?: string | null
+    excluded_unit_ids?: string[] | null
+    target_users?: string[] | null
+  }
+
+  const query = supabase
     .from('announcements')
     .select('id, title, content, is_pinned, created_at, unit_id, excluded_unit_ids, target_users')
     .order('is_pinned', { ascending: false })
@@ -65,7 +76,7 @@ export async function getRecentAnnouncements(supabase: SupabaseClient, unitId?: 
   }
 
   // Client-side unit filtering (announcements may be unit-scoped)
-  const results = (data || []).filter((ann: any) => {
+  const results = ((data as AnnouncementRow[]) || []).filter((ann) => {
     // If announcement is targeted at specific users, skip unit-level filter
     if (ann.target_users && ann.target_users.length > 0) return true
     // If unit-scoped, only show to that unit
@@ -108,20 +119,17 @@ export async function getUpcomingEventsForUnitCached(unitId: string | null) {
   const query = unstable_cache(
     async () => {
       const supabase = createPublicSupabaseServerClient()
-      let eventsQuery = supabase
+      const eventsQuery = supabase
         .from('events')
-        .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory')
+        .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory, poster_url, poster_color')
+        .eq('is_archived', false)
       if (unitId) {
-        eventsQuery = eventsQuery.or(`unit_id.is.null,unit_id.eq.${unitId}`)
+        const { data } = await eventsQuery.or(`unit_id.is.null,unit_id.eq.${unitId}`).order('date', { ascending: true })
+        return data || []
       } else {
-        eventsQuery = eventsQuery.is('unit_id', null)
+        const { data } = await eventsQuery.is('unit_id', null).order('date', { ascending: true })
+        return data || []
       }
-      const { data, error } = await eventsQuery.order('date', { ascending: true })
-      if (error) {
-        console.error('getUpcomingEventsForUnitCached error:', error)
-        return []
-      }
-      return data || []
     },
     [key],
     { revalidate: 60, tags: ['events', key] },

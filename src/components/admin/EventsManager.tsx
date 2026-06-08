@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input'
 import { createEvent, updateEventCoinReward } from '@/app/admin/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/utils/supabase/client'
 
 interface Registration {
   id: string
@@ -31,13 +32,83 @@ interface EventItem {
   title: string
   description: string
   date: string
-  time: string
-  location: string
-  capacity: number
-  coin_reward?: number
-  unit_id?: string | null
-  is_compulsory?: boolean
+  time: string;
+  location: string;
+  capacity: number;
+  coin_reward?: number;
+  unit_id?: string | null;
+  is_compulsory?: boolean;
+  is_archived?: boolean;
 }
+
+// Accent color extractor function using client-side canvas
+const extractAccentColor = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve('#0A9EDE');
+          return;
+        }
+        canvas.width = 50;
+        canvas.height = 50;
+        ctx.drawImage(img, 0, 0, 50, 50);
+        const imageData = ctx.getImageData(0, 0, 50, 50).data;
+        
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        let bestColor = { r: 10, g: 158, b: 222 };
+        let maxSaturation = -1;
+        
+        for (let i = 0; i < imageData.length; i += 4) {
+          const r = imageData[i];
+          const g = imageData[i+1];
+          const b = imageData[i+2];
+          const a = imageData[i+3];
+          if (a < 200) continue;
+          
+          const max = Math.max(r, g, b);
+          const min = Math.min(r, g, b);
+          const delta = max - min;
+          const l = (max + min) / 510;
+          const s = l > 0 && l < 1 ? delta / (255 * (1 - Math.abs(2 * l - 1))) : 0;
+          
+          if (s > maxSaturation && l > 0.15 && l < 0.85) {
+            maxSaturation = s;
+            bestColor = { r, g, b };
+          }
+          
+          rSum += r;
+          gSum += g;
+          bSum += b;
+          count++;
+        }
+        
+        if (maxSaturation < 0.1 && count > 0) {
+          const r = Math.round(rSum / count);
+          const g = Math.round(gSum / count);
+          const b = Math.round(bSum / count);
+          bestColor = { r, g, b };
+        }
+        
+        const rgbToHex = (r: number, g: number, b: number) => 
+          '#' + [r, g, b].map(x => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+          }).join('');
+          
+        resolve(rgbToHex(bestColor.r, bestColor.g, bestColor.b));
+      };
+      img.onerror = () => resolve('#0A9EDE');
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => resolve('#0A9EDE');
+    reader.readAsDataURL(file);
+  });
+};
 
 export default function EventsManager({
   initialEvents,
@@ -78,6 +149,11 @@ export default function EventsManager({
   const [newUnitId, setNewUnitId] = useState('')
   const [newIsCompulsory, setNewIsCompulsory] = useState(false)
   
+  // Poster Upload States
+  const [posterFile, setPosterFile] = useState<File | null>(null)
+  const [posterPreview, setPosterPreview] = useState<string>('')
+  const [posterColor, setPosterColor] = useState<string>('')
+  
   // Custom Criteria UI States
   const [newMinAge, setNewMinAge] = useState<number | ''>('')
   const [newMinStreak, setNewMinStreak] = useState<number | ''>('')
@@ -98,6 +174,22 @@ export default function EventsManager({
   const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
   const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
+  const handlePosterChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setPosterFile(file)
+    setPosterPreview(URL.createObjectURL(file))
+    
+    try {
+      const color = await extractAccentColor(file)
+      setPosterColor(color)
+    } catch (err) {
+      console.error('Failed to extract color:', err)
+      setPosterColor('#0A9EDE')
+    }
+  }
+
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -111,6 +203,26 @@ export default function EventsManager({
       if (newMinStreak !== '') customCriteria.min_streak = newMinStreak
       if (newRequiredRank !== 'none') customCriteria.required_rank = newRequiredRank
 
+      let uploadedPosterUrl = null
+      if (posterFile) {
+        const supabase = createClient()
+        const fileExt = posterFile.name.split('.').pop() || 'jpg'
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('event-posters')
+          .upload(fileName, posterFile)
+
+        if (uploadError) {
+          throw new Error(`Poster upload failed: ${uploadError.message}`)
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('event-posters')
+          .getPublicUrl(fileName)
+        uploadedPosterUrl = urlData.publicUrl
+      }
+
       const res = await createEvent(
         newTitle,
         newDescription,
@@ -122,7 +234,9 @@ export default function EventsManager({
         adminRole === 'president' ? (adminUnitId || null) : (newUnitId || null),
         [], // excludedUnitIds
         newIsCompulsory,
-        customCriteria
+        customCriteria,
+        uploadedPosterUrl,
+        posterColor || null
       )
 
       if (res?.error) {
@@ -143,6 +257,9 @@ export default function EventsManager({
         setNewMinAge('')
         setNewMinStreak('')
         setNewRequiredRank('none')
+        setPosterFile(null)
+        setPosterPreview('')
+        setPosterColor('')
 
         router.refresh()
         setTimeout(() => window.location.reload(), 800)
@@ -225,6 +342,11 @@ export default function EventsManager({
                               Compulsory
                             </span>
                           )}
+                          {event.is_archived && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-bold uppercase tracking-wider border border-amber-100">
+                              Archived
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-xs text-zinc-600">
@@ -266,8 +388,8 @@ export default function EventsManager({
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-5 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50">
-            <span className="text-xs text-zinc-500">
-              Showing {(currentPage - 1) * itemsPerPage + 1} to Math.min(currentPage * itemsPerPage, filteredEvents.length) of {filteredEvents.length} events
+            <span className="text-xs text-zinc-500 font-medium">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredEvents.length)} of {filteredEvents.length} events
             </span>
             <div className="flex items-center gap-1">
               <Button 
@@ -328,12 +450,66 @@ export default function EventsManager({
                 <div className="space-y-1">
                   <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">Description</label>
                   <textarea
-                    placeholder="Provide details about activities, schedule, prerequisites, etc."
+                     placeholder="Provide details about activities, schedule, prerequisites, etc."
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     rows={3}
                     className="w-full text-sm p-3 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-zinc-900"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">Event Poster</label>
+                  <div className="flex flex-col gap-3">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handlePosterChange}
+                      className="hidden"
+                      id="admin-poster-upload"
+                    />
+                    <label 
+                      htmlFor="admin-poster-upload"
+                      className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 rounded-xl p-4 cursor-pointer hover:bg-zinc-50 transition-colors"
+                    >
+                      <Plus className="text-zinc-400 mb-1" size={20} />
+                      <span className="text-xs text-zinc-600 font-semibold">
+                        {posterFile ? posterFile.name : 'Upload Event Poster'}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 mt-0.5">JPEG, PNG, WEBP up to 5MB</span>
+                    </label>
+
+                    {posterPreview && (
+                      <div className="flex items-center gap-4 p-3 bg-zinc-50 border border-zinc-150 rounded-xl">
+                        <img 
+                          src={posterPreview} 
+                          alt="Poster Preview" 
+                          className="w-16 h-16 object-cover rounded-lg shadow-sm"
+                        />
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Accent Color</span>
+                            <div 
+                              className="w-3.5 h-3.5 rounded-full border border-zinc-300"
+                              style={{ backgroundColor: posterColor }}
+                            />
+                            <span className="text-xs font-mono font-bold text-zinc-700">{posterColor}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPosterFile(null)
+                              setPosterPreview('')
+                              setPosterColor('')
+                            }}
+                            className="text-[10px] font-bold text-red-600 hover:text-red-800 flex items-center gap-1 cursor-pointer"
+                          >
+                            <X size={12} /> Remove Poster
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Unit Scope Field */}

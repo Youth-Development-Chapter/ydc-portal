@@ -25,7 +25,7 @@ export default async function PresidentScannerPage() {
   
   const adminUnitId = adminProfile?.unit_id || null
 
-  let eventsQuery = supabase.from('events').select('id, title, date')
+  let eventsQuery = supabase.from('events').select('id, title, date').eq('is_archived', false)
   if (role === 'president' && adminUnitId) {
     eventsQuery = eventsQuery.eq('unit_id', adminUnitId)
   }

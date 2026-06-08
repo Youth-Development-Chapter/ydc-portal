@@ -30,7 +30,7 @@ export async function evaluateCriteria(supabase: SupabaseClient, userId: string,
   // Fetch basic profile info
   const { data: profile } = await supabase
     .from('profiles')
-    .select('date_of_birth, unit_id')
+    .select('dob, unit_id')
     .eq('id', userId)
     .single()
     
@@ -40,8 +40,8 @@ export async function evaluateCriteria(supabase: SupabaseClient, userId: string,
     return { eligible: false, reason: 'Does not match required unit' }
   }
 
-  if (normalized.minAge && profile.date_of_birth) {
-    const dob = new Date(profile.date_of_birth)
+  if (normalized.minAge && profile.dob) {
+    const dob = new Date(profile.dob)
     const ageDifMs = Date.now() - dob.getTime()
     const ageDate = new Date(ageDifMs)
     const age = Math.abs(ageDate.getUTCFullYear() - 1970)
@@ -83,7 +83,7 @@ export async function evaluateCriteria(supabase: SupabaseClient, userId: string,
       .select('amount')
       .eq('user_id', userId)
       
-    const totalCoins = txns?.reduce((acc: number, t: any) => acc + t.amount, 0) || 0
+    const totalCoins = txns?.reduce((acc: number, t: { amount: number }) => acc + t.amount, 0) || 0
     
     const { data: settingsData } = await supabase
       .from('system_settings')
@@ -96,14 +96,14 @@ export async function evaluateCriteria(supabase: SupabaseClient, userId: string,
       try {
         const tiers = JSON.parse(settingsData.value)
         // sort descending by threshold
-        tiers.sort((a: any, b: any) => b.threshold - a.threshold)
+        tiers.sort((a: { threshold: number }, b: { threshold: number }) => b.threshold - a.threshold)
         for (const tier of tiers) {
           if (totalCoins >= tier.threshold) {
             currentTier = tier.name
             break
           }
         }
-      } catch (e) {}
+      } catch {}
     }
     
     if (currentTier !== normalized.rankTier) {

@@ -44,6 +44,8 @@ ALTER TABLE public.events ADD COLUMN IF NOT EXISTS custom_criteria JSONB DEFAULT
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS is_compulsory BOOLEAN DEFAULT false NOT NULL;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS division TEXT;
 ALTER TABLE public.events ADD COLUMN IF NOT EXISTS excluded_divisions TEXT[] DEFAULT '{}';
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS poster_url TEXT;
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS poster_color TEXT;
 
 -- 4. Update Announcements
 ALTER TABLE public.announcements ADD COLUMN IF NOT EXISTS unit_id UUID REFERENCES public.units(id) ON DELETE CASCADE;
@@ -279,4 +281,64 @@ USING (
     (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'president'
     AND
     (SELECT unit_id FROM public.profiles WHERE id = admin_id) = (SELECT unit_id FROM public.profiles WHERE id = auth.uid())
+);
+
+-- =========================================================================
+-- 15. CHECK USER PROVIDERS BY EMAIL
+-- =========================================================================
+
+CREATE OR REPLACE FUNCTION public.check_user_providers(email_param TEXT)
+RETURNS TEXT[] AS $$
+DECLARE
+  providers TEXT[];
+BEGIN
+  SELECT COALESCE(ARRAY_AGG(DISTINCT provider), '{}'::text[]) INTO providers
+  FROM auth.identities i
+  JOIN auth.users u ON i.user_id = u.id
+  WHERE u.email = email_param;
+  
+  RETURN providers;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, auth;
+
+-- =========================================================================
+-- 16. STORAGE BUCKET FOR EVENT POSTERS
+-- =========================================================================
+
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('event-posters', 'event-posters', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policies for storage.objects for 'event-posters' bucket
+DROP POLICY IF EXISTS "Allow public select on event-posters" ON storage.objects;
+CREATE POLICY "Allow public select on event-posters" ON storage.objects FOR SELECT USING (bucket_id = 'event-posters');
+
+DROP POLICY IF EXISTS "Allow admin write access to event-posters" ON storage.objects;
+CREATE POLICY "Allow admin write access to event-posters" ON storage.objects FOR INSERT TO authenticated WITH CHECK (
+    bucket_id = 'event-posters' AND (
+        auth.uid() IN (
+            SELECT id FROM public.profiles
+            WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+        )
+    )
+);
+
+DROP POLICY IF EXISTS "Allow admin update access to event-posters" ON storage.objects;
+CREATE POLICY "Allow admin update access to event-posters" ON storage.objects FOR UPDATE TO authenticated USING (
+    bucket_id = 'event-posters' AND (
+        auth.uid() IN (
+            SELECT id FROM public.profiles
+            WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+        )
+    )
+);
+
+DROP POLICY IF EXISTS "Allow admin delete access to event-posters" ON storage.objects;
+CREATE POLICY "Allow admin delete access to event-posters" ON storage.objects FOR DELETE TO authenticated USING (
+    bucket_id = 'event-posters' AND (
+        auth.uid() IN (
+            SELECT id FROM public.profiles
+            WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
+        )
+    )
 );

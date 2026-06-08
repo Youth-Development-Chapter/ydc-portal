@@ -9,6 +9,7 @@ import { logout } from "@/app/auth/actions";
 import { getCourses } from "@/lib/lms-data";
 import DashboardFlashcards from "@/components/dashboard/DashboardFlashcards";
 import { Flashcard } from "@/components/dashboard/DashboardFlashcards";
+import MyEventsCarousel from "@/components/dashboard/MyEventsCarousel";
 import {
   getRecentAnnouncements,
   getUpcomingEventsForUnitCached,
@@ -19,7 +20,7 @@ import {
 export default async function UserDashboard() {
   const extractEvent = (registration: { events?: unknown }) => {
     if (Array.isArray(registration.events)) return registration.events[0] || null;
-    return (registration.events as { id: string; title: string; date: string; time: string; location: string } | null) || null;
+    return (registration.events as { id: string; title: string; date: string; time: string; location: string; poster_url?: string | null; poster_color?: string | null } | null) || null;
   };
 
   const supabase = await createClient();
@@ -50,7 +51,7 @@ export default async function UserDashboard() {
     supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
     supabase
       .from('event_registrations')
-      .select('id, event_id, ticket_code, attended, events(id, title, date, time, location)')
+      .select('id, event_id, ticket_code, attended, events(id, title, date, time, location, poster_url, poster_color)')
       .eq('user_id', user.id),
     supabase.from('deed_submissions').select('id, status').eq('user_id', user.id).eq('local_date', todayStr),
     getUserCoinBalance(user.id),
@@ -393,7 +394,9 @@ export default async function UserDashboard() {
       time: reg.event!.time,
       location: reg.event!.location,
       ticketCode: reg.reg.ticket_code,
-      attended: reg.reg.attended
+      attended: reg.reg.attended,
+      poster_url: reg.event!.poster_url || null,
+      poster_color: reg.event!.poster_color || null
     })); 
 
   const showNotificationBadge = !hasLoggedDeedToday || (recentAnnouncements && recentAnnouncements.length > 0) || !!upcomingEvent48h;
@@ -612,39 +615,7 @@ export default async function UserDashboard() {
             </Link>
           </div>
 
-          <div className="space-y-3">
-            {myEvents.length > 0 ? (
-              myEvents.map(event => (
-                <Link key={event.id} href="/events" className="block">
-                  <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-[#0A9EDE] rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-colors duration-200">
-                    <div>
-                      <h4 className="font-bold text-sm text-[#1D1D1D] mb-2 group-hover:text-[#0A9EDE] transition-colors">{event.title}</h4>
-                      <div className="flex items-center gap-4 text-[10px] text-[#555555] font-semibold">
-                        <div className="flex items-center gap-1">
-                          <Calendar size={12} className="text-[#0BA242]" />
-                          {event.date}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock size={12} className="text-[#DD0408]" />
-                          {event.time}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center shrink-0 group-hover:bg-[#F0F9FF] group-hover:border-[#0A9EDE]/25 transition-colors duration-200">
-                      <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0A9EDE]" />
-                    </div>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="bg-[#FAFAFA] border border-dashed border-[#E5E5E5] rounded-2xl p-6 text-center text-[#555555] text-xs">
-                No events registered yet.{" "}
-                <Link href="/events" className="text-[#0A9EDE] font-extrabold hover:underline">
-                  Find event
-                </Link>
-              </div>
-            )}
-          </div>
+          <MyEventsCarousel events={myEvents} />
         </div>
 
         {/* REWARDS & SHOP PERKS */}

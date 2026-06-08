@@ -74,3 +74,79 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { eventId } = body
+
+    if (!eventId) {
+      return NextResponse.json({ error: 'eventId is required' }, { status: 400 })
+    }
+
+    const supabase = await createApiClient(request)
+
+    // Authenticate user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if registration exists with status = 'leave_pending'
+    const { data: existingReg, error: regError } = await supabase
+      .from('event_registrations')
+      .select('id, status')
+      .eq('user_id', user.id)
+      .eq('event_id', eventId)
+      .eq('status', 'leave_pending')
+      .maybeSingle()
+
+    if (regError || !existingReg) {
+      return NextResponse.json({ error: 'No pending leave request found for this event.' }, { status: 404 })
+    }
+
+    // Fetch the event to see if it's compulsory
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('is_compulsory')
+      .eq('id', eventId)
+      .single()
+
+    if (eventError || !event) {
+      return NextResponse.json({ error: 'Event not found.' }, { status: 404 })
+    }
+
+    if (event.is_compulsory) {
+      // Compulsory events do not need registration. Delete the registration record entirely.
+      const { error: deleteError } = await supabase
+        .from('event_registrations')
+        .delete()
+        .eq('id', existingReg.id)
+
+      if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      }
+    } else {
+      // Optional events: revert status back to 'registered' and clear leave_note
+      const { error: updateError } = await supabase
+        .from('event_registrations')
+        .update({
+          status: 'registered',
+          leave_note: null
+        })
+        .eq('id', existingReg.id)
+
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 })
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error: unknown) {
+    console.error('Unhandled server error in DELETE /api/events/leave:', error)
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

@@ -25,7 +25,8 @@ export default async function EventsPage() {
   // 1. Query all events and filter them locally by visibility rules.
   let eventsQuery = supabase
     .from('events')
-    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory')
+    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
+    .eq('is_archived', false)
     .order('date', { ascending: true });
 
   const [eventsResult, registrationsResult] = await Promise.all([
@@ -100,20 +101,36 @@ export default async function EventsPage() {
       capacity: event.capacity,
       is_compulsory: event.is_compulsory || false,
       status: status as any,
-      rawDate: event.date // internal sorting field
+      rawDate: event.date, // internal sorting field
+      poster_url: event.poster_url || null,
+      poster_color: event.poster_color || null
     };
   });
 
   const upcomingEvents = processedEvents.filter(e => e.rawDate >= todayStr);
   const pastEvents = processedEvents.filter(e => e.rawDate < todayStr).reverse(); // show most recent past first
 
+  const counts = {
+    all: processedEvents.length,
+    upcoming: upcomingEvents.length,
+    past: pastEvents.length,
+    compulsory: processedEvents.filter(e => e.is_compulsory).length,
+    optional: processedEvents.filter(e => !e.is_compulsory).length,
+    checked_in: processedEvents.filter(e => e.status === "present").length,
+    leave: processedEvents.filter(e => e.status.startsWith("leave")).length,
+  };
+
+  const initialUpcomingEvents = upcomingEvents.slice(0, 3);
+  const initialPastEvents = pastEvents.slice(0, 3);
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">
       <div className="fluid-top-gradient"></div>
       <main className="max-w-lg mx-auto w-full px-4 py-6 relative z-10">
         <EventsClient 
-          upcomingEvents={upcomingEvents}
-          pastEvents={pastEvents}
+          initialUpcomingEvents={initialUpcomingEvents}
+          initialPastEvents={initialPastEvents}
+          initialCounts={counts}
           userId={user.id}
         />
       </main>

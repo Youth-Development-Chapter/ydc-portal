@@ -412,7 +412,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
 
     const { data: reg, error } = await supabase
       .from('event_registrations')
-      .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
+      .select('*, profiles(full_name, unit_id), events(id, title, unit_id, coin_reward, custom_criteria)')
       .eq('user_id', resolvedUserId)
       .eq('event_id', eventId)
       .maybeSingle()
@@ -422,7 +422,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
 
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, unit_id, coin_reward, custom_criteria')
+      .select('id, title, unit_id, coin_reward, custom_criteria')
       .eq('id', eventId)
       .single()
 
@@ -465,7 +465,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
           attended: false,
           status: 'registered',
         })
-        .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
+        .select('*, profiles(full_name, unit_id), events(id, title, unit_id, coin_reward, custom_criteria)')
         .single()
 
       if (insertError) {
@@ -477,7 +477,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
     // Fallback: scannedId is the ticket code
     const { data: reg, error } = await supabase
       .from('event_registrations')
-      .select('*, profiles(full_name, unit_id), events(id, unit_id, coin_reward, custom_criteria)')
+      .select('*, profiles(full_name, unit_id), events(id, title, unit_id, coin_reward, custom_criteria)')
       .eq('ticket_code', scannedId.trim())
       .maybeSingle()
     
@@ -550,6 +550,40 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
     console.error('Error crediting attendance coins:', coinError)
   }
 
+  // Realtime Broadcast to volunteer client
+  try {
+    const channel = supabase.channel(`checkin-${registration.user_id}`, {
+      config: {
+        broadcast: { self: true }
+      }
+    })
+    await new Promise<void>((resolve) => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channel.send({
+            type: 'broadcast',
+            event: 'status',
+            payload: {
+              status: 'success',
+              userName: registration.profiles?.full_name || 'Volunteer',
+              eventTitle: registration.events?.title || 'YDC Event',
+              error: null
+            }
+          }).then(() => {
+            setTimeout(() => {
+              supabase.removeChannel(channel)
+              resolve()
+            }, 800)
+          })
+        } else {
+          resolve()
+        }
+      })
+    })
+  } catch (broadcastErr) {
+    console.error('Error broadcasting check-in success:', broadcastErr)
+  }
+
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
   
@@ -576,7 +610,9 @@ export async function createEvent(
   unitId?: string | null,
   excludedUnitIds?: string[] | null,
   isCompulsory?: boolean,
-  customCriteria?: any
+  customCriteria?: any,
+  posterUrl?: string | null,
+  posterColor?: string | null
 ) {
   const supabase = await createClient()
 
@@ -624,7 +660,9 @@ export async function createEvent(
       unit_id: eventUnitId,
       excluded_unit_ids: excludedUnitIds || [],
       is_compulsory: isCompulsory || false,
-      custom_criteria: customCriteria || null
+      custom_criteria: customCriteria || null,
+      poster_url: posterUrl || null,
+      poster_color: posterColor || null
     })
 
   if (error) {
@@ -662,7 +700,7 @@ export async function toggleManualAttendance(registrationId: string, attended: b
   // 3. Fetch registration with events unit
   const { data: registration, error: fetchError } = await supabase
     .from('event_registrations')
-    .select('*, events(unit_id, coin_reward)')
+    .select('*, events(title, unit_id, coin_reward), profiles(full_name)')
     .eq('id', registrationId)
     .single()
 
@@ -724,6 +762,42 @@ export async function toggleManualAttendance(registrationId: string, attended: b
 
   if (coinError) {
     console.error('Error modifying attendance coins:', coinError)
+  }
+
+  // Realtime Broadcast to volunteer client
+  if (attended) {
+    try {
+      const channel = supabase.channel(`checkin-${registration.user_id}`, {
+        config: {
+          broadcast: { self: true }
+        }
+      })
+      await new Promise<void>((resolve) => {
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel.send({
+              type: 'broadcast',
+              event: 'status',
+              payload: {
+                status: 'success',
+                userName: (registration as any).profiles?.full_name || 'Volunteer',
+                eventTitle: (registration as any).events?.title || 'YDC Event',
+                error: null
+              }
+            }).then(() => {
+              setTimeout(() => {
+                supabase.removeChannel(channel)
+                resolve()
+              }, 800)
+            })
+          } else {
+            resolve()
+          }
+        })
+      })
+    } catch (broadcastErr) {
+      console.error('Error broadcasting check-in success:', broadcastErr)
+    }
   }
 
   revalidatePath('/admin/events')
@@ -796,7 +870,9 @@ export async function updateEvent(
   coinReward: number,
   unitId?: string | null,
   excludedUnitIds?: string[] | null,
-  isCompulsory?: boolean
+  isCompulsory?: boolean,
+  posterUrl?: string | null,
+  posterColor?: string | null
 ) {
   const supabase = await createClient()
 
@@ -855,12 +931,118 @@ export async function updateEvent(
       unit_id: eventUnitId,
       excluded_unit_ids: excludedUnitIds || [],
       is_compulsory: isCompulsory !== undefined ? isCompulsory : false,
+      poster_url: posterUrl,
+      poster_color: posterColor
     })
     .eq('id', eventId)
 
   if (error) {
     return { error: error.message }
   }
+
+  revalidatePath('/admin/events')
+  revalidatePath('/events')
+  revalidatePath('/dashboard/president')
+  revalidateTag('events', 'max')
+  return { success: true }
+}
+
+/**
+ * Archive or restore an event.
+ */
+export async function archiveEvent(eventId: string, isArchived: boolean) {
+  const supabase = await createClient()
+
+  // 1. Authenticate user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_events')
+  if (!allowed) return { error: 'Permission denied. You cannot manage events.' }
+
+  // Check role restrictions
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, unit_id')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const eventUnitId = adminProfile.unit_id || null
+    if (!eventUnitId) return { error: 'Active president is not assigned to a unit.' }
+
+    // Check if the event is in the president's unit
+    const { data: event } = await supabase
+      .from('events')
+      .select('unit_id')
+      .eq('id', eventId)
+      .single()
+
+    if (!event || event.unit_id !== eventUnitId) {
+      return { error: 'Permission denied. You can only archive events in your own unit.' }
+    }
+  }
+
+  // Update event is_archived status
+  const { error } = await supabase
+    .from('events')
+    .update({ is_archived: isArchived })
+    .eq('id', eventId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/events')
+  revalidatePath('/events')
+  revalidatePath('/dashboard/president')
+  revalidateTag('events', 'max')
+  return { success: true }
+}
+
+/**
+ * Permanently delete an event.
+ */
+export async function deleteEvent(eventId: string) {
+  const supabase = await createClient()
+
+  // 1. Authenticate user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const allowed = await hasAdminPermission(user.id, 'can_manage_events')
+  if (!allowed) return { error: 'Permission denied. You cannot manage events.' }
+
+  // Check role restrictions
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('role, unit_id')
+    .eq('id', user.id)
+    .single()
+
+  if (adminProfile?.role === 'president') {
+    const eventUnitId = adminProfile.unit_id || null
+    if (!eventUnitId) return { error: 'Active president is not assigned to a unit.' }
+
+    // Check if the event is in the president's unit
+    const { data: event } = await supabase
+      .from('events')
+      .select('unit_id')
+      .eq('id', eventId)
+      .single()
+
+    if (!event || event.unit_id !== eventUnitId) {
+      return { error: 'Permission denied. You can only delete events in your own unit.' }
+    }
+  }
+
+  // Delete event
+  const { error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId)
+
+  if (error) return { error: error.message }
 
   revalidatePath('/admin/events')
   revalidatePath('/events')
@@ -1464,3 +1646,327 @@ export async function overrideDeedDecision(
   revalidatePath('/dashboard')
   return { success: true }
 }
+
+export async function getEventRoster(
+  eventId: string,
+  page: number = 1,
+  limit: number = 20,
+  search: string = '',
+  statusFilter: string = 'all'
+) {
+  const supabase = await createClient()
+
+  // 1. Authenticate admin user
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  // 2. Verify permission
+  const { role, permissions } = await getAdminContext(user.id)
+  const hasAccess = permissions.can_scan_tickets || permissions.can_manage_events
+  if (!hasAccess) return { error: 'Permission denied.' }
+
+  // 3. Fetch admin profile unit if president
+  const { data: adminProfile } = await supabase
+    .from('profiles')
+    .select('unit_id')
+    .eq('id', user.id)
+    .single()
+  const adminUnitId = adminProfile?.unit_id || null
+
+  // 4. Fetch event detail
+  const { data: event } = await supabase
+    .from('events')
+    .select('id, unit_id, is_compulsory, date')
+    .eq('id', eventId)
+    .single()
+
+  if (!event) return { error: 'Event not found.' }
+
+  // Presidents can only view events in their own unit
+  if (role === 'president' && adminUnitId && event.unit_id !== adminUnitId) {
+    return { error: 'Permission denied. This event belongs to a different unit.' }
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const isPast = event.date < todayStr
+
+  // 5. Query roster entries
+  // If it's compulsory, we fetch from profiles table and left join event_registrations
+  if (event.is_compulsory) {
+    let query = supabase
+      .from('profiles')
+      .select(`
+        id,
+        full_name,
+        qualification,
+        unit_id,
+        units:unit_id(name),
+        event_registrations(
+          id,
+          attended,
+          attended_at,
+          status,
+          leave_note,
+          ticket_code,
+          event_id
+        )
+      `)
+      .eq('role', 'volunteer')
+      .eq('event_registrations.event_id', eventId)
+      
+    if (event.unit_id) {
+      query = query.eq('unit_id', event.unit_id)
+    } else if (role === 'president' && adminUnitId) {
+      query = query.eq('unit_id', adminUnitId)
+    }
+
+    if (search) {
+      query = query.ilike('full_name', `%${search}%`)
+    }
+
+    // Also fetch all registrations for this event to find any registered/attended non-volunteers
+    let regsQuery = supabase
+      .from('event_registrations')
+      .select(`
+        id,
+        attended,
+        attended_at,
+        status,
+        leave_note,
+        ticket_code,
+        profiles!inner(
+          id,
+          full_name,
+          qualification,
+          unit_id,
+          units:unit_id(name),
+          role
+        )
+      `)
+      .eq('event_id', eventId)
+
+    if (event.unit_id) {
+      regsQuery = regsQuery.eq('profiles.unit_id', event.unit_id)
+    } else if (role === 'president' && adminUnitId) {
+      regsQuery = regsQuery.eq('profiles.unit_id', adminUnitId)
+    }
+
+    if (search) {
+      regsQuery = regsQuery.ilike('profiles.full_name', `%${search}%`)
+    }
+
+    const [profilesRes, regsRes] = await Promise.all([
+      query,
+      regsQuery
+    ])
+
+    if (profilesRes.error) return { error: profilesRes.error.message }
+    const profiles = profilesRes.data || []
+    const registrations = regsRes.data || []
+
+    const helperGetUnitName = (units: any) => {
+      if (Array.isArray(units)) return units[0]?.name || 'Not specified'
+      if (units && typeof units === 'object') return units.name || 'Not specified'
+      return 'Not specified'
+    }
+
+    const volunteerIds = new Set(profiles.map((p: any) => p.id))
+
+    // Map and filter status in JS
+    let roster: any[] = profiles.map((p: any) => {
+      const reg = Array.isArray(p.event_registrations)
+        ? p.event_registrations[0] // Since user_id & event_id is UNIQUE, there will be max 1 row
+        : null
+
+      let status = reg?.status || 'expected'
+      if (isPast && status === 'expected') {
+        status = 'absent'
+      }
+
+      return {
+        id: reg?.id || p.id,
+        user_id: p.id,
+        full_name: p.full_name || 'Anonymous Volunteer',
+        unit_name: helperGetUnitName(p.units),
+        qualification: p.qualification || 'Not specified',
+        attended: reg?.attended || false,
+        ticket_code: reg?.ticket_code || null,
+        status,
+        leave_note: reg?.leave_note || null,
+        registration_id: reg?.id || null,
+        is_synthetic: !reg,
+        attended_at: reg?.attended_at || null
+      }
+    })
+
+    // Include registered non-volunteers
+    for (const reg of registrations) {
+      const rawProfile = reg.profiles
+      const p: any = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile
+      if (p && !volunteerIds.has(p.id)) {
+        let status = reg.status || 'registered'
+        if (status === 'registered' && reg.attended) {
+          status = 'present'
+        }
+        if (isPast && status === 'registered' && !reg.attended) {
+          status = 'absent'
+        }
+
+        roster.push({
+          id: reg.id,
+          user_id: p.id,
+          full_name: p.full_name || 'Anonymous User',
+          unit_name: helperGetUnitName(p.units),
+          qualification: p.qualification || 'Not specified',
+          attended: reg.attended || false,
+          ticket_code: reg.ticket_code || null,
+          status,
+          leave_note: reg.leave_note || null,
+          registration_id: reg.id,
+          is_synthetic: false,
+          attended_at: reg.attended_at || null
+        })
+      }
+    }
+
+    // Apply status filter in JS
+    if (statusFilter !== 'all') {
+      roster = roster.filter(r => {
+        if (statusFilter === 'checked_in') return r.attended
+        if (statusFilter === 'absent') return r.status === 'absent'
+        if (statusFilter === 'pending_leave') return r.status === 'leave_pending'
+        if (statusFilter === 'leave_approved') return r.status === 'leave_approved'
+        if (statusFilter === 'leave_rejected') return r.status === 'leave_rejected'
+        if (statusFilter === 'expected') return r.status === 'expected' || r.status === 'registered'
+        return true
+      })
+    }
+
+    const totalCount = roster.length
+    // Paginate roster
+    const paginatedRoster = roster.slice((page - 1) * limit, page * limit)
+
+    return {
+      success: true,
+      roster: paginatedRoster,
+      totalCount,
+      page,
+      limit
+    }
+  } else {
+    // If optional event, we only fetch registered people from event_registrations
+    let query = supabase
+      .from('event_registrations')
+      .select(`
+        id,
+        attended,
+        attended_at,
+        status,
+        leave_note,
+        ticket_code,
+        profiles!inner(
+          id,
+          full_name,
+          qualification,
+          unit_id,
+          units:unit_id(name)
+        )
+      `, { count: 'exact' })
+      .eq('event_id', eventId)
+
+    if (search) {
+      query = query.ilike('profiles.full_name', `%${search}%`)
+    }
+
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'checked_in') {
+        query = query.eq('attended', true)
+      } else if (statusFilter === 'absent') {
+        query = query.eq('attended', false).eq('status', 'absent')
+      } else if (statusFilter === 'pending_leave') {
+        query = query.eq('status', 'leave_pending')
+      } else if (statusFilter === 'leave_approved') {
+        query = query.eq('status', 'leave_approved')
+      } else if (statusFilter === 'leave_rejected') {
+        query = query.eq('status', 'leave_rejected')
+      } else if (statusFilter === 'expected') {
+        query = query.eq('attended', false).eq('status', 'registered')
+      }
+    }
+
+    // Sort: show leave_pending first
+    query = query
+      .order('status', { ascending: true })
+      .range((page - 1) * limit, page * limit - 1)
+
+    const { data: registrations, count, error } = await query
+
+    if (error) return { error: error.message }
+
+    const roster: any[] = (registrations || []).map((reg: any) => {
+      const p = reg.profiles
+      return {
+        id: reg.id,
+        user_id: p.id,
+        full_name: p.full_name || 'Anonymous Volunteer',
+        unit_name: p.units?.name || 'Not specified',
+        qualification: p.qualification || 'Not specified',
+        attended: reg.attended,
+        ticket_code: reg.ticket_code,
+        status: reg.status || 'registered',
+        leave_note: reg.leave_note,
+        registration_id: reg.id,
+        is_synthetic: false,
+        attended_at: reg.attended_at
+      }
+    })
+
+    return {
+      success: true,
+      roster,
+      totalCount: count || 0,
+      page,
+      limit
+    }
+  }
+}
+
+export async function bulkCheckInAttendees(eventId: string, userIds: string[]) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  const allowed = await hasAdminPermission(user.id, 'can_scan_tickets')
+  if (!allowed) return { error: 'Permission denied. You cannot check in attendees.' }
+
+  const results = []
+  for (const uid of userIds) {
+    const res = await checkInTicket(uid, eventId)
+    results.push({ userId: uid, ...res })
+  }
+
+  revalidatePath('/admin/events')
+  return { success: true, results }
+}
+
+export async function bulkProcessLeaves(registrationIds: string[], action: 'approve' | 'reject') {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized.' }
+
+  const { permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_events) return { error: 'Permission denied.' }
+
+  const status = action === 'approve' ? 'leave_approved' : 'leave_rejected'
+
+  const { error } = await supabase
+    .from('event_registrations')
+    .update({ status })
+    .in('id', registrationIds)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/events')
+  return { success: true }
+}
+
