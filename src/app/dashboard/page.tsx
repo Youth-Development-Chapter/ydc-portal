@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert, Bell } from "lucide-react";
+import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Trophy, Check, Bell } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { logout } from "@/app/auth/actions";
@@ -39,6 +39,8 @@ export default async function UserDashboard() {
     registrationsResult,
     todayDeedsResult,
     coins,
+    coinTxnsResult,
+    rankTiersSettingResult,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -52,6 +54,16 @@ export default async function UserDashboard() {
       .eq('user_id', user.id),
     supabase.from('deed_submissions').select('id, status').eq('user_id', user.id).eq('local_date', todayStr),
     getUserCoinBalance(user.id),
+    supabase
+      .from('coin_transactions')
+      .select('amount')
+      .eq('user_id', user.id)
+      .gt('amount', 0),
+    supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'rank_tiers')
+      .single(),
   ]);
 
   if (profileResult.error) {
@@ -69,8 +81,26 @@ export default async function UserDashboard() {
   const name = profile?.full_name || user.user_metadata?.full_name || "YDC Member";
   const memberId = profile?.id ? `YDC-${profile.id.substring(0, 8).toUpperCase()}` : "YDC-UNKNOWN";
   
-  // Determine Tier dynamically
-  const tier = coins >= 1000 ? "Gold Tier" : coins >= 300 ? "Silver Tier" : "Bronze Tier";
+  // Determine Tier dynamically based on lifetime earnings
+  const totalEarned = (coinTxnsResult.data || []).reduce((sum, txn) => sum + txn.amount, 0);
+
+  const rankTiers = rankTiersSettingResult.data?.value ? JSON.parse(rankTiersSettingResult.data.value) : [
+    { name: "Bronze", min_coins: 0, color: "#CD7F32" },
+    { name: "Silver", min_coins: 500, color: "#C0C0C0" },
+    { name: "Gold", min_coins: 2000, color: "#FFD700" },
+    { name: "Platinum", min_coins: 5000, color: "#E5E4E2" },
+    { name: "Diamond", min_coins: 10000, color: "#007690" }
+  ];
+
+  let currentRank = rankTiers[0];
+  for (let i = 0; i < rankTiers.length; i++) {
+    if (totalEarned >= rankTiers[i].min_coins) {
+      currentRank = rankTiers[i];
+    }
+  }
+
+  const tier = `${currentRank.name} Tier`;
+  const tierColor = currentRank.color || '#0A9EDE';
 
   const streakRecord = streakResult.data;
   const streak = streakRecord?.current_streak || 0;
@@ -278,7 +308,11 @@ export default async function UserDashboard() {
 
   // Compile Recent Reward Redemptions (within 48 hours)
   (recentRedemptions || []).forEach(red => {
-    const rewardTitle = (red.rewards as any)?.title || "Reward";
+    const rewardTitle = (
+      Array.isArray(red.rewards)
+        ? (red.rewards[0] as unknown as { title: string })?.title
+        : (red.rewards as unknown as { title: string })?.title
+    ) || "Reward";
     flashcards.push({
       id: `reward-redeemed-${red.id}`,
       type: "reward_redemption",
@@ -443,7 +477,7 @@ export default async function UserDashboard() {
             <div className="flex-1 min-w-0 pr-2">
               <p className="text-[#A3A3A3] text-xs font-semibold uppercase tracking-wider mb-1">Member</p>
               <h2 className="text-2xl font-bold mb-1 truncate" title={name}>{name}</h2>
-              <div className="flex items-center gap-2 text-[#0A9EDE] font-semibold text-sm">
+              <div className="flex items-center gap-2 font-semibold text-sm" style={{ color: tierColor }}>
                 <Award size={16} />
                 {tier}
               </div>
@@ -463,17 +497,17 @@ export default async function UserDashboard() {
       </div>
 
       {/* DYNAMIC FLASHCARD ALERT CAROUSEL */}
-      <div className="max-w-lg mx-auto px-4 mt-6">
+      <div className="relative z-10 max-w-lg mx-auto px-4 mt-6">
         <DashboardFlashcards flashcards={flashcards} />
       </div>
 
       {/* MAIN CONTENT / ORGANIZED INFO */}
-      <div className="max-w-lg mx-auto px-4 mt-6 space-y-6">
+      <div className="relative z-10 max-w-lg mx-auto px-4 mt-6 space-y-6">
         
         {/* REDESIGNED QUICK HUB ACTIONS (Interactive & Practical) */}
         <div className="grid grid-cols-3 gap-3">
           {/* 1. Coins Wallet Card */}
-          <Link href="/dashboard/wallet" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-yellow-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+          <Link href="/dashboard/wallet" className="bg-white/95 border border-[#E5E5E5]/90 rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-yellow-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
             <div className="w-8 h-8 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-500 group-hover:scale-110 transition duration-300">
               <Coins size={18} />
             </div>
@@ -485,9 +519,9 @@ export default async function UserDashboard() {
               View Wallet
             </span>
           </Link>
-
+ 
           {/* 2. LMS Academy Card */}
-          <Link href="/lms/courses" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-indigo-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+          <Link href="/lms/courses" className="bg-white/95 border border-[#E5E5E5]/90 rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-indigo-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
             <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition duration-300">
               <BookOpen size={18} />
             </div>
@@ -499,9 +533,9 @@ export default async function UserDashboard() {
               {progressPercentage === 100 ? "Completed" : progressPercentage > 0 ? "Resume" : "Start"}
             </span>
           </Link>
-
+ 
           {/* 3. Daily Deed Status Card */}
-          <Link href="/dashboard/log-deed" className="bg-white border border-[#E5E5E5] rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-orange-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
+          <Link href="/dashboard/log-deed" className="bg-white/95 border border-[#E5E5E5]/90 rounded-2xl p-3 flex flex-col items-center justify-between text-center shadow-sm hover:border-orange-500 hover:shadow-md transition duration-300 cursor-pointer group min-h-[120px]">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center transition duration-300 group-hover:scale-110 ${
               hasLoggedDeedToday ? "bg-green-50 text-[#0BA242]" : "bg-orange-50 text-orange-500"
             }`}>
@@ -523,8 +557,9 @@ export default async function UserDashboard() {
           </Link>
         </div>
 
+
         {/* ACTIVE ACADEMY TRACK */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookOpen size={18} className="text-indigo-600" />
@@ -566,7 +601,7 @@ export default async function UserDashboard() {
         </div>
 
         {/* MY REGISTERED EVENTS */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar size={18} className="text-[#0A9EDE]" />
@@ -613,7 +648,7 @@ export default async function UserDashboard() {
         </div>
 
         {/* REWARDS & SHOP PERKS */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Gift size={18} className="text-[#0BA242]" />
             <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Rewards</h3>
@@ -638,7 +673,7 @@ export default async function UserDashboard() {
         </div>
 
         {/* COMMUNITY HUB */}
-        <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
+        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Trophy size={18} className="text-yellow-600" />
             <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Community Hub</h3>
