@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { 
   Calendar, 
   MapPin, 
@@ -13,12 +13,16 @@ import {
   Edit2,
   Clock,
   Coins,
-  ScanLine
+  ScanLine,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { checkInTicket, createEvent, toggleManualAttendance, updateEvent } from '@/app/admin/actions'
+import { checkInTicket, createEvent, updateEvent } from '@/app/admin/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
@@ -59,12 +63,14 @@ export default function PresidentEventsManager({
   adminRole,
   adminDivision,
   adminUnitName,
+  rankTiers,
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
   adminRole: string
   adminDivision?: string | null
   adminUnitName?: string | null
+  rankTiers: { name: string; threshold: number }[]
 }) {
   const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
@@ -82,7 +88,21 @@ export default function PresidentEventsManager({
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null)
-  const [showAttendeesModal, setShowAttendeesModal] = useState(false)
+
+  // Search, Pagination, Sort
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
+
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => 
+      e.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      e.location.toLowerCase().includes(searchQuery.toLowerCase())
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [events, searchQuery])
+
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
+  const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
   // Create Form fields
   const [createTitle, setCreateTitle] = useState('')
@@ -94,6 +114,11 @@ export default function PresidentEventsManager({
   const [createCoinReward, setCreateCoinReward] = useState('50')
   const [createIsCompulsory, setCreateIsCompulsory] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  
+  // Custom Criteria
+  const [createMinAge, setCreateMinAge] = useState<number | ''>('')
+  const [createMinStreak, setCreateMinStreak] = useState<number | ''>('')
+  const [createRequiredRank, setCreateRequiredRank] = useState('none')
 
   // Edit Form fields
   const [editTitle, setEditTitle] = useState('')
@@ -105,9 +130,6 @@ export default function PresidentEventsManager({
   const [editCoinReward, setEditCoinReward] = useState('50')
   const [editIsCompulsory, setEditIsCompulsory] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
-
-  // Attendees list state
-  const [isTogglingAttendance, setIsTogglingAttendance] = useState<string | null>(null)
 
   const handleTicketCheckIn = async (e?: React.FormEvent, overrideCode?: string) => {
     if (e) e.preventDefault()
@@ -166,6 +188,12 @@ export default function PresidentEventsManager({
     try {
       const capacityVal = parseInt(createCapacity, 10) || 100
       const coinRewardVal = parseInt(createCoinReward, 10) || 50
+      
+      const customCriteria: any = {}
+      if (createMinAge !== '') customCriteria.min_age = createMinAge
+      if (createMinStreak !== '') customCriteria.min_streak = createMinStreak
+      if (createRequiredRank !== 'none') customCriteria.required_rank = createRequiredRank
+
       const res = await createEvent(
         createTitle,
         createDescription,
@@ -176,7 +204,8 @@ export default function PresidentEventsManager({
         coinRewardVal,
         adminDivision || null,
         null,
-        createIsCompulsory
+        createIsCompulsory,
+        customCriteria
       )
 
       if (res?.error) {
@@ -194,12 +223,12 @@ export default function PresidentEventsManager({
         setCreateCapacity('100')
         setCreateCoinReward('50')
         setCreateIsCompulsory(false)
+        setCreateMinAge('')
+        setCreateMinStreak('')
+        setCreateRequiredRank('none')
         
         router.refresh()
-        // Wait briefly and update state
-        setTimeout(() => {
-          window.location.reload()
-        }, 800)
+        setTimeout(() => window.location.reload(), 800)
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'An error occurred.')
@@ -208,99 +237,12 @@ export default function PresidentEventsManager({
     }
   }
 
-  // Open Edit Modal and prefill
-  const openEditModal = (event: EventItem) => {
-    setSelectedEvent(event)
-    setEditTitle(event.title)
-    setEditDescription(event.description || '')
-    setEditDate(event.date)
-    setEditTime(event.time)
-    setEditLocation(event.location)
-    setEditCapacity(String(event.capacity || 100))
-    setEditCoinReward(String(event.coin_reward || 50))
-    setEditIsCompulsory(!!event.is_compulsory)
-    setShowEditModal(true)
+  const navigateToDetails = (id: string) => {
+    router.push(`/dashboard/president/events/${id}`)
   }
-
-  // Handle Edit Event
-  const handleEditEvent = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedEvent) return
-    setIsUpdating(true)
-
-    try {
-      const capacityVal = parseInt(editCapacity, 10) || 100
-      const coinRewardVal = parseInt(editCoinReward, 10) || 50
-      const res = await updateEvent(
-        selectedEvent.id,
-        editTitle,
-        editDescription,
-        editDate,
-        editTime,
-        editLocation,
-        capacityVal,
-        coinRewardVal,
-        selectedEvent.unit_id,
-        null,
-        editIsCompulsory
-      )
-
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        toast.success('Event updated successfully!')
-        setShowEditModal(false)
-        router.refresh()
-        // Force state reload
-        setTimeout(() => {
-          window.location.reload()
-        }, 800)
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred.')
-    } finally {
-      setIsUpdating(false)
-    }
-  }
-
-  // Open Attendees list
-  const openAttendeesList = (event: EventItem) => {
-    setSelectedEvent(event)
-    setShowAttendeesModal(true)
-  }
-
-  // Toggle Attendance Checkbox
-  const handleToggleAttendance = async (regId: string, currentAttended: boolean) => {
-    setIsTogglingAttendance(regId)
-    const targetStatus = !currentAttended
-
-    try {
-      const res = await toggleManualAttendance(regId, targetStatus)
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        toast.success(targetStatus ? 'Check-in confirmed!' : 'Check-in revoked!')
-        
-        // Update local state
-        setRegistrations(prev =>
-          prev.map(reg =>
-            reg.id === regId ? { ...reg, attended: targetStatus, attended_at: targetStatus ? new Date().toISOString() : null } : reg
-          )
-        )
-        router.refresh()
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred.')
-    } finally {
-      setIsTogglingAttendance(null)
-    }
-  }
-
-  // Get registrations for selected event
-  const selectedEventAttendees = registrations.filter(r => r.event_id === selectedEvent?.id)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Camera QR Scanner Modal */}
       {showCameraScanner && (
         <QRScannerModal
@@ -310,149 +252,195 @@ export default function PresidentEventsManager({
       )}
 
       {/* Search/Ticket scanning input */}
-      <Card className="shadow-sm border border-zinc-150 bg-white rounded-2xl overflow-hidden">
-        <CardContent className="p-4 space-y-3">
-          <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Quick Ticket Check-In</label>
-          <div className="space-y-2">
-            <span className="text-[10px] text-zinc-400 font-bold block">Select Checkpoint Event</span>
-            <select
-              value={scanEventId}
-              onChange={(e) => setScanEventId(e.target.value)}
-              className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white mb-2"
-              disabled={isCheckingIn}
-              required
-            >
-              <option value="">Select an Event...</option>
-              {events.map((ev) => (
-                <option key={ev.id} value={ev.id}>
-                  {ev.title} ({new Date(ev.date).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
+      <Card className="shadow-sm border border-zinc-200 bg-white rounded-2xl overflow-hidden">
+        <CardContent className="p-5 space-y-4">
+          <label className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider block">Quick Ticket Check-In</label>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-2">
+              <span className="text-[10px] text-zinc-400 font-bold block">Select Checkpoint Event</span>
+              <select
+                value={scanEventId}
+                onChange={(e) => setScanEventId(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-zinc-50"
+                disabled={isCheckingIn}
+                required
+              >
+                <option value="">Select an Event...</option>
+                {events.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.title} ({new Date(ev.date).toLocaleDateString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 space-y-2">
+              <span className="text-[10px] text-zinc-400 font-bold block">Enter Code</span>
+              <form onSubmit={handleTicketCheckIn} className="flex gap-2">
+                <Input 
+                  placeholder="Scan QR or type User UUID / Ticket"
+                  value={ticketInput}
+                  onChange={(e) => setTicketInput(e.target.value)}
+                  className="h-10 text-xs flex-1 border-zinc-200"
+                />
+                <Button
+                  type="button"
+                  onClick={() => setShowCameraScanner(true)}
+                  variant="outline"
+                  className="h-10 px-3 border-zinc-200 text-[#0A9EDE]"
+                  title="Scan QR with Camera"
+                >
+                  <ScanLine size={18} />
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isCheckingIn || !ticketInput.trim() || !scanEventId}
+                  isLoading={isCheckingIn}
+                  className="h-10 px-6 bg-zinc-950 text-white font-bold rounded-xl"
+                >
+                  Verify
+                </Button>
+              </form>
+            </div>
           </div>
-          <form onSubmit={handleTicketCheckIn} className="flex gap-2">
-            <Input 
-              placeholder="Scan QR or type User UUID / Member ID"
-              value={ticketInput}
-              onChange={(e) => setTicketInput(e.target.value)}
-              className="h-9 text-xs flex-1"
-            />
-            <Button
-              type="button"
-              onClick={() => setShowCameraScanner(true)}
-              variant="outline"
-              className="h-9 text-xs px-3 border-zinc-200"
-              title="Scan QR with Camera"
-            >
-              <ScanLine size={16} className="text-[#0A9EDE]" />
-            </Button>
-            <Button
-              type="submit"
-              disabled={isCheckingIn || !ticketInput.trim()}
-              isLoading={isCheckingIn}
-              className="h-9 text-xs px-4 bg-zinc-950 text-white"
-            >
-              Verify
-            </Button>
-          </form>
         </CardContent>
       </Card>
 
       {/* Header and Add Button */}
-      <div className="flex items-center justify-between px-1 pt-2">
-        <div>
-          <h2 className="text-lg font-bold text-zinc-900">Events Directory</h2>
-          <p className="text-xs text-zinc-500">List and manage events for {adminUnitName || 'your unit'}.</p>
+      <div className="flex items-center justify-between pt-2">
+        <div className="relative max-w-xs w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={16} className="text-zinc-400" />
+          </div>
+          <Input 
+            placeholder="Search events..." 
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="pl-9 h-10 border-zinc-200 focus:border-[#0A9EDE]"
+          />
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
-          className="h-9 text-xs px-3 bg-[#0A9EDE] hover:bg-[#088abf] border-[#0A9EDE] text-white"
-          leftIcon={<Plus size={14} />}
+          className="h-10 text-xs px-4 bg-[#0A9EDE] hover:bg-[#088abf] border-[#0A9EDE] text-white rounded-xl"
+          leftIcon={<Plus size={16} />}
         >
-          Create
+          Create Event
         </Button>
       </div>
 
-      {/* Events List */}
-      <div className="space-y-4">
-        {events.length === 0 ? (
-          <Card className="border-dashed border-zinc-200 bg-white">
-            <CardContent className="p-12 text-center text-zinc-400">
-              <Calendar size={40} className="mx-auto mb-3 text-zinc-300 bg-zinc-50 p-2.5 rounded-full h-12 w-12" />
-              <h3 className="font-bold text-zinc-700 text-sm mb-1">No Events Found</h3>
-              <p className="text-xs">Schedule your first unit event using the Create button.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          events.map(event => {
-            const count = registrations.filter(r => r.event_id === event.id).length
-            return (
-              <Card key={event.id} className="shadow-sm border border-zinc-150 bg-white rounded-2xl overflow-hidden">
-                <div className="p-4 space-y-3">
-                  <div className="flex justify-between items-start gap-2">
-                    <h3 className="font-bold text-sm text-zinc-950 leading-tight">{event.title}</h3>
-                    <div className="flex gap-1.5 items-center shrink-0">
-                      {event.is_compulsory ? (
-                        <span className="text-[9px] font-black uppercase bg-red-50 border border-red-200 text-[#DD0408] px-2 py-0.5 rounded-full">
-                          Compulsory
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-black uppercase bg-zinc-100 border border-zinc-200 text-zinc-600 px-2 py-0.5 rounded-full">
-                          Optional
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-full shrink-0">
-                        <Coins size={11} className="text-yellow-600" />
-                        <span className="font-extrabold text-[9px] text-yellow-700 font-mono">{event.coin_reward ?? 50} C</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">
-                    {event.description || 'No description provided.'}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-2 border-t border-zinc-50 text-[11px] text-zinc-500 font-semibold">
-                    <div className="flex items-center gap-1">
-                      <Calendar size={13} className="text-[#0BA242]" />
-                      <span>{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock size={13} className="text-[#DD0408]" />
-                      <span>{event.time}</span>
-                    </div>
-                    <div className="flex items-center gap-1 col-span-2">
-                      <MapPin size={13} className="text-[#0A9EDE]" />
-                      <span className="truncate">{event.location}</span>
-                    </div>
-                    <div className="flex items-center gap-1 col-span-2 text-zinc-600 bg-zinc-50 border border-zinc-150 px-2 py-1 rounded-lg w-fit mt-1">
-                      <Users size={12} className="text-zinc-500" />
-                      <span>Capacity: {count} / {event.capacity} registered</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2 pt-3 border-t border-zinc-100">
-                    <Button 
-                      onClick={() => openAttendeesList(event)}
-                      variant="outline"
-                      className="flex-1 h-9 text-xs border-zinc-200 hover:bg-zinc-50"
-                      leftIcon={<ClipboardList size={14} />}
+      {/* Events List as a Table */}
+      <Card className="shadow-sm border border-zinc-200 overflow-hidden bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-zinc-50 border-b border-zinc-200">
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Event</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Date & Time</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Location</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-center">Attendance</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {paginatedEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-12 text-center text-zinc-400 text-sm">
+                    {searchQuery ? 'No events match your search.' : 'No events scheduled yet.'}
+                  </td>
+                </tr>
+              ) : (
+                paginatedEvents.map(event => {
+                  const regCount = registrations.filter(r => r.event_id === event.id).length
+                  const attCount = registrations.filter(r => r.event_id === event.id && r.attended).length
+                  return (
+                    <tr 
+                      key={event.id} 
+                      className="hover:bg-zinc-50 transition-colors cursor-pointer"
+                      onClick={() => navigateToDetails(event.id)}
                     >
-                      Attendees
-                    </Button>
-                    <Button 
-                      onClick={() => openEditModal(event)}
-                      variant="outline"
-                      className="h-9 text-xs border-zinc-200 hover:bg-zinc-50 px-3"
-                      leftIcon={<Edit2 size={14} />}
-                    />
-                  </div>
-                </div>
-              </Card>
-            )
-          })
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-bold text-zinc-900 text-sm">{event.title}</span>
+                          <div className="flex items-center gap-2">
+                            {event.is_compulsory && (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-bold uppercase tracking-wider border border-red-100">
+                                Compulsory
+                              </span>
+                            )}
+                            <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 px-2 py-0.5 rounded-full w-fit">
+                              <Coins size={10} className="text-yellow-600" />
+                              <span className="font-extrabold text-[9px] text-yellow-700 font-mono">{event.coin_reward ?? 50} C</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-600">
+                        <div className="font-semibold">{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        <div className="text-zinc-400 mt-0.5 flex items-center gap-1"><Clock size={12}/>{event.time}</div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-600">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin size={13} className="text-[#0A9EDE]" />
+                          <span className="truncate max-w-[150px]">{event.location}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="inline-flex flex-col items-center justify-center">
+                          <span className="text-xs font-bold text-zinc-900">{attCount} / {regCount}</span>
+                          <span className="text-[10px] text-zinc-400">Checked In</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-zinc-400 hover:text-[#0A9EDE] hover:bg-[#0A9EDE]/10 rounded-full"
+                            title="View Details"
+                          >
+                            <ArrowRight size={16} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50">
+            <span className="text-xs text-zinc-500">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredEvents.length)} of {filteredEvents.length} events
+            </span>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
         )}
-      </div>
+      </Card>
 
       {/* CREATE EVENT MODAL */}
       {showCreateModal && (
@@ -491,7 +479,49 @@ export default function PresidentEventsManager({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Custom Eligibility Criteria (UI Version) */}
+              <div className="space-y-3 pt-3 border-t border-zinc-100">
+                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Custom Eligibility Criteria</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 font-bold uppercase">Minimum Age</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 15"
+                      value={createMinAge}
+                      onChange={(e) => setCreateMinAge(e.target.value ? parseInt(e.target.value, 10) : '')}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 font-bold uppercase">Minimum Streak</label>
+                    <Input 
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 7"
+                      value={createMinStreak}
+                      onChange={(e) => setCreateMinStreak(e.target.value ? parseInt(e.target.value, 10) : '')}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 font-bold uppercase">Required Rank</label>
+                  <select
+                    value={createRequiredRank}
+                    onChange={(e) => setCreateRequiredRank(e.target.value)}
+                    className="w-full text-xs p-2 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0A9EDE] bg-white"
+                  >
+                    <option value="none">None (Open to all)</option>
+                    {rankTiers.map(tier => (
+                      <option key={tier.name} value={tier.name}>{tier.name} ({tier.threshold} Coins)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-zinc-100">
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Date</label>
                   <Input 
@@ -557,7 +587,7 @@ export default function PresidentEventsManager({
                   className="w-4 h-4 rounded text-[#0A9EDE] border-zinc-300 focus:ring-[#0A9EDE] cursor-pointer"
                 />
                 <label htmlFor="createIsCompulsory" className="text-xs font-semibold text-zinc-700 cursor-pointer select-none">
-                  Make this event Compulsory (Required for all members)
+                  Make this event Compulsory
                 </label>
               </div>
 
@@ -587,217 +617,6 @@ export default function PresidentEventsManager({
       )}
 
       {/* EDIT EVENT MODAL */}
-      {showEditModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full border border-zinc-200 overflow-hidden my-8 animate-in zoom-in-95 duration-200">
-            <div className="px-5 py-4 border-b border-zinc-150 flex justify-between items-center bg-zinc-50">
-              <h3 className="font-extrabold text-sm text-zinc-900 flex items-center gap-1.5">
-                <Edit2 size={15} className="text-[#0A9EDE]" />
-                Edit Event
-              </h3>
-              <button onClick={() => setShowEditModal(false)} className="text-zinc-400 hover:text-zinc-600 cursor-pointer">
-                <X size={16} />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditEvent} className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Event Title</label>
-                <Input 
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="h-9 text-xs"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Description</label>
-                <textarea
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  rows={3}
-                  className="w-full text-xs p-2.5 rounded-lg border border-zinc-200 focus:outline-none focus:border-[#0A9EDE]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Date</label>
-                  <Input 
-                    type="date"
-                    value={editDate}
-                    onChange={(e) => setEditDate(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Time</label>
-                  <Input 
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Location / Venue</label>
-                <Input 
-                  value={editLocation}
-                  onChange={(e) => setEditLocation(e.target.value)}
-                  className="h-9 text-xs"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Capacity</label>
-                  <Input 
-                    type="number"
-                    value={editCapacity}
-                    onChange={(e) => setEditCapacity(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Coin Reward</label>
-                  <Input 
-                    type="number"
-                    value={editCoinReward}
-                    onChange={(e) => setEditCoinReward(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 py-1">
-                <input
-                  type="checkbox"
-                  id="editIsCompulsory"
-                  checked={editIsCompulsory}
-                  onChange={(e) => setEditIsCompulsory(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#0A9EDE] border-zinc-300 focus:ring-[#0A9EDE] cursor-pointer"
-                />
-                <label htmlFor="editIsCompulsory" className="text-xs font-semibold text-zinc-700 cursor-pointer select-none">
-                  Make this event Compulsory (Required for all members)
-                </label>
-              </div>
-
-              <div className="px-5 py-3 border-t border-zinc-150 bg-zinc-50 -mx-5 -mb-5 flex justify-end gap-2 pt-4">
-                <Button 
-                  type="button" 
-                  onClick={() => setShowEditModal(false)} 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 text-xs"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  disabled={isUpdating}
-                  isLoading={isUpdating}
-                  className="h-8 text-xs bg-zinc-900 border-zinc-900 text-white"
-                  size="sm"
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ATTENDEES DRAWER/MODAL */}
-      {showAttendeesModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black/55 z-55 flex flex-col justify-end backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-3xl max-h-[85vh] flex flex-col w-full border-t border-zinc-200 animate-in slide-in-from-bottom duration-300">
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-zinc-150 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
-              <div>
-                <h3 className="font-extrabold text-sm text-zinc-900 truncate max-w-[250px]" title={selectedEvent.title}>
-                  {selectedEvent.title}
-                </h3>
-                <p className="text-[10px] text-zinc-400 mt-0.5">Attendee Check-in Management</p>
-              </div>
-              <button 
-                onClick={() => setShowAttendeesModal(false)} 
-                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* List */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {selectedEventAttendees.length === 0 ? (
-                <div className="text-center py-12 text-zinc-400">
-                  <Users size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-xs font-semibold">No volunteers registered yet.</p>
-                </div>
-              ) : (
-                selectedEventAttendees.map(reg => (
-                  <div 
-                    key={reg.id} 
-                    className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-150 rounded-2xl text-xs shadow-inner"
-                  >
-                    <div className="min-w-0 pr-2">
-                      <p className="font-bold text-zinc-950 truncate">{reg.profiles.full_name}</p>
-                      <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{reg.ticket_code}</p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {reg.attended ? (
-                        <div className="flex items-center gap-1 text-[10px] font-extrabold text-[#0BA242] bg-[#0BA242]/10 border border-[#0BA242]/20 px-2 py-1 rounded-full">
-                          <UserCheck size={11} />
-                          Checked In
-                        </div>
-                      ) : (
-                        <div className="text-[10px] text-zinc-400 border border-zinc-200 bg-white px-2 py-1 rounded-full font-medium">
-                          Absent
-                        </div>
-                      )}
-                      
-                      <button
-                        onClick={() => handleToggleAttendance(reg.id, reg.attended)}
-                        disabled={isTogglingAttendance === reg.id}
-                        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
-                          reg.attended
-                            ? 'bg-red-50 border-red-150 text-[#DD0408] hover:bg-red-100/50'
-                            : 'bg-green-50 border-green-150 text-[#0BA242] hover:bg-green-100/50'
-                        }`}
-                        title={reg.attended ? 'Mark Absent' : 'Mark Attended'}
-                      >
-                        {isTogglingAttendance === reg.id ? (
-                          <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                        ) : reg.attended ? (
-                          <X size={14} />
-                        ) : (
-                          <Check size={14} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Footer summary */}
-            <div className="p-5 border-t border-zinc-150 bg-zinc-50 flex items-center justify-between text-xs font-semibold text-zinc-500">
-              <span>Total Registrations: {selectedEventAttendees.length}</span>
-              <span className="text-[#0BA242]">
-                Checked In: {selectedEventAttendees.filter(r => r.attended).length}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -2,7 +2,8 @@
 
 import React, { useState, useTransition } from 'react'
 import { 
-  Search, 
+  Search,
+  Eye,
   UserCog, 
   Coins, 
   Flame, 
@@ -59,6 +60,7 @@ interface DirectoryUser {
   full_name: string
   email: string
   role: string
+  avatar_url?: string | null
   unit_name: string
   unit_id: string
   qualification: string
@@ -74,12 +76,14 @@ export default function UserDirectory({
   activeAdminRole,
   adminUnitId,
   allUnits = [],
+  isPresidentConsole = false,
 }: {
   initialUsers: DirectoryUser[]
   activeAdminId: string
   activeAdminRole: string
   adminUnitId?: string
   allUnits?: { id: string; name: string }[]
+  isPresidentConsole?: boolean
 }) {
   const [users, setUsers] = useState<DirectoryUser[]>(initialUsers)
   const [search, setSearch] = useState('')
@@ -447,15 +451,17 @@ export default function UserDirectory({
 
           {detailData && (
             <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => openCoinModal({ ...userSummary!, coins: detailData.profile.coins || 0 })}
-                variant="outline"
-                size="sm"
-                className="font-bold border-zinc-200"
-                leftIcon={<Coins size={14} className="text-amber-500" />}
-              >
-                Adjust Coins
-              </Button>
+              {!isPresidentConsole && activeAdminRole !== 'president' && (
+                <Button
+                  onClick={() => openCoinModal({ ...userSummary!, coins: detailData.profile.coins || 0 })}
+                  variant="outline"
+                  size="sm"
+                  className="font-bold border-zinc-200"
+                  leftIcon={<Coins size={14} className="text-amber-500" />}
+                >
+                  Adjust Coins
+                </Button>
+              )}
               <Button
                 onClick={() => openRoleModal({ ...userSummary!, role: detailData.profile.role })}
                 variant="outline"
@@ -465,7 +471,7 @@ export default function UserDirectory({
               >
                 Edit Role / Perms
               </Button>
-              {(activeAdminRole === 'superadmin' || activeAdminRole === 'president') && (
+              {!isPresidentConsole && activeAdminRole !== 'president' && (
                 <Button
                   onClick={() => openDeleteModal({ ...userSummary! })}
                   variant="outline"
@@ -545,6 +551,7 @@ export default function UserDirectory({
                 <TabsTrigger value="coins">Coin Ledger ({detailData.coinTransactions.length})</TabsTrigger>
                 <TabsTrigger value="events">Events RSVP ({detailData.registrations.length})</TabsTrigger>
                 <TabsTrigger value="lms">LMS Course Progress ({detailData.progress.length})</TabsTrigger>
+                <TabsTrigger value="deeds">Submitted Streaks ({detailData.deedSubmissions?.length || 0})</TabsTrigger>
               </TabsList>
 
               {/* Profile details tab (CRUD Read/Update form) */}
@@ -859,6 +866,88 @@ export default function UserDirectory({
                   </div>
                 </Card>
               </TabsContent>
+
+              {/* Deed Submissions / Submitted Streaks Tab */}
+              <TabsContent value="deeds" className="space-y-4">
+                <Card className="shadow-sm border border-zinc-200 bg-white overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-zinc-50 border-b border-zinc-150 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
+                          <th className="p-4">Submission Date</th>
+                          <th className="p-4">Status</th>
+                          <th className="p-4">Coins Awarded</th>
+                          <th className="p-4">Description</th>
+                          <th className="p-4">Proof</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100 text-sm">
+                        {!detailData.deedSubmissions || detailData.deedSubmissions.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-12 text-center text-zinc-400 text-xs font-semibold">
+                              This user has not submitted any deeds for streaks yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          detailData.deedSubmissions.map((deed: any) => {
+                            const isApproved = deed.status === 'approved'
+                            const isPending = deed.status === 'pending'
+                            const isRejected = deed.status === 'rejected'
+                            const isFlagged = deed.status === 'flagged'
+                            
+                            return (
+                              <tr key={deed.id} className="hover:bg-zinc-50/50 transition-colors">
+                                <td className="p-4 text-xs font-semibold text-zinc-500 font-mono">
+                                  {new Date(deed.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                                </td>
+                                <td className="p-4">
+                                  <Badge 
+                                    className={
+                                      isApproved ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                      isPending ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                      isRejected ? 'bg-red-50 text-red-700 border-red-200' :
+                                      isFlagged ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                      'bg-zinc-100 text-zinc-700 border-zinc-200'
+                                    }
+                                  >
+                                    {deed.status.toUpperCase()}
+                                  </Badge>
+                                </td>
+                                <td className="p-4 text-center font-bold font-mono text-sm">
+                                  {isApproved ? (
+                                    <span className="text-emerald-600">+{(deed.coin_reward || 0) + (deed.bonus_coins || 0)} C</span>
+                                  ) : (
+                                    <span className="text-zinc-400">—</span>
+                                  )}
+                                </td>
+                                <td className="p-4 text-xs font-semibold text-zinc-800">
+                                  <span className="line-clamp-2" title={deed.description || 'No description'}>
+                                    {deed.description || 'No description'}
+                                  </span>
+                                  {deed.admin_notes && (
+                                    <span className="block mt-1 text-[10px] text-zinc-400">
+                                      Admin: {deed.admin_notes}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  {deed.proof_url ? (
+                                    <a href={deed.proof_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-[#0A9EDE] hover:underline">
+                                      View Proof
+                                    </a>
+                                  ) : (
+                                    <span className="text-xs text-zinc-400">N/A</span>
+                                  )}
+                                </td>
+                              </tr>
+                            )
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </TabsContent>
             </Tabs>
           </div>
         )}
@@ -901,7 +990,7 @@ export default function UserDirectory({
               >
                 <option value="volunteer">Volunteer (Default Member)</option>
                 <option value="tier-3">Event Scanner (Tier 3 Admin)</option>
-                {activeAdminRole !== 'president' && (
+                {!isPresidentConsole && activeAdminRole !== 'president' && (
                   <>
                     <option value="admin">Administrator (Legacy Full Admin)</option>
                     <option value="president">President (President Admin)</option>
@@ -1146,7 +1235,7 @@ export default function UserDirectory({
           </div>
 
           {/* Granular Filter Dropdowns */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className={`grid grid-cols-1 ${isPresidentConsole || activeAdminRole === 'president' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
             {/* Role Filter */}
             <div className="space-y-1">
               <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Role</span>
@@ -1158,26 +1247,32 @@ export default function UserDirectory({
                 <option value="all">All Roles</option>
                 <option value="volunteer">Volunteers</option>
                 <option value="tier-3">Event Scanners</option>
-                <option value="admin">Legacy Admins</option>
-                <option value="president">President Admins</option>
-                <option value="superadmin">Super Admins</option>
+                {(!isPresidentConsole && activeAdminRole !== 'president') && (
+                  <>
+                    <option value="admin">Legacy Admins</option>
+                    <option value="president">President Admins</option>
+                    <option value="superadmin">Super Admins</option>
+                  </>
+                )}
               </Select>
             </div>
 
             {/* Unit Filter */}
-            <div className="space-y-1">
-              <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Unit</span>
-              <Select 
-                value={unitFilter}
-                onChange={(e) => setUnitFilter(e.target.value)}
-                className="h-9 text-xs"
-              >
-                <option value="all">All Units</option>
-                {uniqueUnits.map(unit => (
-                  <option key={unit} value={unit}>{unit.toUpperCase()}</option>
-                ))}
-              </Select>
-            </div>
+            {activeAdminRole !== 'president' && (
+              <div className="space-y-1">
+                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Unit</span>
+                <Select 
+                  value={unitFilter}
+                  onChange={(e) => setUnitFilter(e.target.value)}
+                  className="h-9 text-xs"
+                >
+                  <option value="all">All Units</option>
+                  {uniqueUnits.map(unit => (
+                    <option key={unit} value={unit}>{unit.toUpperCase()}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             {/* Education/Qualification Filter */}
             <div className="space-y-1">
@@ -1204,103 +1299,67 @@ export default function UserDirectory({
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-zinc-50 border-b border-zinc-150 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
-                  <th className="py-3 px-4">Name & Email</th>
-                  <th className="py-3 px-4">Unit</th>
-                  <th className="py-3 px-4">Education</th>
-                  <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4 text-center">Coins</th>
-                  <th className="py-3 px-4 text-center">Streak</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="bg-zinc-50 border-b border-zinc-200">
+                  <th className="py-3 px-4 text-left font-bold text-xs uppercase tracking-wider text-zinc-500 rounded-tl-xl w-[250px]">Full Name</th>
+                  <th className="py-3 px-4 text-left font-bold text-xs uppercase tracking-wider text-zinc-500">Division</th>
+                  <th className="py-3 px-4 text-left font-bold text-xs uppercase tracking-wider text-zinc-500">Qualification</th>
+                  <th className="py-3 px-4 text-right font-bold text-xs uppercase tracking-wider text-zinc-500 rounded-tr-xl w-[100px]">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-150 text-xs">
                 {filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-12 text-center text-zinc-400 font-semibold text-sm">
+                    <td colSpan={4} className="p-12 text-center text-zinc-400 font-semibold text-sm">
                       No members matched your filters.
                     </td>
                   </tr>
                 ) : (
                   filteredUsers.map((user) => {
-                    const isSelf = user.id === activeAdminId
                     return (
-                      <tr key={user.id} className="hover:bg-zinc-50/50 transition-colors">
-                        <td className="py-2.5 px-4">
-                          <div>
-                            <span 
-                              onClick={() => handleViewDetails(user.id)}
-                              className="font-bold text-zinc-900 hover:text-red-600 hover:underline cursor-pointer block text-sm"
-                            >
-                              {user.full_name}
-                            </span>
-                            <span className="text-zinc-400 font-mono block mt-0.5">{user.email}</span>
+                      <tr 
+                        key={user.id} 
+                        className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors ${
+                          selectedUserId === user.id ? 'bg-zinc-50' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            {user.avatar_url ? (
+                              <img src={user.avatar_url} alt={user.full_name} className="w-10 h-10 rounded-full object-cover shadow-sm bg-zinc-100" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center shadow-sm shrink-0">
+                                <User size={18} className="text-zinc-400" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-zinc-900">{user.full_name || 'Unnamed Volunteer'}</span>
+                                {user.id === activeAdminId && (
+                                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 py-0 rounded bg-zinc-100 font-bold border-zinc-200 text-zinc-500">You</Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-zinc-500 font-mono block mt-0.5">{user.email}</span>
+                            </div>
                           </div>
                         </td>
-                        <td className="py-2.5 px-4 font-semibold text-zinc-600 uppercase">
-                          {user.unit_name}
+                        <td className="py-2.5 px-4">
+                          <div className="flex items-center gap-1.5">
+                            <MapPin size={12} className="text-zinc-400" />
+                            <span className="text-zinc-700 font-medium capitalize">{user.unit_name}</span>
+                          </div>
                         </td>
                         <td className="py-2.5 px-4 text-zinc-600 capitalize">
                           {user.qualification}
                         </td>
-                        <td className="py-2.5 px-4">
-                          <Badge 
-                            className={
-                              user.role === 'superadmin' ? 'bg-[#DD0408] border-[#DD0408] text-white' :
-                              user.role === 'president' ? 'bg-[#0A9EDE] border-[#0A9EDE] text-white' :
-                              user.role === 'tier-3' ? 'border-[#0BA242] text-[#0BA242] bg-[#0BA242]/5' : 
-                              'bg-zinc-100 text-zinc-700 border-zinc-200'
-                            }
-                          >
-                            {roleLabels[user.role] || user.role}
-                          </Badge>
-                        </td>
-                        <td className="py-2.5 px-4 text-center font-bold font-mono text-zinc-800 text-sm">
-                          {user.coins} C
-                        </td>
-                        <td className="py-2.5 px-4 text-center">
-                          <div className="inline-flex items-center gap-1 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full shrink-0">
-                            <Flame size={12} className="text-orange-500 fill-orange-500" />
-                            <span className="font-black text-orange-600">
-                              {user.streak.current}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-zinc-400 block mt-0.5 font-semibold">
-                            Max: {user.streak.longest}
-                          </span>
-                        </td>
                         <td className="py-2.5 px-4 text-right">
-                          <div className="inline-flex gap-1.5">
-                            <Button 
-                              onClick={() => handleViewDetails(user.id)}
-                              variant="outline" 
-                              size="sm" 
-                              className="h-7 py-0 px-2.5 text-[10px] font-bold border-zinc-200"
-                            >
-                              Details
-                            </Button>
-                            {(activeAdminRole === 'superadmin' || activeAdminRole === 'admin') && (
-                              <Button 
-                                onClick={() => openCoinModal(user)}
-                                variant="outline" 
-                                size="sm" 
-                                className="h-7 py-0 px-2 text-[10px] font-bold border-zinc-200"
-                                leftIcon={<Coins size={12} className="text-amber-500" />}
-                              >
-                                Coins
-                              </Button>
-                            )}
-                            <Button 
-                              onClick={() => openRoleModal(user)}
-                              variant="outline" 
-                              size="sm"
-                              className="h-7 py-0 px-2 text-[10px] font-bold border-zinc-200"
-                              disabled={isSelf}
-                              leftIcon={<UserCog size={12} />}
-                            >
-                              Role
-                            </Button>
-                          </div>
+                          <Button 
+                            onClick={() => handleViewDetails(user.id)}
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 px-3 border-zinc-200 text-zinc-600 hover:text-zinc-900 rounded-lg"
+                          >
+                            View
+                          </Button>
                         </td>
                       </tr>
                     )
@@ -1318,85 +1377,49 @@ export default function UserDirectory({
               </div>
             ) : (
               filteredUsers.map((user) => {
-                const isSelf = user.id === activeAdminId
                 return (
-                  <div key={user.id} className="p-4 space-y-3 bg-white hover:bg-zinc-50/50 transition-colors">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        <span 
-                          onClick={() => handleViewDetails(user.id)}
-                          className="font-bold text-zinc-950 text-sm block truncate hover:underline cursor-pointer"
-                        >
-                          {user.full_name}
-                        </span>
-                        <span className="text-xs text-zinc-400 block truncate font-mono">{user.email}</span>
+                  <div key={user.id} className="bg-white p-4 relative hover:bg-zinc-50 transition-colors">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3 items-center">
+                        {user.avatar_url ? (
+                          <img src={user.avatar_url} alt={user.full_name} className="w-10 h-10 rounded-full object-cover shadow-sm bg-zinc-100" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center shadow-sm shrink-0">
+                            <User size={18} className="text-zinc-400" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-zinc-900 leading-tight">
+                              {user.full_name || 'Unnamed Volunteer'}
+                            </h4>
+                            {user.id === activeAdminId && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1.5 py-0 rounded bg-zinc-100 font-bold border-zinc-200 text-zinc-500">You</Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-zinc-500 font-mono mt-0.5">{user.email}</p>
+                        </div>
                       </div>
-                      <Badge 
-                        className={
-                          user.role === 'superadmin' ? 'bg-[#DD0408] border-[#DD0408] text-white text-[9px] px-2 py-0.5 shrink-0' :
-                          user.role === 'president' ? 'bg-[#0A9EDE] border-[#0A9EDE] text-white text-[9px] px-2 py-0.5 shrink-0' :
-                          user.role === 'tier-3' ? 'border-[#0BA242] text-[#0BA242] bg-[#0BA242]/5 text-[9px] px-2 py-0.5 shrink-0' : 
-                          'bg-zinc-100 text-zinc-700 text-[9px] px-2 py-0.5 shrink-0 border-zinc-200'
-                        }
+                      
+                      <Button 
+                        onClick={() => handleViewDetails(user.id)}
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-[10px] px-3 border-zinc-200 font-bold text-zinc-600 hover:text-zinc-900 flex items-center gap-1.5 shrink-0"
                       >
-                        {roleLabels[user.role] || user.role}
-                      </Badge>
+                        <Eye size={12} />
+                        View Options
+                      </Button>
                     </div>
 
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-zinc-500">
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-xs font-medium text-zinc-600">
                       <div className="flex items-center gap-1">
                         <MapPin size={12} className="text-zinc-400" />
-                        <span className="uppercase">{user.unit_name}</span>
+                        <span className="capitalize">{user.unit_name}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <GraduationCap size={12} className="text-zinc-400" />
                         <span className="truncate max-w-[150px] capitalize">{user.qualification}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-zinc-100 pt-3 mt-1.5">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-xs text-zinc-800 bg-zinc-100 px-2 py-1 rounded">
-                          {user.coins} C
-                        </span>
-                        <div className="inline-flex items-center gap-1 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
-                          <Flame size={10} className="text-orange-500 fill-orange-500" />
-                          <span className="font-extrabold text-[10px] text-orange-600">
-                            {user.streak.current}d <span className="font-normal text-zinc-400">({user.streak.longest} max)</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-1.5">
-                        <Button 
-                          onClick={() => handleViewDetails(user.id)}
-                          variant="outline" 
-                          size="sm" 
-                          className="h-7 text-[10px] px-2.5 border-zinc-200 font-bold"
-                        >
-                          Details
-                        </Button>
-                        {(activeAdminRole === 'superadmin' || activeAdminRole === 'admin') && (
-                          <Button 
-                            onClick={() => openCoinModal(user)}
-                            variant="outline" 
-                            size="sm" 
-                            className="h-7 text-[10px] px-2 border-zinc-200 font-bold"
-                            leftIcon={<Coins size={10} className="text-amber-500" />}
-                          >
-                            Coins
-                          </Button>
-                        )}
-                        <Button 
-                          onClick={() => openRoleModal(user)}
-                          variant="outline" 
-                          size="sm"
-                          className="h-7 text-[10px] px-2 border-zinc-200 font-bold"
-                          disabled={isSelf}
-                          leftIcon={<UserCog size={10} />}
-                        >
-                          Role
-                        </Button>
                       </div>
                     </div>
                   </div>

@@ -105,12 +105,7 @@ export default function PresidentApprovalsManager({
 
   return (
     <div className="space-y-4">
-      <div className="px-1">
-        <h2 className="text-lg font-bold text-zinc-900">Deed Approvals Queue</h2>
-        <p className="text-xs text-zinc-500">
-          Review daily good deeds and award bonus coins or reject with reasons.
-        </p>
-      </div>
+
 
       {submissions.length === 0 ? (
         <Card className="border-dashed border-zinc-200 bg-white">

@@ -35,6 +35,15 @@ export default async function AdminEventsPage() {
   // Fetch all units
   const { data: units } = await supabase.from('units').select('id, name').order('name');
 
+  // Fetch rank tiers for criteria
+  const { data: rankSettingsData } = await supabase.from('system_settings').select('value').eq('key', 'rank_tiers').single()
+  let rankTiers: { name: string; threshold: number }[] = []
+  if (rankSettingsData?.value) {
+    try {
+      rankTiers = JSON.parse(rankSettingsData.value)
+    } catch (e) {}
+  }
+
   let unitMembersQuery = supabase
     .from('profiles')
     .select('id, full_name, unit_id, qualification, units(name)')
@@ -112,6 +121,7 @@ export default async function AdminEventsPage() {
         adminUnitId={adminUnitId}
         adminUnitName={adminUnitName}
         units={units || []}
+        rankTiers={rankTiers}
       />
     </div>
   )

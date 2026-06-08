@@ -1,63 +1,29 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { 
   Calendar, 
   MapPin, 
   Users, 
   Plus, 
-  Check, 
   X, 
-  QrCode, 
-  UserCheck, 
-  ClipboardList
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs'
-import { checkInTicket, createEvent, toggleManualAttendance, updateEventCoinReward, processEventLeave } from '@/app/admin/actions'
+import { createEvent, updateEventCoinReward } from '@/app/admin/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import QrScannerWidget from '@/components/admin/QrScannerWidget'
 
 interface Registration {
   id: string
   event_id: string
   user_id: string
-  ticket_code: string
   attended: boolean
-  attended_at: string | null
-  status: string
-  leave_note: string | null
-  created_at: string
-  profiles: {
-    full_name: string
-    unit_name: string
-    qualification: string
-  }
-}
-
-interface UnitMember {
-  id: string
-  full_name: string
-  unit_id: string | null
-  qualification: string
-  unit_name: string
-}
-
-interface RosterEntry {
-  id: string
-  user_id: string
-  full_name: string
-  unit_name: string
-  qualification: string
-  attended: boolean
-  ticket_code: string | null
-  status: string
-  leave_note: string | null
-  registration_id: string | null
-  is_synthetic: boolean
 }
 
 interface EventItem {
@@ -76,16 +42,16 @@ interface EventItem {
 export default function EventsManager({
   initialEvents,
   initialRegistrations,
-  unitMembers,
   permissions,
   adminRole,
   adminUnitId,
   adminUnitName,
   units,
+  rankTiers,
 }: {
   initialEvents: EventItem[]
   initialRegistrations: Registration[]
-  unitMembers: UnitMember[]
+  unitMembers: any[]
   permissions: {
     can_scan_tickets: boolean
     can_manage_events: boolean
@@ -94,42 +60,10 @@ export default function EventsManager({
   adminUnitId?: string | null
   adminUnitName?: string | null
   units: { id: string; name: string }[]
+  rankTiers: { name: string; threshold: number }[]
 }) {
   const router = useRouter()
   const [events, setEvents] = useState<EventItem[]>(initialEvents)
-  const [registrations, setRegistrations] = useState<Registration[]>(initialRegistrations)
-  const [members] = useState<UnitMember[]>(unitMembers)
-
-  // Inline event coin editing states
-  const [eventRewards, setEventRewards] = useState<Record<string, number>>({})
-  const [savingEventReward, setSavingEventReward] = useState<Record<string, boolean>>({})
-
-  const handleSaveEventReward = async (eventId: string) => {
-    const coins = eventRewards[eventId] !== undefined
-      ? eventRewards[eventId]
-      : (events.find(ev => ev.id === eventId)?.coin_reward ?? 50)
-    setSavingEventReward(prev => ({ ...prev, [eventId]: true }))
-    try {
-      const res = await updateEventCoinReward(eventId, coins)
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        toast.success('Event coin reward updated!')
-        router.refresh()
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update event reward.')
-    } finally {
-      setSavingEventReward(prev => ({ ...prev, [eventId]: false }))
-    }
-  }
-
-  // Scanner Tab States
-  const [ticketInput, setTicketInput] = useState('')
-  const [isScanning, setIsScanning] = useState(false)
-  const [scanEventId, setScanEventId] = useState<string>(
-    initialEvents.length > 0 ? initialEvents[0].id : ''
-  )
 
   // Create Event States
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -143,76 +77,27 @@ export default function EventsManager({
   const [isCreating, setIsCreating] = useState(false)
   const [newUnitId, setNewUnitId] = useState('')
   const [newIsCompulsory, setNewIsCompulsory] = useState(false)
-  const [newCustomCriteria, setNewCustomCriteria] = useState('{\n  "min_age": 0,\n  "required_rank": "none"\n}')
+  
+  // Custom Criteria UI States
+  const [newMinAge, setNewMinAge] = useState<number | ''>('')
+  const [newMinStreak, setNewMinStreak] = useState<number | ''>('')
+  const [newRequiredRank, setNewRequiredRank] = useState('none')
 
-  // Manage Attendees States
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null)
-  const [isTogglingAttendance, setIsTogglingAttendance] = useState<string | null>(null)
-  const [isProcessingLeave, setIsProcessingLeave] = useState<string | null>(null)
+  // Search, Pagination, Sort
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
-  const handleProcessLeave = async (regId: string, action: 'approve' | 'reject') => {
-    setIsProcessingLeave(regId)
-    try {
-      const res = await processEventLeave(regId, action)
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        toast.success(`Leave ${action}d.`)
-        setRegistrations(prev =>
-          prev.map(reg => reg.id === regId ? { ...reg, status: action === 'approve' ? 'leave_approved' : 'leave_rejected' } : reg)
-        )
-      }
-    } catch (err: any) {
-      toast.error(err.message || 'Error processing leave')
-    } finally {
-      setIsProcessingLeave(null)
-    }
-  }
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => 
+      e.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      e.location.toLowerCase().includes(searchQuery.toLowerCase())
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [events, searchQuery])
 
-  // Handle Scanning / Manual Ticket Check-in
-  const handleTicketScan = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!ticketInput.trim()) return
+  const totalPages = Math.ceil(filteredEvents.length / itemsPerPage)
+  const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 
-    setIsScanning(true)
-
-    try {
-      const res = await checkInTicket(ticketInput.trim(), scanEventId || undefined)
-      if (res?.error) {
-        if (res.alreadyScanned) {
-          toast.warning(`Already Checked In`, {
-            description: `Ticket was already scanned for user ${res.userName}.`,
-          })
-        } else {
-          toast.error(res.error)
-        }
-      } else {
-        toast.success(`Check-In Complete!`, {
-          description: `Attendee: ${res.userName} | +${res.coinsAwarded} Coins Credited`,
-        })
-        
-        // Update local attendance status
-        const code = ticketInput.trim()
-        setRegistrations(prev =>
-          prev.map(reg => {
-            const matches = scanEventId
-              ? (reg.user_id === code && reg.event_id === scanEventId)
-              : reg.ticket_code === code
-            return matches
-              ? { ...reg, attended: true, attended_at: new Date().toISOString() }
-              : reg
-          })
-        )
-        setTicketInput('')
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred during ticket scan.')
-    } finally {
-      setIsScanning(false)
-    }
-  }
-
-  // Handle Event Creation
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -220,6 +105,12 @@ export default function EventsManager({
     try {
       const capacityVal = parseInt(newCapacity, 10) || 100
       const coinRewardVal = parseInt(newCoinReward, 10) || 50
+      
+      const customCriteria: any = {}
+      if (newMinAge !== '') customCriteria.min_age = newMinAge
+      if (newMinStreak !== '') customCriteria.min_streak = newMinStreak
+      if (newRequiredRank !== 'none') customCriteria.required_rank = newRequiredRank
+
       const res = await createEvent(
         newTitle,
         newDescription,
@@ -231,13 +122,7 @@ export default function EventsManager({
         adminRole === 'president' ? (adminUnitId || null) : (newUnitId || null),
         [], // excludedUnitIds
         newIsCompulsory,
-        (() => {
-          try {
-            return JSON.parse(newCustomCriteria)
-          } catch {
-            return {}
-          }
-        })()
+        customCriteria
       )
 
       if (res?.error) {
@@ -245,7 +130,6 @@ export default function EventsManager({
       } else {
         toast.success('Event scheduled successfully!')
         
-        // Close modal and reset fields
         setShowCreateModal(false)
         setNewTitle('')
         setNewDescription('')
@@ -256,19 +140,12 @@ export default function EventsManager({
         setNewCoinReward('50')
         setNewUnitId('')
         setNewIsCompulsory(false)
-        setNewCustomCriteria('{\n  "min_age": 0,\n  "required_rank": "none"\n}')
+        setNewMinAge('')
+        setNewMinStreak('')
+        setNewRequiredRank('none')
 
-        const newEvt: EventItem = {
-          id: Math.random().toString(36).substring(2, 9), // temp id, path will refresh
-          title: newTitle,
-          description: newDescription,
-          date: newDate,
-          time: newTime,
-          location: newLocation,
-          capacity: capacityVal,
-          coin_reward: coinRewardVal,
-        }
-        setEvents(prev => [newEvt, ...prev])
+        router.refresh()
+        setTimeout(() => window.location.reload(), 800)
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'An error occurred.')
@@ -277,123 +154,27 @@ export default function EventsManager({
     }
   }
 
-  // Handle Manual Attendance Toggle
-  const handleToggleAttendance = async (regId: string, currentStatus: boolean) => {
-    setIsTogglingAttendance(regId)
-
-    try {
-      const res = await toggleManualAttendance(regId, !currentStatus)
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        const reg = registrations.find(r => r.id === regId)
-        const attendeeName = reg?.profiles.full_name || 'Attendee'
-        
-        toast.success(!currentStatus ? `${attendeeName} checked in successfully!` : `${attendeeName} checked out successfully!`)
-
-        setRegistrations(prev =>
-          prev.map(reg =>
-            reg.id === regId ? { ...reg, attended: !currentStatus, attended_at: !currentStatus ? new Date().toISOString() : null } : reg
-          )
-        )
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error occurred.')
-    } finally {
-      setIsTogglingAttendance(null)
-    }
-  }
-
-  const selectedEventRegistrations = selectedEvent 
-    ? registrations.filter(r => r.event_id === selectedEvent.id)
-    : []
-
-  const selectedEventRoster: RosterEntry[] = selectedEvent
-    ? (selectedEvent.is_compulsory
-      ? (() => {
-          const leaveStatuses = new Set(['leave_pending', 'leave_approved'])
-          const scopedMembers = members.filter((member) => {
-            if (!selectedEvent.unit_id) {
-              return true
-            }
-            return member.unit_id === selectedEvent.unit_id
-          })
-          const leaveApplicants = new Set(
-            selectedEventRegistrations
-              .filter((reg) => leaveStatuses.has(reg.status))
-              .map((reg) => reg.user_id)
-          )
-          const registrationByUser = new Map(selectedEventRegistrations.map((reg) => [reg.user_id, reg]))
-
-          return scopedMembers
-            .filter((member) => !leaveApplicants.has(member.id))
-            .map((member) => {
-              const registration = registrationByUser.get(member.id)
-              return {
-                id: registration?.id || member.id,
-                user_id: member.id,
-                full_name: member.full_name,
-                unit_name: member.unit_name,
-                qualification: member.qualification,
-                attended: registration?.attended || false,
-                ticket_code: registration?.ticket_code || null,
-                status: registration?.status || 'expected',
-                leave_note: registration?.leave_note || null,
-                registration_id: registration?.id || null,
-                is_synthetic: !registration,
-              }
-            })
-        })()
-      : selectedEventRegistrations.map((reg) => ({
-          id: reg.id,
-          user_id: reg.user_id,
-          full_name: reg.profiles.full_name,
-          unit_name: reg.profiles.unit_name,
-          qualification: reg.profiles.qualification,
-          attended: reg.attended,
-          ticket_code: reg.ticket_code,
-          status: reg.status,
-          leave_note: reg.leave_note,
-          registration_id: reg.id,
-          is_synthetic: false,
-        })))
-    : []
-
-  const handleRosterCheckIn = async (userId: string) => {
-    if (!selectedEvent) return
-
-    setIsTogglingAttendance(userId)
-    try {
-      const res = await checkInTicket(userId, selectedEvent.id)
-      if (res?.error) {
-        toast.error(res.error)
-      } else {
-        toast.success('Check-in confirmed!')
-        router.refresh()
-      }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred.')
-    } finally {
-      setIsTogglingAttendance(null)
-    }
+  const navigateToDetails = (id: string) => {
+    router.push(`/admin/events/${id}`)
   }
 
   return (
-    <Tabs defaultValue={permissions.can_scan_tickets ? 'scanner' : 'events'}>
-      <div className="flex justify-between items-center border-b border-zinc-200 pb-2">
-        <TabsList variant="line" className="border-none pb-0">
-          {permissions.can_scan_tickets && (
-            <TabsTrigger value="scanner">
-              <QrCode size={16} className="mr-2" />
-              Ticket Scanner
-            </TabsTrigger>
-          )}
-          <TabsTrigger value="events">
-            <ClipboardList size={16} className="mr-2" />
-            Events Listing
-          </TabsTrigger>
-        </TabsList>
-
+    <div className="space-y-6">
+      <div className="flex justify-between items-center pb-2">
+        <div className="relative max-w-xs w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={16} className="text-zinc-400" />
+          </div>
+          <Input 
+            placeholder="Search events..." 
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setCurrentPage(1)
+            }}
+            className="pl-9 h-10 border-zinc-200 focus:border-[#0A9EDE]"
+          />
+        </div>
         {permissions.can_manage_events && (
           <Button 
             onClick={() => setShowCreateModal(true)}
@@ -406,320 +187,111 @@ export default function EventsManager({
         )}
       </div>
 
-      {/* TICKET SCANNING TAB */}
-      {permissions.can_scan_tickets && (
-        <TabsContent value="scanner" className="space-y-6 pt-6">
-          <div className="max-w-md mx-auto">
-            <Card className="shadow-md">
-              <CardHeader className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-[#0A9EDE]/10 text-[#0A9EDE] flex items-center justify-center mx-auto mb-3">
-                  <QrCode size={32} />
-                </div>
-                <CardTitle className="text-xl">Scan Volunteer Ticket</CardTitle>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Select the event, scan the QR code with your camera, or type the Member ID manually.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Event selector */}
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
-                    Select Event Checkpoint
-                  </label>
-                  <select
-                    value={scanEventId}
-                    onChange={(e) => setScanEventId(e.target.value)}
-                    className="w-full text-sm p-3 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
-                    disabled={isScanning}
-                    required
-                  >
-                    <option value="">Select an Event...</option>
-                    {events.map((ev) => (
-                      <option key={ev.id} value={ev.id}>
-                        {ev.title} ({new Date(ev.date).toLocaleDateString()})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Camera QR Scanner */}
-                <div className="space-y-2">
-                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
-                    Camera Scanner
-                  </label>
-                  <QrScannerWidget
-                    onScan={(value) => {
-                      setTicketInput(value)
-                      // Auto-submit after scan
-                      setTimeout(() => {
-                        if (value.trim() && scanEventId) {
-                          handleTicketScan()
-                        }
-                      }, 300)
-                    }}
-                  />
-                </div>
-
-                {/* Manual input fallback */}
-                <div className="border-t border-zinc-100 pt-4">
-                  <form onSubmit={handleTicketScan} className="space-y-3">
-                    <div className="space-y-2">
-                      <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block">
-                        Or Enter Code Manually
-                      </label>
-                      <Input 
-                        placeholder="User UUID, Member ID, or Ticket Code"
-                        value={ticketInput}
-                        onChange={(e) => setTicketInput(e.target.value)}
-                        className="text-center font-extrabold tracking-widest font-mono text-lg h-14 border-2 border-zinc-200 focus:border-[#0A9EDE] focus:ring-2 focus:ring-[#0A9EDE]/20 rounded-2xl bg-zinc-50/50 transition-all uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:font-normal"
-                        disabled={isScanning}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-[#0BA242] border-[#0BA242] hover:bg-[#0BA242]/90 text-white font-bold h-11 rounded-xl shadow-sm transition-all"
-                      isLoading={isScanning}
-                      disabled={!ticketInput.trim() || !scanEventId}
+      <Card className="shadow-sm border border-zinc-200 overflow-hidden bg-white">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-zinc-50 border-b border-zinc-200">
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Event</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Date & Time</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Location</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-center">Attendance</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-center">Reward</th>
+                <th className="px-5 py-3 text-[10px] font-bold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {paginatedEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-zinc-400 text-sm">
+                    {searchQuery ? 'No events match your search.' : 'No events scheduled yet.'}
+                  </td>
+                </tr>
+              ) : (
+                paginatedEvents.map(event => {
+                  const regCount = initialRegistrations.filter(r => r.event_id === event.id).length
+                  const attCount = initialRegistrations.filter(r => r.event_id === event.id && r.attended).length
+                  return (
+                    <tr 
+                      key={event.id} 
+                      className="hover:bg-zinc-50 transition-colors cursor-pointer"
+                      onClick={() => navigateToDetails(event.id)}
                     >
-                      Check In Ticket
-                    </Button>
-                  </form>
-                </div>
-
-                {/* Quick test codes */}
-                {registrations.length > 0 && (
-                  <div className="border-t border-zinc-100 pt-4 space-y-2">
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">
-                      Quick Testing Codes
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {registrations.slice(0, 4).map(reg => (
-                        <button
-                          key={reg.id}
-                          type="button"
-                          onClick={() => setTicketInput(reg.user_id)}
-                          className={`text-xs font-mono font-bold px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
-                                reg.attended
-                              ? 'bg-zinc-100 border-zinc-200 text-zinc-400 line-through' 
-                              : 'bg-white border-zinc-200 text-zinc-700 hover:border-zinc-950 hover:bg-zinc-50'
-                          }`}
-                        >
-                          {reg.profiles.full_name} ({reg.user_id.slice(0, 8)})
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      )}
-
-      {/* EVENTS LISTING TAB */}
-      <TabsContent value="events" className="pt-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main events catalog */}
-          <div className="lg:col-span-2 space-y-4">
-            {events.length === 0 ? (
-              <Card className="border-dashed border-zinc-250">
-                <CardContent className="py-16 text-center text-zinc-400">
-                  <Calendar size={48} className="mx-auto mb-4 opacity-30" />
-                  <h3 className="font-bold text-zinc-700">No Events Found</h3>
-                  <p className="text-xs mt-1">Get started by creating a new event above.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              events.map((event) => {
-                const regCount = registrations.filter(r => r.event_id === event.id).length
-                const attCount = registrations.filter(r => r.event_id === event.id && r.attended).length
-                return (
-                  <Card key={event.id} className="shadow-sm hover:border-[#0A9EDE]/20 transition-all duration-300">
-                    <CardContent className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="space-y-3 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-700 font-extrabold tracking-wider uppercase">
-                            {new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-600 font-extrabold tracking-wider uppercase">
-                            {event.time}
-                          </span>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900 text-sm">{event.title}</span>
+                          {event.is_compulsory && (
+                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-bold uppercase tracking-wider border border-red-100">
+                              Compulsory
+                            </span>
+                          )}
                         </div>
-
-                        <h3 className="font-extrabold text-base text-zinc-900 leading-tight">{event.title}</h3>
-                        <p className="text-xs text-zinc-500 leading-relaxed max-w-xl">{event.description}</p>
-
-                        <div className="flex flex-wrap gap-4 text-xs font-semibold text-zinc-500 pt-1">
-                          <div className="flex items-center gap-1">
-                            <MapPin size={14} className="text-zinc-400" />
-                            <span>{event.location}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users size={14} className="text-zinc-400" />
-                            <span>{regCount} / {event.capacity} registered</span>
-                          </div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-600">
+                        <div className="font-semibold">{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                        <div className="text-zinc-400 mt-0.5">{event.time}</div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-zinc-600">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin size={13} className="text-zinc-400" />
+                          <span className="truncate max-w-[150px]">{event.location}</span>
                         </div>
-                      </div>
-
-                      <div className="shrink-0 flex md:flex-col items-stretch gap-2.5">
-                        <div className="text-left md:text-right px-3 py-2 bg-zinc-50 border border-zinc-150 rounded-xl">
-                          <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Attendance</span>
-                          <span className="font-extrabold text-xs text-zinc-800">{attCount} checked in</span>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className="inline-flex flex-col items-center justify-center">
+                          <span className="text-xs font-bold text-zinc-900">{attCount} / {regCount}</span>
+                          <span className="text-[10px] text-zinc-400">Checked In</span>
                         </div>
-
-                        {permissions.can_manage_events && (
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 border border-zinc-150 rounded-xl justify-between">
-                            <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Coins</span>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                min={0}
-                                value={eventRewards[event.id] !== undefined ? eventRewards[event.id] : (event.coin_reward ?? 50)}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value, 10) || 0
-                                  setEventRewards(prev => ({ ...prev, [event.id]: val }))
-                                }}
-                                className="w-12 px-1.5 py-0.5 text-center text-xs font-bold font-mono border border-zinc-300 rounded focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white"
-                                disabled={savingEventReward[event.id]}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 px-1 text-[10px] font-bold text-[#0A9EDE] hover:bg-[#0A9EDE]/5"
-                                onClick={() => handleSaveEventReward(event.id)}
-                                isLoading={savingEventReward[event.id]}
-                              >
-                                Save
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <span className="text-xs font-bold font-mono text-zinc-700">{event.coin_reward ?? 50} C</span>
+                      </td>
+                      <td className="px-5 py-4 text-right">
                         <Button 
-                          onClick={() => setSelectedEvent(event)}
-                          variant="outline" 
-                          size="sm"
-                          className="border-zinc-200 hover:bg-zinc-50"
-                          leftIcon={<UserCheck size={14} />}
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-full"
                         >
-                          Manage Attendees
+                          <ArrowRight size={16} />
                         </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            )}
-          </div>
-
-          {/* Attendee Roster Drawer / Detail side panel */}
-          <div className="lg:col-span-1">
-            {selectedEvent ? (
-              <Card className="shadow-md sticky top-24 border-[#0A9EDE]/10">
-                <CardHeader className="bg-zinc-50 border-b border-zinc-100 flex flex-row items-center justify-between p-5">
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-sm font-extrabold truncate" title={selectedEvent.title}>
-                      {selectedEvent.title}
-                    </CardTitle>
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mt-0.5">Attendee Roster</p>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => setSelectedEvent(null)}
-                    className="text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer"
-                  >
-                    <X size={16} />
-                  </button>
-                </CardHeader>
-                <CardContent className="p-0 max-h-[60vh] overflow-y-auto divide-y divide-zinc-150">
-                  {selectedEventRoster.length === 0 ? (
-                    <div className="p-8 text-center text-zinc-400 text-xs">
-                          {selectedEvent?.is_compulsory
-                            ? 'No eligible volunteers found for this event scope.'
-                            : 'No registrations for this event yet.'}
-                    </div>
-                  ) : (
-                        selectedEventRoster.map((reg) => {
-                          const isToggling = isTogglingAttendance === reg.id || isTogglingAttendance === reg.user_id
-                      return (
-                        <div key={reg.id} className="p-4 flex items-center justify-between gap-3 hover:bg-zinc-50 transition-colors">
-                          <div className="min-w-0 flex-1">
-                            <span className="font-bold text-xs text-zinc-800 block truncate">
-                                  {reg.full_name}
-                            </span>
-                            <span className="text-[10px] text-zinc-400 font-mono block">
-                                  {reg.ticket_code ? `Code: ${reg.ticket_code.slice(0, 15)}...` : 'No ticket yet'}
-                            </span>
-                            <span className="text-[10px] text-zinc-400 block">
-                                  Unit: {reg.unit_name}
-                            </span>
-                            {reg.status === 'leave_pending' && (
-                              <div className="mt-1 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                                <strong>Leave Note:</strong> {reg.leave_note}
-                                <div className="mt-2 flex gap-2">
-                                      <Button size="sm" variant="outline" className="h-6 text-[10px] bg-green-50 text-green-700 hover:bg-green-100" onClick={() => handleProcessLeave(reg.registration_id || reg.id, 'approve')} isLoading={isProcessingLeave === (reg.registration_id || reg.id)}>Approve Leave</Button>
-                                      <Button size="sm" variant="outline" className="h-6 text-[10px] bg-red-50 text-red-700 hover:bg-red-100" onClick={() => handleProcessLeave(reg.registration_id || reg.id, 'reject')} isLoading={isProcessingLeave === (reg.registration_id || reg.id)}>Reject</Button>
-                                </div>
-                              </div>
-                            )}
-                            {reg.status === 'leave_approved' && <span className="text-[10px] text-green-600 font-bold block">Leave Approved</span>}
-                            {reg.status === 'leave_rejected' && <span className="text-[10px] text-red-600 font-bold block">Leave Rejected</span>}
-                                {reg.is_synthetic && selectedEvent?.is_compulsory && (
-                                  <span className="text-[10px] text-zinc-400 font-bold block">Expected for compulsory attendance</span>
-                                )}
-                          </div>
-
-                              {reg.registration_id ? (
-                                <Button
-                                  onClick={() => handleToggleAttendance(reg.registration_id as string, reg.attended)}
-                                  variant={reg.attended ? 'primary' : 'outline'}
-                                  size="sm"
-                                  className={`h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 ${
-                                    reg.attended
-                                      ? 'bg-[#0BA242] hover:bg-[#DD0408] border-[#0BA242] hover:border-[#DD0408] text-white w-24 group'
-                                      : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24'
-                                  }`}
-                                  isLoading={isToggling}
-                                  leftIcon={!isToggling && (reg.attended ? <Check size={12} /> : <Plus size={12} />)}
-                                >
-                                  <span className={reg.attended ? "group-hover:hidden" : ""}>
-                                    {reg.attended ? 'Checked In' : 'Check In'}
-                                  </span>
-                                  {reg.attended && (
-                                    <span className="hidden group-hover:inline">
-                                      Check Out
-                                    </span>
-                                  )}
-                                </Button>
-                              ) : (
-                                <Button
-                                  onClick={() => handleRosterCheckIn(reg.user_id)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-8 text-xs px-3 rounded-lg font-bold transition-all shrink-0 border-zinc-200 text-zinc-700 hover:bg-zinc-50 w-24"
-                                  isLoading={isToggling}
-                                  leftIcon={!isToggling && <Check size={12} />}
-                                >
-                                  Check In
-                                </Button>
-                              )}
-                        </div>
-                      )
-                    })
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="shadow-sm border-dashed border-zinc-200">
-                <CardContent className="p-12 text-center text-zinc-400 text-xs">
-                  <UserCheck size={36} className="mx-auto mb-3 opacity-20" />
-                  <p>Select an event to manage registrations and manual check-ins.</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      </TabsContent>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-5 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50">
+            <span className="text-xs text-zinc-500">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to Math.min(currentPage * itemsPerPage, filteredEvents.length) of {filteredEvents.length} events
+            </span>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(p => p - 1)}
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage(p => p + 1)}
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* CREATE EVENT MODAL */}
       {showCreateModal && (
@@ -802,18 +374,49 @@ export default function EventsManager({
                   <p className="text-[10px] text-zinc-500 mt-0">If checked, eligible members will be expected to attend and marked absent if they miss without a leave request.</p>
                 </div>
 
-                <div className="space-y-1 pt-4 border-t border-zinc-100">
-                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Custom Eligibility Criteria (JSON)</label>
-                  <textarea
-                    value={newCustomCriteria}
-                    onChange={(e) => setNewCustomCriteria(e.target.value)}
-                    rows={4}
-                    className="w-full text-sm font-mono p-3 rounded-lg border border-[#E5E5E5] focus:outline-none focus:border-zinc-900 bg-zinc-50"
-                  />
-                  <p className="text-[10px] text-zinc-500 mt-1">Specify custom criteria in JSON format (e.g., min_age, required_rank, min_streak).</p>
+                {/* Custom Eligibility Criteria (UI Version) */}
+                <div className="space-y-3 pt-4 border-t border-zinc-100">
+                  <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium mb-2">Custom Eligibility Criteria</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-bold uppercase">Minimum Age</label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 15"
+                        value={newMinAge}
+                        onChange={(e) => setNewMinAge(e.target.value ? parseInt(e.target.value, 10) : '')}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-zinc-400 font-bold uppercase">Minimum Streak</label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 7"
+                        value={newMinStreak}
+                        onChange={(e) => setNewMinStreak(e.target.value ? parseInt(e.target.value, 10) : '')}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-zinc-400 font-bold uppercase">Required Rank</label>
+                    <select
+                      value={newRequiredRank}
+                      onChange={(e) => setNewRequiredRank(e.target.value)}
+                      className="w-full text-sm p-2 rounded-lg border border-zinc-200 focus:outline-none focus:border-zinc-900 bg-white"
+                    >
+                      <option value="none">None (Open to all)</option>
+                      {rankTiers.map(tier => (
+                        <option key={tier.name} value={tier.name}>{tier.name} ({tier.threshold} Coins)</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-zinc-100">
                   <div className="space-y-1">
                     <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Date</label>
                     <Input 
@@ -890,6 +493,6 @@ export default function EventsManager({
           </div>
         </div>
       )}
-    </Tabs>
+    </div>
   )
 }

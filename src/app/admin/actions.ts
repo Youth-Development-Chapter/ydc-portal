@@ -946,6 +946,13 @@ export async function getUserFullHistory(targetUserId: string) {
     .eq('user_id', targetUserId)
     .order('completed_at', { ascending: false })
 
+  // 9. Fetch deed submissions
+  const { data: deedSubmissions } = await supabase
+    .from('deed_submissions')
+    .select('*')
+    .eq('user_id', targetUserId)
+    .order('created_at', { ascending: false })
+
   // Calculate sum of coins from ledger transactions
   const totalCoins = (coinTransactions || []).reduce((sum, tx) => sum + tx.amount, 0)
 
@@ -960,7 +967,8 @@ export async function getUserFullHistory(targetUserId: string) {
       streak: streak || { current_streak: 0, longest_streak: 0, last_deed_date: null },
       coinTransactions: coinTransactions || [],
       registrations: registrations || [],
-      progress: progress || []
+      progress: progress || [],
+      deedSubmissions: deedSubmissions || []
     }
   }
 }
@@ -1218,7 +1226,7 @@ export async function getPaginatedUsers(page: number, limit: number, searchTerm:
   const { role, permissions } = await getAdminContext(user.id)
   if (!permissions.can_manage_admins) return { error: 'Permission denied' }
 
-  let query = supabase.from('profiles').select('id, full_name, email, role, unit_id, units(name), qualification, created_at', { count: 'exact' })
+  let query = supabase.from('profiles').select('id, full_name, email, role, unit_id, units(name), qualification, avatar_url, created_at', { count: 'exact' })
 
   if (role === 'president') {
     const { data: adminProfile } = await supabase.from('profiles').select('unit_id').eq('id', user.id).single()
