@@ -34,7 +34,7 @@ export default function SignupClient() {
     }
   };
 
-  const handleOAuthLogin = async (provider: "google" | "facebook") => {
+  const handleOAuthLogin = async (provider: "google") => {
     const supabase = createClient();
     const origin = window.location.origin;
     await supabase.auth.signInWithOAuth({
@@ -58,7 +58,7 @@ export default function SignupClient() {
           <img src="/logocolor.png" alt="YDC Logo" className="h-25 w-auto drop-shadow-sm" />
         </div>
         <h2 className="text-center text-3xl font-extrabold tracking-tight text-[#1D1D1D]">
-          Join YDC Movement
+          Join YDC
         </h2>
         <p className="mt-2 text-center text-sm text-[#555555]">
           Already have an account?{" "}
@@ -138,7 +138,7 @@ export default function SignupClient() {
               </div>
               <div className="ml-3 text-sm">
                 <label htmlFor="terms" className="text-[#555555] cursor-pointer select-none leading-relaxed block">
-                  I agree to the YDC Code of Conduct and vow to align with the core values of Character, Career, and Community.
+                  I agree to the YDC Code of Conduct.
                 </label>
               </div>
             </div>
@@ -162,17 +162,17 @@ export default function SignupClient() {
               <div className="w-full border-t border-[#E5E5E5]"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-[#737373] font-semibold">Or join with</span>
+              <span className="bg-white px-2 text-[#737373] font-semibold">Or</span>
             </div>
           </div>
 
           {/* Social signup buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleOAuthLogin('google')}
-              className="w-full font-bold text-sm h-11"
+              className="w-full font-bold text-sm h-11 flex items-center justify-center gap-2"
               leftIcon={
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -182,20 +182,7 @@ export default function SignupClient() {
                 </svg>
               }
             >
-              Google
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOAuthLogin('facebook')}
-              className="w-full font-bold text-sm h-11"
-              leftIcon={
-                <svg className="w-5 h-5 shrink-0 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-              }
-            >
-              Facebook
+              Join with Google
             </Button>
           </div>
         </div>

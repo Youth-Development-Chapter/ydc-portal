@@ -2,11 +2,11 @@
 
 import React, { useState, useTransition } from 'react'
 import { Megaphone, Pin, X, Loader2 } from 'lucide-react'
-import { createAnnouncement, deleteAnnouncement, togglePinAnnouncement } from '@/app/admin/announcements/actions'
+import { createAnnouncement, deleteAnnouncement, togglePinAnnouncement } from '@/app/admin/notifications/actions'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
-export default function PresidentAnnouncementsClient({
+export default function PresidentNotificationsClient({
   initialAnnouncements,
   adminRole,
   adminUnitId,
@@ -34,7 +34,7 @@ export default function PresidentAnnouncementsClient({
       if (res?.error) {
         toast.error(res.error)
       } else {
-        toast.success('Announcement posted!')
+        toast.success('Notification posted!')
         setAnnTitle('')
         setAnnContent('')
         setAnnPinned(false)
@@ -48,7 +48,7 @@ export default function PresidentAnnouncementsClient({
       const res = await deleteAnnouncement(id)
       if (res?.error) { toast.error(res.error); return }
       setAnnouncements(prev => prev.filter(a => a.id !== id))
-      toast.success('Announcement deleted.')
+      toast.success('Notification deleted.')
     })
   }
 
@@ -65,7 +65,7 @@ export default function PresidentAnnouncementsClient({
       <div className="bg-white rounded-3xl p-5 shadow-sm border border-zinc-200 space-y-4">
         <h3 className="font-extrabold text-sm text-zinc-900 flex items-center gap-2">
           <Megaphone size={16} className="text-[#0A9EDE]" />
-          New Announcement
+          New Notification
         </h3>
         <input
           className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#0A9EDE]"
@@ -87,7 +87,7 @@ export default function PresidentAnnouncementsClient({
               onChange={(e) => setAnnPinned(e.target.checked)}
               className="accent-[#0A9EDE]"
             />
-            Pin this announcement
+            Pin this notification
           </label>
           <button
             onClick={handleCreateAnnouncement}
@@ -98,13 +98,13 @@ export default function PresidentAnnouncementsClient({
             Post
           </button>
         </div>
-        <p className="text-[10px] text-zinc-400">This announcement will be visible to all members of your unit.</p>
+        <p className="text-[10px] text-zinc-400">This notification will be visible to all members of your unit.</p>
       </div>
 
       <div className="space-y-3">
         {announcements.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center text-zinc-400 text-sm border border-dashed border-zinc-200">
-            No announcements yet. Create one above.
+            No notifications yet. Create one above.
           </div>
         ) : announcements.map(ann => (
           <div key={ann.id} className={`bg-white border rounded-2xl p-4 shadow-sm space-y-2 ${ann.is_pinned ? 'border-[#0A9EDE]/30' : 'border-zinc-200'}`}>

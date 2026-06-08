@@ -102,8 +102,8 @@ const SECTIONS: NavSection[] = [
         permission: 'can_manage_settings',
       },
       {
-        name: 'Announcements',
-        href: '/admin/announcements',
+        name: 'Notifications',
+        href: '/admin/notifications',
         icon: Megaphone,
         permission: 'can_manage_settings',
       },
@@ -179,7 +179,7 @@ export default function AdminNav({ role, permissions, mobileOnly, desktopOnly }:
     if (name === 'Courses & LMS') return 'Courses'
     if (name === 'Global Settings') return 'Settings'
     if (name === 'Unit Management') return 'Units'
-    if (name === 'Announcements') return 'Alerts'
+    if (name === 'Notifications') return 'Alerts'
     if (name === 'Reward Shop') return 'Shop'
     return name
   }

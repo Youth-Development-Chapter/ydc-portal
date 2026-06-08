@@ -16,7 +16,7 @@ export default function PresidentNav({ permissions }: PresidentNavProps) {
     { id: 'approvals', label: 'Approvals', href: '/dashboard/president/approvals', icon: <CheckSquare size={16} /> },
     { id: 'events', label: 'Events', href: '/dashboard/president/events', icon: <Calendar size={16} /> },
     ...(permissions?.can_scan_tickets || permissions?.can_manage_events ? [{ id: 'scanner', label: 'Scanner', href: '/dashboard/president/scanner', icon: <QrCode size={16} /> }] : []),
-    { id: 'announcements', label: 'Announce', href: '/dashboard/president/announcements', icon: <Megaphone size={16} /> },
+    { id: 'notifications', label: 'Notifications', href: '/dashboard/president/notifications', icon: <Megaphone size={16} /> },
     { id: 'users', label: 'Users', href: '/dashboard/president/users', icon: <Users size={16} /> },
   ]
 

@@ -11,7 +11,7 @@ import { createClient } from "@/utils/supabase/client";
 export default function LoginClient({ next }: { next?: string }) {
   const [state, action, pending] = useActionState(login, null);
 
-  const handleOAuthLogin = async (provider: "google" | "facebook") => {
+  const handleOAuthLogin = async (provider: "google") => {
     const supabase = createClient();
     const origin = window.location.origin;
     const nextPath = next || "/dashboard";
@@ -126,17 +126,17 @@ export default function LoginClient({ next }: { next?: string }) {
               <div className="w-full border-t border-[#E5E5E5]"></div>
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-[#737373] font-semibold">Or continue with</span>
+              <span className="bg-white px-2 text-[#737373] font-semibold">Or</span>
             </div>
           </div>
 
           {/* Social login buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={() => handleOAuthLogin('google')}
-              className="w-full font-bold text-sm h-11"
+              className="w-full font-bold text-sm h-11 flex items-center justify-center gap-2"
               leftIcon={
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -146,31 +146,11 @@ export default function LoginClient({ next }: { next?: string }) {
                 </svg>
               }
             >
-              Google
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOAuthLogin('facebook')}
-              className="w-full font-bold text-sm h-11"
-              leftIcon={
-                <svg className="w-5 h-5 shrink-0 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-              }
-            >
-              Facebook
+              Continue with Google
             </Button>
           </div>
 
-          <div className="mt-6 border-t border-[#E5E5E5] pt-6">
-            <div className="rounded-xl bg-[#F5F5F5] border border-[#E5E5E5] p-3 flex items-start gap-3">
-              <ShieldCheck size={18} className="text-[#0BA242] shrink-0 mt-0.5" />
-              <p className="text-xs text-[#555555] leading-relaxed">
-                Your security is our priority. Your session is fully encrypted and protected.
-              </p>
-            </div>
-          </div>
+         
         </div>
       </div>
     </div>

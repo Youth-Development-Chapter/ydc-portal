@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import QRCode from "react-qr-code";
-import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert } from "lucide-react";
+import { Award, Coins, Flame, Calendar, Clock, ChevronRight, LogOut, BookOpen, Settings, Gift, Megaphone, Trophy, Check, ShieldAlert, Bell } from "lucide-react";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { logout } from "@/app/auth/actions";
@@ -299,13 +299,13 @@ export default async function UserDashboard() {
     flashcards.push({
       id: `announcement-${ann.id}`,
       type: "announcement",
-      title: "New Announcement",
-      titleUr: "نیا اعلان",
+      title: "New Notification",
+      titleUr: "نیا نوٹیفکیشن",
       description: ann.title,
       descriptionUr: ann.title,
-      link: "/dashboard/announcements",
-      badgeText: "Announcement",
-      badgeTextUr: "اعلان",
+      link: "/dashboard/notifications",
+      badgeText: "Notification",
+      badgeTextUr: "نوٹیفکیشن",
       badgeColor: "blue",
       iconName: "bell"
     });
@@ -362,6 +362,8 @@ export default async function UserDashboard() {
       attended: reg.reg.attended
     })); 
 
+  const showNotificationBadge = !hasLoggedDeedToday || (recentAnnouncements && recentAnnouncements.length > 0) || !!upcomingEvent48h;
+
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden animate-fade-in">
       {/* Soft Background Gradient emanating from top */}
@@ -390,11 +392,20 @@ export default async function UserDashboard() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-[#DD0408] border border-red-100 text-[10px] font-extrabold uppercase tracking-wider hover:bg-red-100 transition shadow-sm"
                 title="President Console"
               >
-                <ShieldAlert size={12} className="text-[#DD0408] animate-pulse" />
-                <span>Console</span>
+                <span>President</span>
               </Link>
             )}
-            <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm overflow-hidden" title="Settings">
+            <Link 
+              href="/dashboard/notifications" 
+              className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm relative shrink-0" 
+              title="Notifications"
+            >
+              <Bell size={16} />
+              {showNotificationBadge && (
+                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#DD0408] border border-white rounded-full"></span>
+              )}
+            </Link>
+            <Link href="/dashboard/settings" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm overflow-hidden shrink-0" title="Settings">
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -402,7 +413,7 @@ export default async function UserDashboard() {
               )}
             </Link>
             <form action={logout}>
-              <button type="submit" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm cursor-pointer" title="Logout">
+              <button type="submit" className="w-9 h-9 rounded-full bg-white border border-[#E5E5E5] flex items-center justify-center text-[#1D1D1D] hover:bg-[#F5F5F5] transition shadow-sm cursor-pointer shrink-0" title="Logout">
                 <LogOut size={16} />
               </button>
             </form>
@@ -430,7 +441,7 @@ export default async function UserDashboard() {
 
           <div className="flex items-end justify-between relative z-10">
             <div className="flex-1 min-w-0 pr-2">
-              <p className="text-[#A3A3A3] text-xs font-semibold uppercase tracking-wider mb-1">Official Member</p>
+              <p className="text-[#A3A3A3] text-xs font-semibold uppercase tracking-wider mb-1">Member</p>
               <h2 className="text-2xl font-bold mb-1 truncate" title={name}>{name}</h2>
               <div className="flex items-center gap-2 text-[#0A9EDE] font-semibold text-sm">
                 <Award size={16} />
@@ -481,7 +492,7 @@ export default async function UserDashboard() {
               <BookOpen size={18} />
             </div>
             <div className="flex flex-col items-center justify-center my-1">
-              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">Academy LMS</span>
+              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">YDC Academy</span>
               <span className="font-extrabold text-base text-[#1D1D1D] mt-0.5">{progressPercentage}%</span>
             </div>
             <span className="text-[8px] text-indigo-600 font-extrabold uppercase tracking-wide bg-indigo-50 px-2 py-0.5 rounded-full truncate max-w-full">
@@ -497,17 +508,17 @@ export default async function UserDashboard() {
               {hasLoggedDeedToday ? <Check size={18} /> : <Flame size={18} />}
             </div>
             <div className="flex flex-col items-center justify-center my-1">
-              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">Daily Deed</span>
+              <span className="text-[9px] text-[#737373] font-extrabold uppercase tracking-wider">Streak</span>
               <span className={`font-extrabold text-xs leading-none mt-1 truncate max-w-full px-1 ${
                 hasLoggedDeedToday ? "text-[#0BA242]" : "text-orange-500"
               }`}>
-                {hasLoggedDeedToday ? "Logged" : "Pending"}
+                {hasLoggedDeedToday ? "Added" : "Pending"}
               </span>
             </div>
             <span className={`text-[8px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full ${
               hasLoggedDeedToday ? "bg-green-50 text-[#0BA242]" : "bg-orange-50 text-orange-500"
             }`}>
-              {hasLoggedDeedToday ? "Streak Safe" : "Log Now"}
+              {hasLoggedDeedToday ? "Added" : "Add Now"}
             </span>
           </Link>
         </div>
@@ -517,10 +528,10 @@ export default async function UserDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <BookOpen size={18} className="text-indigo-600" />
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Active Academy Track</h3>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Course Progress</h3>
             </div>
             <Link href="/lms/courses" className="text-xs font-bold text-[#0A9EDE] hover:underline">
-              View LMS
+              View All Courses
             </Link>
           </div>
 
@@ -548,7 +559,7 @@ export default async function UserDashboard() {
                 href={activeCourseId ? `/lms/courses/${activeCourseId}` : "/lms/courses"}
                 className="w-full text-center bg-[#1D1D1D] text-white hover:bg-neutral-800 py-2.5 px-4 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
               >
-                {progressPercentage === 100 ? "Review Lessons" : progressPercentage > 0 ? "Resume Learning" : "Start Course"}
+                {progressPercentage === 100 ? "Review Lessons" : progressPercentage > 0 ? "Continue Course" : "Start Course"}
               </Link>
             </div>
           </div>
@@ -559,10 +570,10 @@ export default async function UserDashboard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Calendar size={18} className="text-[#0A9EDE]" />
-              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">My Registered Events</h3>
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">My Events</h3>
             </div>
             <Link href="/events" className="text-xs font-bold text-[#0A9EDE] hover:underline">
-              Browse Events
+              All Events
             </Link>
           </div>
 
@@ -605,7 +616,7 @@ export default async function UserDashboard() {
         <div className="bg-white border border-[#E5E5E5] rounded-3xl p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <Gift size={18} className="text-[#0BA242]" />
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Rewards & Perks</h3>
+            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Rewards</h3>
           </div>
 
           <Link href="/dashboard/rewards" className="block">
@@ -615,8 +626,8 @@ export default async function UserDashboard() {
                   <Gift size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-[#1D1D1D]">Redeem YDC Rewards</h4>
-                  <p className="text-[10px] text-[#555555] mt-0.5">Use your {coins} YDC coins to claim exclusive rewards</p>
+                  <h4 className="font-bold text-sm text-[#1D1D1D]">Shop</h4>
+                  <p className="text-[10px] text-[#555555] mt-0.5">Use your {coins} YDC coins to claim gifts</p>
                 </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-green-50 group-hover:border-[#0BA242]/25 transition duration-200">
@@ -633,39 +644,22 @@ export default async function UserDashboard() {
             <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Community Hub</h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* Announcements Card */}
-            <Link href="/dashboard/announcements" className="block">
-              <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-[#0A9EDE] rounded-2xl p-4 flex flex-col justify-between h-[110px] group cursor-pointer transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
-                    <Megaphone size={16} />
-                  </div>
-                  <ChevronRight size={14} className="text-[#A3A3A3] group-hover:text-[#0A9EDE] transition-transform duration-200 group-hover:translate-x-0.5" />
+          <Link href="/leaderboard" className="block">
+            <div className="bg-gradient-to-br from-yellow-500/5 to-amber-500/5 border border-yellow-500/20 hover:border-yellow-500/40 rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
+                  <Trophy size={20} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-[#1D1D1D]">Announcements</h4>
-                  <p className="text-[9px] text-[#A3A3A3] mt-0.5">Read latest portal updates</p>
+                  <h4 className="font-bold text-sm text-[#1D1D1D]">Leaderboard</h4>
+                  <p className="text-[10px] text-[#555555] mt-0.5">Check public standings, active streaks, and top volunteers</p>
                 </div>
               </div>
-            </Link>
-
-            {/* Leaderboard Card */}
-            <Link href="/leaderboard" className="block">
-              <div className="bg-[#FAFAFA] border border-[#F0F0F0] hover:border-yellow-500 rounded-2xl p-4 flex flex-col justify-between h-[110px] group cursor-pointer transition-all duration-200">
-                <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-full bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
-                    <Trophy size={16} />
-                  </div>
-                  <ChevronRight size={14} className="text-[#A3A3A3] group-hover:text-yellow-500 transition-transform duration-200 group-hover:translate-x-0.5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-xs text-[#1D1D1D]">Leaderboard</h4>
-                  <p className="text-[9px] text-[#A3A3A3] mt-0.5">Check volunteer standings</p>
-                </div>
+              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-yellow-50 group-hover:border-yellow-500/25 transition duration-200">
+                <ChevronRight size={16} className="text-[#555555] group-hover:text-yellow-500" />
               </div>
-            </Link>
-          </div>
+            </div>
+          </Link>
         </div>
 
         {/* President / Admin Quick Access Console */}

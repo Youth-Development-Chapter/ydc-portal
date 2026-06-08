@@ -2,11 +2,11 @@ import React from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { getAdminContext } from "@/lib/admin";
-import AnnouncementsManager from "./AnnouncementsManager";
+import NotificationsManager from "./NotificationsManager";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminAnnouncementsPage(props: { searchParams: Promise<{ page?: string }> }) {
+export default async function AdminNotificationsPage(props: { searchParams: Promise<{ page?: string }> }) {
   const searchParams = await props.searchParams;
   const page = parseInt(searchParams?.page || "1", 10);
   const pageSize = 15;
@@ -37,13 +37,13 @@ export default async function AdminAnnouncementsPage(props: { searchParams: Prom
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-extrabold text-zinc-950">Announcements</h1>
+        <h1 className="text-2xl font-extrabold text-zinc-950">Notifications</h1>
         <p className="text-zinc-500 text-sm">
           Post notices and updates visible to all YDC members on their dashboard.
         </p>
       </div>
 
-      <AnnouncementsManager initialAnnouncements={announcements || []} />
+      <NotificationsManager initialAnnouncements={announcements || []} />
 
       {totalPages > 1 && (
         <div className="flex justify-between items-center pt-4">

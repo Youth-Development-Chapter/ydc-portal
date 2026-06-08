@@ -53,7 +53,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
     { name: "Silver", min_coins: 500, color: "#C0C0C0" },
     { name: "Gold", min_coins: 2000, color: "#FFD700" },
     { name: "Platinum", min_coins: 5000, color: "#E5E4E2" },
-    { name: "Diamond", min_coins: 10000, color: "#B9F2FF" }
+    { name: "Diamond", min_coins: 10000, color: "#007690" }
   ];
 
   // Calculate sum of coins
@@ -120,7 +120,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
       <main className="max-w-lg mx-auto w-full px-4 py-6 space-y-6 relative z-10">
         
         {/* Header */}
-        <PageHeader title="YDC Wallet" backHref="/dashboard" />
+        <PageHeader title="YDC Coins" backHref="/dashboard" />
 
         {/* Golden Shimmering Balance Card */}
         <div className="bg-gradient-to-br from-[#EAB308] via-[#CA8A04] to-[#854D0E] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between min-h-[160px] transition-all hover:shadow-black/25">
@@ -131,7 +131,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
 
           <div className="relative z-10 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-yellow-100 bg-white/10 px-2.5 py-1 rounded-full border border-white/20">
-              YDC Coin Ledger
+              YDC Coins Wallet
             </span>
             <p className="text-sm text-yellow-100/80 font-medium pt-3">Available Balance</p>
           </div>
@@ -180,7 +180,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
           <Link href="/lms/courses" className="bg-white border border-[#E5E5E5] hover:border-indigo-500 rounded-2xl p-4 flex flex-col justify-between h-[100px] group transition duration-200 shadow-sm shadow-black/5">
             <BookOpen size={18} className="text-indigo-500 group-hover:scale-105 transition" />
             <div>
-              <h4 className="font-bold text-xs text-[#1D1D1D]">Earn Academy Coins</h4>
+              <h4 className="font-bold text-xs text-[#1D1D1D]">Complete Courses</h4>
               <p className="text-[9px] text-[#A3A3A3] mt-0.5">Study syllabus, pass quizzes</p>
             </div>
           </Link>
@@ -188,7 +188,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
           <Link href="/dashboard/rewards" className="bg-white border border-[#E5E5E5] hover:border-green-500 rounded-2xl p-4 flex flex-col justify-between h-[100px] group transition duration-200 shadow-sm shadow-black/5">
             <Gift size={18} className="text-green-500 group-hover:scale-105 transition" />
             <div>
-              <h4 className="font-bold text-xs text-[#1D1D1D]">Redeem Store Rewards</h4>
+              <h4 className="font-bold text-xs text-[#1D1D1D]">Go To Shop</h4>
               <p className="text-[9px] text-[#A3A3A3] mt-0.5">Trade coins for rewards</p>
             </div>
           </Link>
@@ -202,7 +202,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
           </h2>
 
           {totalEarned === 0 ? (
-            <p className="text-xs text-[#A3A3A3] text-center py-4">No earnings breakdown available yet.</p>
+            <p className="text-xs text-[#A3A3A3] text-center py-4">No Coins Claimed.</p>
           ) : (
             <div className="space-y-3.5">
               {/* LMS Progress Bar */}
@@ -266,7 +266,7 @@ export default async function WalletPage(props: { searchParams: Promise<{ page?:
         <div className="space-y-4">
           <h2 className="font-bold text-sm text-[#1D1D1D] px-1 flex items-center gap-2 uppercase tracking-wider">
             <Coins size={18} className="text-yellow-600" />
-            Transaction Ledger
+            History
           </h2>
 
           <div className="space-y-3">

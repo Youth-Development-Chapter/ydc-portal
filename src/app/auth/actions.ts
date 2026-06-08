@@ -189,12 +189,31 @@ export async function resetPassword(prevState: unknown, formData: FormData) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const redirectUrl = `${origin}/auth/callback?next=/auth/reset-password`
 
+  // Check user providers via RPC
+  let providers: string[] = []
+  try {
+    const { data } = await supabase.rpc('check_user_providers', {
+      email_param: email,
+    })
+    if (data) {
+      providers = data as string[]
+    }
+  } catch (err) {
+    console.error('Error checking user providers:', err)
+  }
+
+  const isGoogleOnly = providers.includes('google') && !providers.includes('email')
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: redirectUrl,
   })
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (isGoogleOnly) {
+    return { success: 'Your account was created via Google, but you can create a password now. We have sent a link to your email to set a password.' }
   }
 
   return { success: 'Password reset link sent to your email.' }

@@ -86,7 +86,7 @@ export default async function PresidentEventDetailsPage({ params }: { params: Pr
     .eq('role', 'volunteer')
     .order('full_name', { ascending: true })
 
-  if (role === 'president' && profile.unit_id) {
+  if (role === 'president' && profile?.unit_id) {
     unitMembersQuery = unitMembersQuery.eq('unit_id', profile.unit_id)
   }
 

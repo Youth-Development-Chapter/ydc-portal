@@ -45,8 +45,9 @@ export async function createAnnouncement(data: {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard/announcements')
-  revalidatePath('/admin/announcements')
+  revalidatePath('/dashboard/notifications')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/dashboard/president/notifications')
   revalidateTag('announcements', 'max')
   return { success: true as const }
 }
@@ -79,8 +80,9 @@ export async function deleteAnnouncement(id: string) {
   const { error } = await supabase.from('announcements').delete().eq('id', id)
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard/announcements')
-  revalidatePath('/admin/announcements')
+  revalidatePath('/dashboard/notifications')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/dashboard/president/notifications')
   revalidateTag('announcements', 'max')
   return { success: true as const }
 }
@@ -117,8 +119,9 @@ export async function togglePinAnnouncement(id: string, isPinned: boolean) {
 
   if (error) return { error: error.message }
 
-  revalidatePath('/dashboard/announcements')
-  revalidatePath('/admin/announcements')
+  revalidatePath('/dashboard/notifications')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/dashboard/president/notifications')
   revalidateTag('announcements', 'max')
   return { success: true as const }
 }

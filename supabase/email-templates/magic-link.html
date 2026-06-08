@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your YDC Magic Link</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #F9FAFB;
+      color: #1F2937;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    }
+    .header {
+      background: linear-gradient(135deg, #0BA242 0%, #088235 100%);
+      padding: 32px;
+      text-align: center;
+    }
+    .header img {
+      height: 64px;
+      width: auto;
+      display: inline-block;
+    }
+    .content {
+      padding: 40px 32px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: #111827;
+      text-align: center;
+    }
+    p {
+      font-size: 16px;
+      line-height: 24px;
+      color: #4B5563;
+      margin-top: 0;
+      margin-bottom: 24px;
+    }
+    .btn-container {
+      text-align: center;
+      margin: 32px 0;
+    }
+    .btn {
+      background-color: #0BA242;
+      color: #FFFFFF !important;
+      text-decoration: none;
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 8px;
+      display: inline-block;
+      transition: background-color 0.2s;
+      box-shadow: 0 4px 6px -1px rgba(11, 162, 66, 0.2);
+    }
+    .otp-card {
+      background-color: #F3F4F6;
+      border: 1px dashed #D1D5DB;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .otp-code {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 6px;
+      color: #0BA242;
+      margin: 0;
+    }
+    .otp-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #6B7280;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .footer {
+      background-color: #F9FAFB;
+      border-top: 1px solid #E5E7EB;
+      padding: 24px 32px;
+      text-align: center;
+      font-size: 12px;
+      color: #9CA3AF;
+    }
+    .footer a {
+      color: #0BA242;
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <img src="{{ .SiteURL }}/logocolor.png" alt="YDC Logo" onerror="this.src='https://ydc.org.pk/wp-content/uploads/2023/11/logo.png';">
+    </div>
+    <div class="content">
+      <h1>Sign In to YDC Portal</h1>
+      <p>Hello! We received a request to log in to your Youth Development Chapter (YDC) account using this email address.</p>
+      
+      <p>Click the button below to sign in instantly:</p>
+      
+      <div class="btn-container">
+        <a href="{{ .ConfirmationURL }}" class="btn">Sign In to Account</a>
+      </div>
+
+      <p>Alternatively, you can copy and enter the following temporary code in your browser:</p>
+
+      <div class="otp-card">
+        <div class="otp-label">One-Time Password (OTP)</div>
+        <div class="otp-code">{{ .Token }}</div>
+      </div>
+
+      <p style="font-size: 14px; color: #6B7280; margin-bottom: 0;">For security reasons, this link and code are valid for 15 minutes only and can only be used once.</p>
+    </div>
+    <div class="footer">
+      <p style="margin-bottom: 8px;">&copy; 2026 Youth Development Chapter. All rights reserved.</p>
+      <p style="margin-bottom: 0;">Need help? Contact us at <a href="mailto:support@ydc.org.pk">support@ydc.org.pk</a></p>
+    </div>
+  </div>
+</body>
+</html>

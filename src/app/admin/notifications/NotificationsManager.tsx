@@ -16,7 +16,7 @@ interface Announcement {
   created_at: string;
 }
 
-export default function AnnouncementsManager({
+export default function NotificationsManager({
   initialAnnouncements,
 }: {
   initialAnnouncements: Announcement[];
@@ -83,14 +83,14 @@ export default function AnnouncementsManager({
           className="inline-flex items-center gap-2 px-4 py-2 bg-[#0A9EDE] text-white rounded-xl font-semibold text-sm hover:bg-[#0A9EDE]/90 transition-colors"
         >
           <Plus size={16} />
-          New Announcement
+          New Notification
         </button>
       </div>
 
       {/* Create form */}
       {showForm && (
         <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 space-y-4">
-          <h3 className="font-bold text-zinc-900">Post Announcement</h3>
+          <h3 className="font-bold text-zinc-900">Post Notification</h3>
           {formError && (
             <div className="flex items-center gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
               <AlertCircle size={16} className="shrink-0" />
@@ -105,7 +105,7 @@ export default function AnnouncementsManager({
           />
           <textarea
             className="w-full border border-zinc-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0A9EDE] min-h-[120px] resize-none"
-            placeholder="Write your announcement here..."
+            placeholder="Write your notification here..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
@@ -116,7 +116,7 @@ export default function AnnouncementsManager({
               onChange={(e) => setIsPinned(e.target.checked)}
               className="accent-[#0A9EDE]"
             />
-            Pin this announcement to the top
+            Pin this notification to the top
           </label>
           <div className="flex gap-3">
             <button
@@ -140,8 +140,8 @@ export default function AnnouncementsManager({
       {/* List */}
       {announcements.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">
-          <p className="font-bold text-zinc-700">No announcements yet.</p>
-          <p className="text-sm mt-1">Click &ldquo;New Announcement&rdquo; to post one.</p>
+          <p className="font-bold text-zinc-700">No notifications yet.</p>
+          <p className="text-sm mt-1">Click &ldquo;New Notification&rdquo; to post one.</p>
         </div>
       ) : (
         <div className="space-y-3">

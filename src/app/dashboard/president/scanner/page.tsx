@@ -35,7 +35,7 @@ export default async function PresidentScannerPage() {
     <div className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-xl font-bold text-zinc-900">QR Scanner</h2>
-        <p className="text-xs text-zinc-500">Scan volunteer tickets to check them into events.</p>
+        <p className="text-xs text-zinc-500">Scan volunteer tickets</p>
       </div>
       <PresidentScannerClient initialEvents={events || []} />
     </div>

@@ -2,11 +2,11 @@ import React from 'react'
 import { createClient } from '@/utils/supabase/server'
 import { getAdminContext } from '@/lib/admin'
 import { getRecentAnnouncements } from '@/lib/perf-data'
-import PresidentAnnouncementsClient from '@/components/dashboard/PresidentAnnouncementsClient'
+import PresidentNotificationsClient from '@/components/dashboard/PresidentNotificationsClient'
 
 export const dynamic = 'force-dynamic'
 
-export default async function PresidentAnnouncementsPage() {
+export default async function PresidentNotificationsPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -26,10 +26,10 @@ export default async function PresidentAnnouncementsPage() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-bold text-zinc-900">Announcements</h2>
-        <p className="text-xs text-zinc-500">Post announcements to the members in your division.</p>
+        <h2 className="text-xl font-bold text-zinc-900">Notifications</h2>
+        <p className="text-xs text-zinc-500">Post notifications to the members in your division.</p>
       </div>
-      <PresidentAnnouncementsClient 
+      <PresidentNotificationsClient 
         initialAnnouncements={announcements || []} 
         adminRole={role}
         adminUnitId={adminUnitId}
