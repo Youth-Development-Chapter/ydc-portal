@@ -2,8 +2,8 @@
 
 import React, { Suspense, useActionState } from "react";
 import { useSearchParams } from "next/navigation";
-import { 
-  Users, Calendar, Phone, MessageCircle, MapPin, 
+import {
+  Users, Calendar, Phone, MessageCircle, MapPin,
   Building, Map, Camera, Loader2, AlertCircle, ArrowRight,
   Mail, User as UserIcon
 } from "lucide-react";
@@ -26,7 +26,7 @@ function FormContent({ initialName, initialEmail, units }: { initialName: string
 
   return (
     <div className="min-h-screen bg-[#F5F5F5] text-[#1D1D1D] py-12 px-6">
-      
+
       <div className="max-w-3xl mx-auto mb-8 text-center">
         <div className="flex items-center justify-center gap-3 mb-6">
           <img src="/logocolor.png" alt="YDC Logo" className="h-12 w-auto" />
@@ -41,7 +41,7 @@ function FormContent({ initialName, initialEmail, units }: { initialName: string
 
       <div className="max-w-3xl mx-auto bg-white border border-[#E5E5E5] rounded-2xl shadow-xl overflow-hidden relative">
         <div className="absolute top-0 inset-x-0 h-1 bg-[#0BA242]"></div>
-        
+
         <div className="p-8 sm:p-10">
           {notice === "profile" && (
             <div className="mb-8 p-4 rounded-xl bg-blue-50 border border-blue-200 flex gap-3 text-sm text-blue-700 animate-in fade-in duration-300">
@@ -65,33 +65,12 @@ function FormContent({ initialName, initialEmail, units }: { initialName: string
 
           <form className="space-y-8" action={action}>
             <input type="hidden" name="next" value={next} />
-            
+
             {/* Account Info (Locked) */}
             <div>
-              <h3 className="text-lg font-bold text-[#1D1D1D] mb-4 pb-2 border-b border-[#E5E5E5]">
-                Account Information
-              </h3>
+
               <div className="grid sm:grid-cols-2 gap-6">
-                <Input
-                  id="full_name_display"
-                  name="full_name_display"
-                  type="text"
-                  label="Full Name"
-                  value={initialName}
-                  disabled
-                  leftIcon={<UserIcon size={18} />}
-                  className="bg-gray-100 text-gray-500"
-                />
-                <Input
-                  id="email_display"
-                  name="email_display"
-                  type="email"
-                  label="Email Address"
-                  value={initialEmail}
-                  disabled
-                  leftIcon={<Mail size={18} />}
-                  className="bg-gray-100 text-gray-500"
-                />
+
               </div>
             </div>
 
