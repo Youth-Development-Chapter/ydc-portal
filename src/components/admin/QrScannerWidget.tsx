@@ -1,7 +1,12 @@
 'use client'
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
-import { Camera, CameraOff, QrCode, X, RefreshCw, AlertTriangle } from 'lucide-react'
+import { Camera, CameraOff, QrCode, RefreshCw, AlertTriangle } from 'lucide-react'
+import jsQR from 'jsqr'
+
+interface BarcodeDetector {
+  detect(image: HTMLCanvasElement | HTMLImageElement | HTMLVideoElement | ImageData): Promise<Array<{ rawValue: string }>>
+}
 
 interface QrScannerWidgetProps {
   /** Called when a QR code or barcode value is detected */
@@ -17,24 +22,22 @@ export default function QrScannerWidget({ onScan, label, autoStart = false }: Qr
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
-  const detectorRef = useRef<any>(null)
+  const detectorRef = useRef<BarcodeDetector | null>(null)
   const lastScannedRef = useRef<string | null>(null)
   const lastScannedAtRef = useRef<number>(0)
 
   const [isRunning, setIsRunning] = useState(false)
   const [status, setStatus] = useState<'idle' | 'starting' | 'running' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [hasDetectorSupport, setHasDetectorSupport] = useState<boolean | null>(null)
 
-  // Check BarcodeDetector support on mount
+  // Instantiate BarcodeDetector if natively supported
   useEffect(() => {
-    const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window
-    setHasDetectorSupport(supported)
-    if (supported) {
+    if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
       try {
-        detectorRef.current = new (window as any).BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39'] })
+        const BarcodeDetectorClass = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => BarcodeDetector }).BarcodeDetector
+        detectorRef.current = new BarcodeDetectorClass({ formats: ['qr_code', 'code_128', 'code_39'] })
       } catch {
-        setHasDetectorSupport(false)
+        detectorRef.current = null
       }
     }
   }, [])
@@ -55,98 +58,188 @@ export default function QrScannerWidget({ onScan, label, autoStart = false }: Qr
     setStatus('idle')
   }, [])
 
+  // Create a ref for scanFrame to avoid "used before declaration" typescript/linter error
+  const scanFrameRef = useRef<() => void>(() => {})
+
   const scanFrame = useCallback(async () => {
     const video = videoRef.current
     const canvas = canvasRef.current
     const detector = detectorRef.current
 
-    if (!video || !canvas || !detector || video.readyState < 2) {
-      rafRef.current = requestAnimationFrame(scanFrame)
+    if (!video || !canvas || video.readyState < 2) {
+      rafRef.current = requestAnimationFrame(scanFrameRef.current)
       return
     }
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     const ctx = canvas.getContext('2d')
-    if (!ctx) { rafRef.current = requestAnimationFrame(scanFrame); return }
+    if (!ctx) {
+      rafRef.current = requestAnimationFrame(scanFrameRef.current)
+      return
+    }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
+    let valueDetected = false
+
+    if (detector) {
+      try {
+        const barcodes = await detector.detect(canvas)
+        if (barcodes && barcodes.length > 0) {
+          const value = barcodes[0].rawValue
+          if (value) {
+            const now = Date.now()
+            if (value !== lastScannedRef.current || now - lastScannedAtRef.current > 3000) {
+              lastScannedRef.current = value
+              lastScannedAtRef.current = now
+              onScan(value)
+            }
+            valueDetected = true
+          }
+        }
+      } catch {
+        // Silently ignore detection errors
+      }
+    }
+
+    // Fallback to jsQR if native detector is not supported or didn't find anything
+    if (!valueDetected) {
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert',
+        })
+        if (code && code.data) {
+          const value = code.data
+          const now = Date.now()
+          if (value !== lastScannedRef.current || now - lastScannedAtRef.current > 3000) {
+            lastScannedRef.current = value
+            lastScannedAtRef.current = now
+            onScan(value)
+          }
+        }
+      } catch {
+        // Silently ignore jsQR errors
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(scanFrameRef.current)
+  }, [onScan])
+
+  // Update ref current so callbacks reference the latest memoized function
+  useEffect(() => {
+    scanFrameRef.current = scanFrame
+  }, [scanFrame])
+
+  const diagnoseCameraError = useCallback(async (err: unknown) => {
+    stopCamera()
+    setStatus('error')
+    const error = err as { name?: string; message?: string }
+    let diagnosticTip = ''
+
     try {
-      const barcodes = await detector.detect(canvas)
-      if (barcodes && barcodes.length > 0) {
-        const value = barcodes[0].rawValue
-        const now = Date.now()
-        // Debounce: ignore same code within 3 seconds
-        if (value && (value !== lastScannedRef.current || now - lastScannedAtRef.current > 3000)) {
-          lastScannedRef.current = value
-          lastScannedAtRef.current = now
-          onScan(value)
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        const videoDevices = devices.filter(d => d.kind === 'videoinput')
+        if (videoDevices.length === 0) {
+          diagnosticTip = ' (No camera devices detected. Is your camera plugged in or enabled?)'
+        } else {
+          const hasLabels = videoDevices.some(d => d.label !== '')
+          if (hasLabels) {
+            diagnosticTip = ' (The browser has permission, but the camera is in use by another app like Zoom/OBS/Discord, or disabled by a hardware switch or laptop hotkey).'
+          } else {
+            diagnosticTip = ' (The browser site permission may be blocked. Please check your address bar permission icon or try resetting site permissions).'
+          }
         }
       }
     } catch {
-      // Silently ignore detection errors (frame not ready, etc.)
+      // ignore
     }
 
-    rafRef.current = requestAnimationFrame(scanFrame)
-  }, [onScan])
+    const details = ` (${error?.name || 'UnknownError'}: ${error?.message || 'No details'})${diagnosticTip}`
+    if (error?.name === 'NotAllowedError' || error?.name === 'PermissionDeniedError') {
+      setErrorMsg(`Camera access was denied. Please allow camera access in your browser settings and try again.${details}`)
+    } else if (error?.name === 'NotFoundError') {
+      setErrorMsg(`No camera found on this device.${details}`)
+    } else if (error?.name === 'NotReadableError') {
+      setErrorMsg(`Camera is already in use by another application.${details}`)
+    } else {
+      setErrorMsg(`Camera error: ${error?.message || 'Unknown error'}${details}`)
+    }
+  }, [stopCamera])
 
   const startCamera = useCallback(async () => {
     setStatus('starting')
     setErrorMsg(null)
     lastScannedRef.current = null
 
-    if (!hasDetectorSupport) {
+    if (typeof window === 'undefined') return
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      stopCamera()
       setStatus('error')
-      setErrorMsg('Your browser does not support the BarcodeDetector API. Please use Chrome 88+ or Edge 88+.')
+      setErrorMsg('Camera access is unavailable. Your browser requires a secure context (HTTPS or localhost) to use the camera.')
       return
     }
 
+    let stream: MediaStream
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Try with high-quality and back-facing camera preferences first
+      stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
           width: { ideal: 1280 },
           height: { ideal: 720 },
         }
       })
+    } catch (firstErr) {
+      console.warn('Initial camera constraints failed, retrying with basic settings...', firstErr)
+      try {
+        // Fallback to basic unconstrained video
+        stream = await navigator.mediaDevices.getUserMedia({ video: true })
+      } catch (err: unknown) {
+        await diagnoseCameraError(err)
+        return
+      }
+    }
 
+    try {
       streamRef.current = stream
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play()
+        try {
+          await videoRef.current.play()
+        } catch (playErr) {
+          console.warn('Programmatic video.play() failed, relying on autoplay attribute:', playErr)
+        }
       }
 
       setIsRunning(true)
       setStatus('running')
 
       // Start scanning loop
-      rafRef.current = requestAnimationFrame(scanFrame)
+      rafRef.current = requestAnimationFrame(scanFrameRef.current)
 
-    } catch (err: any) {
-      stopCamera()
-      setStatus('error')
-      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-        setErrorMsg('Camera access was denied. Please allow camera access in your browser settings and try again.')
-      } else if (err?.name === 'NotFoundError') {
-        setErrorMsg('No camera found on this device.')
-      } else if (err?.name === 'NotReadableError') {
-        setErrorMsg('Camera is already in use by another application.')
-      } else {
-        setErrorMsg(`Camera error: ${err?.message || 'Unknown error'}`)
+    } catch (err: unknown) {
+      await diagnoseCameraError(err)
+    }
+  }, [diagnoseCameraError, stopCamera])
+
+  // Auto start if requested (deferred to avoid synchronous state updates in effect)
+  useEffect(() => {
+    if (autoStart) {
+      const timer = setTimeout(() => {
+        startCamera()
+      }, 0)
+      return () => {
+        clearTimeout(timer)
+        stopCamera()
       }
     }
-  }, [hasDetectorSupport, scanFrame, stopCamera])
-
-  // Auto start if requested
-  useEffect(() => {
-    if (autoStart && hasDetectorSupport !== null) {
-      startCamera()
-    }
     return () => { stopCamera() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoStart, hasDetectorSupport])
+  }, [autoStart, startCamera, stopCamera])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -201,13 +294,8 @@ export default function QrScannerWidget({ onScan, label, autoStart = false }: Qr
                   <QrCode size={24} className="text-zinc-400" />
                 </div>
                 <p className="text-xs text-zinc-400 text-center max-w-[220px]">
-                  Tap "Start Camera" to scan a QR code or ticket barcode.
+                  Tap &quot;Start Camera&quot; to scan a QR code or ticket barcode.
                 </p>
-                {hasDetectorSupport === false && (
-                  <p className="text-[10px] text-red-400 text-center max-w-[220px]">
-                    ⚠ BarcodeDetector not supported in this browser. Use Chrome 88+ or Edge 88+.
-                  </p>
-                )}
               </>
             )}
           </div>
@@ -232,7 +320,7 @@ export default function QrScannerWidget({ onScan, label, autoStart = false }: Qr
         {!isRunning ? (
           <button
             onClick={startCamera}
-            disabled={status === 'starting' || hasDetectorSupport === false}
+            disabled={status === 'starting'}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0A9EDE] text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#0A9EDE]/90 transition-colors"
           >
             <Camera size={16} />

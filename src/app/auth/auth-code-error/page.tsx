@@ -13,9 +13,17 @@ interface ErrorDetails {
 
 export default function AuthCodeErrorPage() {
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
+  const [isDev] = useState(() => {
+    if (typeof window !== "undefined") {
+      const hostname = window.location.hostname;
+      return hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
+    }
+    return false;
+  });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+
       // 1. Check URL Hash (Supabase auth errors typically redirect to #error=...)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const hashError = hashParams.get("error");
@@ -106,23 +114,25 @@ export default function AuthCodeErrorPage() {
               </ul>
             </div>
           ) : (
-            <div className="space-y-4">
-              <h3 className="font-bold text-sm text-[#1D1D1D] flex items-center gap-2">
-                <Key size={16} className="text-[#0A9EDE]" />
-                Troubleshooting Checklist for Admins:
-              </h3>
-              <ul className="text-xs text-[#555555] space-y-2.5 list-disc pl-4 leading-relaxed font-semibold">
-                <li>
-                  <strong className="text-[#1D1D1D]">Invalid Credentials:</strong> Verify that the Client ID and Client Secret in the Supabase Dashboard perfectly match your Google Cloud or Meta developer settings (no spaces).
-                </li>
-                <li>
-                  <strong className="text-[#1D1D1D]">Redirect URI:</strong> Ensure the Google/Facebook developer console has <code className="bg-[#F5F5F5] px-1 py-0.5 rounded border border-[#E5E5E5] text-red-600 text-[10px]">https://naevmdqjmhxylocjopmj.supabase.co/auth/v1/callback</code> added exactly.
-                </li>
-                <li>
-                  <strong className="text-[#1D1D1D]">Supabase Redirect Configuration:</strong> Ensure <code className="bg-[#F5F5F5] px-1 py-0.5 rounded border border-[#E5E5E5] text-red-600 text-[10px]">https://portal.ydc.org.pk/auth/callback</code> is explicitly added as an Additional Redirect URL in your Supabase Auth settings.
-                </li>
-              </ul>
-            </div>
+            isDev && (
+              <div className="space-y-4">
+                <h3 className="font-bold text-sm text-[#1D1D1D] flex items-center gap-2">
+                  <Key size={16} className="text-[#0A9EDE]" />
+                  Troubleshooting Checklist for Admins:
+                </h3>
+                <ul className="text-xs text-[#555555] space-y-2.5 list-disc pl-4 leading-relaxed font-semibold">
+                  <li>
+                    <strong className="text-[#1D1D1D]">Invalid Credentials:</strong> Verify that the Client ID and Client Secret in the Supabase Dashboard perfectly match your Google Cloud or Meta developer settings (no spaces).
+                  </li>
+                  <li>
+                    <strong className="text-[#1D1D1D]">Redirect URI:</strong> Ensure the Google/Facebook developer console has <code className="bg-[#F5F5F5] px-1 py-0.5 rounded border border-[#E5E5E5] text-red-600 text-[10px]">https://naevmdqjmhxylocjopmj.supabase.co/auth/v1/callback</code> added exactly.
+                  </li>
+                  <li>
+                    <strong className="text-[#1D1D1D]">Supabase Redirect Configuration:</strong> Ensure <code className="bg-[#F5F5F5] px-1 py-0.5 rounded border border-[#E5E5E5] text-red-600 text-[10px]">https://portal.ydc.org.pk/auth/callback</code> is explicitly added as an Additional Redirect URL in your Supabase Auth settings.
+                  </li>
+                </ul>
+              </div>
+            )
           )}
 
           <div className="pt-2">

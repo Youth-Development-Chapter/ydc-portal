@@ -128,13 +128,13 @@ export default function CoursesClient({
         </div>
         <div className="relative z-10 space-y-1">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#0A9EDE] bg-[#0A9EDE]/10 px-2.5 py-1 rounded-full border border-[#0A9EDE]/20">
-            LMS Academy
+            YDC Academy
           </span>
           <h1 className="text-3xl font-extrabold relative z-10 font-coolvetica pt-2">
-            Academy Catalog
+            Courses
           </h1>
           <p className="text-sm text-[#A3A3A3] relative z-10 max-w-[85%] leading-relaxed pt-1">
-            Expand your knowledge with authentic courses and build your character.
+            Complete courses and earn YDC Coins.
           </p>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default function CoursesClient({
           }`}
         >
           <Flame size={16} className={activeTab === "active" ? "text-[#DD0408]" : ""} />
-          Active Courses ({activeCourses.length})
+          Current Courses ({activeCourses.length})
         </button>
         <button
           onClick={() => setActiveTab("completed")}
@@ -196,9 +196,9 @@ export default function CoursesClient({
                 <Award size={28} />
               </div>
               <div>
-                <h3 className="font-bold text-lg text-[#1D1D1D]">No Completed Courses Yet</h3>
+                <h3 className="font-bold text-lg text-[#1D1D1D]">No Courses Completed</h3>
                 <p className="text-sm text-[#555555] max-w-xs mx-auto mt-1">
-                  Finish your active chapters and pass the quizzes to unlock your certificates and rewards here.
+                  Complete courses to see them here.
                 </p>
               </div>
             </div>

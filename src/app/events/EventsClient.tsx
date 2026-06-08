@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { 
-  Calendar, MapPin, Users, Ticket, 
+  Calendar, MapPin, Users, 
   Clock, CheckCircle2, ShieldCheck, AlertCircle, QrCode, X, CalendarOff
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { claimTicket } from "@/app/actions";
 import PageHeader from "@/components/ui/PageHeader";
+import { toast } from "sonner";
+import { createClient } from "@/utils/supabase/client";
 
 const QRCode = dynamic(() => import("react-qr-code"), { ssr: false });
 
@@ -37,6 +39,61 @@ export default function EventsClient({ upcomingEvents, pastEvents, userId }: Eve
   const [showQR, setShowQR] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  const [checkInStatus, setCheckInStatus] = useState<{
+    status: 'success' | 'already_checked_in' | 'failed'
+    userName: string
+    eventTitle: string
+    error?: string | null
+  } | null>(null);
+
+  // Subscribe to real-time event check-ins
+  useEffect(() => {
+    if (!showQR) return;
+
+    const supabase = createClient();
+    const channel = supabase.channel(`checkin-${userId}`, {
+      config: {
+        broadcast: { self: true }
+      }
+    });
+
+    channel.on('broadcast', { event: 'status' }, (payload) => {
+      const data = payload.payload as {
+        status: 'success' | 'already_checked_in' | 'failed'
+        userName: string
+        eventTitle: string
+        error?: string | null
+      };
+
+      setCheckInStatus(data);
+
+      if (data.status === 'success') {
+        toast.success('Check-In Complete!', {
+          description: `${data.userName}, you have successfully checked in for "${data.eventTitle}".`
+        });
+        if (navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+      } else if (data.status === 'already_checked_in') {
+        toast.warning('Already Checked In', {
+          description: `${data.userName} is already checked in for "${data.eventTitle}".`
+        });
+      } else if (data.status === 'failed') {
+        toast.error('Check-In Failed', {
+          description: data.error || 'You are not eligible or registered for this event.'
+        });
+      }
+
+      router.refresh();
+    });
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [showQR, userId, router]);
 
   const handleJoin = (eventId: string) => {
     setError(null);
@@ -229,7 +286,7 @@ export default function EventsClient({ upcomingEvents, pastEvents, userId }: Eve
       {showQR && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white border border-[#0A9EDE]/30 rounded-3xl p-6 shadow-2xl text-center relative max-w-sm w-full animate-in zoom-in duration-300">
-            <button onClick={() => setShowQR(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-800">
+            <button onClick={() => { setShowQR(false); setCheckInStatus(null); }} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-800">
               <X size={24} />
             </button>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[#0BA242]/20 bg-[#0BA242]/5 text-[10px] font-bold text-[#0BA242] uppercase tracking-wider mb-4">
@@ -237,19 +294,58 @@ export default function EventsClient({ upcomingEvents, pastEvents, userId }: Eve
               Master QR ID
             </div>
 
-            <div className="my-6 mx-auto w-48 aspect-square bg-[#FAFAFA] border border-[#E5E5E5] p-3 rounded-2xl flex flex-col items-center justify-center relative shadow-sm">
-              <QRCode value={userId} size={160} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-              <div className="absolute -bottom-3 px-3 py-0.5 rounded-full bg-white border border-[#E5E5E5] text-[10px] font-mono text-[#555555] shadow-sm">
-                Member ID: YDC-{userId.substring(0, 8).toUpperCase()}
+            {checkInStatus && (checkInStatus.status === 'success' || checkInStatus.status === 'already_checked_in') ? (
+              <div className="my-6 flex flex-col items-center justify-center py-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="w-24 h-24 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
+                  <CheckCircle2 size={56} className="stroke-[2.5px] animate-bounce" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-extrabold text-base text-zinc-900">Check-In Successful!</h4>
+                  <p className="text-xs text-zinc-500 max-w-[240px] mx-auto leading-relaxed">
+                    {checkInStatus.userName}, you are now marked as **Present** for the event &quot;{checkInStatus.eventTitle}&quot;.
+                  </p>
+                </div>
+                {checkInStatus.status === 'already_checked_in' && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    Already checked in
+                  </span>
+                )}
               </div>
-            </div>
+            ) : checkInStatus && checkInStatus.status === 'failed' ? (
+              <div className="my-6 flex flex-col items-center justify-center py-4 space-y-4 animate-in fade-in zoom-in-95 duration-300">
+                <div className="w-24 h-24 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-500 shadow-inner">
+                  <AlertCircle size={56} className="stroke-[2.5px] animate-pulse" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-extrabold text-base text-red-600">Check-In Failed</h4>
+                  <p className="text-xs text-zinc-500 max-w-[240px] mx-auto leading-relaxed">
+                    {checkInStatus.error || 'You are not eligible or registered for this event.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCheckInStatus(null)}
+                  className="px-4 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl transition shadow-sm"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="my-6 mx-auto w-48 aspect-square bg-[#FAFAFA] border border-[#E5E5E5] p-3 rounded-2xl flex flex-col items-center justify-center relative shadow-sm">
+                  <QRCode value={userId} size={160} style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                  <div className="absolute -bottom-3 px-3 py-0.5 rounded-full bg-white border border-[#E5E5E5] text-[10px] font-mono text-[#555555] shadow-sm">
+                    Member ID: YDC-{userId.substring(0, 8).toUpperCase()}
+                  </div>
+                </div>
 
-            <div className="p-3 mt-4 rounded-2xl bg-[#FAFAFA] border border-[#E5E5E5] flex items-start gap-3 text-left">
-              <ShieldCheck size={18} className="text-[#0A9EDE] shrink-0 mt-0.5" />
-              <p className="text-[10px] text-[#A3A3A3] leading-relaxed">
-                Present this QR code to the scanner agent at any YDC event you are eligible for to check in.
-              </p>
-            </div>
+                <div className="p-3 mt-4 rounded-2xl bg-[#FAFAFA] border border-[#E5E5E5] flex items-start gap-3 text-left">
+                  <ShieldCheck size={18} className="text-[#0A9EDE] shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-[#A3A3A3] leading-relaxed">
+                    Present this QR code to the scanner agent at any YDC event you are eligible for to check in.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

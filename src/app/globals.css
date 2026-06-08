@@ -103,3 +103,34 @@ body {
   padding-bottom: 0.12em !important;
   padding-top: 0.08em !important;
 }
+
+/* Custom Marquee Text scroll on hover */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes marquee-scroll-rtl {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(50%);
+  }
+}
+
+.animate-marquee-hover {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-scroll 12s linear infinite;
+}
+
+.animate-marquee-hover-rtl {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-scroll-rtl 12s linear infinite;
+}

@@ -1,8 +1,8 @@
 "use client";
  
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
-import { Lock, CheckCircle, PlayCircle, Globe, Award, Coins } from "lucide-react";
+import { Lock, CheckCircle, PlayCircle, Award, Coins } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { getProgress } from "@/lib/wellms";
  
@@ -19,7 +19,52 @@ interface CourseModulesListProps {
   lockedLanguage: "en" | "ur";
   rewardPoints?: number;
 }
- 
+
+function MarqueeText({ text, className, dir, isUrdu }: { text: string; className?: string; dir?: "rtl" | "ltr"; isUrdu?: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [shouldScroll, setShouldScroll] = useState(false);
+
+  useEffect(() => {
+    const checkScroll = () => {
+      const container = containerRef.current;
+      const textEl = textRef.current;
+      if (container && textEl) {
+        setShouldScroll(textEl.offsetWidth > container.offsetWidth);
+      }
+    };
+
+    checkScroll();
+    const timer = setTimeout(checkScroll, 200);
+    window.addEventListener("resize", checkScroll);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", checkScroll);
+    };
+  }, [text]);
+
+  return (
+    <div 
+      ref={containerRef} 
+      className="overflow-hidden whitespace-nowrap w-full relative"
+    >
+      <div 
+        className={`${shouldScroll ? (isUrdu ? 'animate-marquee-hover-rtl' : 'animate-marquee-hover') : ''}`}
+      >
+        <span ref={textRef} className={className} dir={dir}>
+          {text}
+        </span>
+        {shouldScroll && (
+          <span className={`${className} ${isUrdu ? 'pr-12' : 'pl-12'}`} dir={dir}>
+            {text}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CourseModulesList({
   courseId,
   modules,
@@ -66,21 +111,7 @@ export default function CourseModulesList({
 
   return (
     <div className="space-y-4">
-      {/* Active Locked Track Display Header */}
-      <div className="flex items-center justify-between bg-white border border-[#E5E5E5] rounded-2xl p-4 shadow-sm">
-        <div className="flex items-center gap-2 text-[#555555]">
-          <Globe size={18} className="text-[#0A9EDE]" />
-          <span className="text-sm font-semibold">
-            Active Language Track
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5 bg-[#0A9EDE]/10 border border-[#0A9EDE]/20 px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0A9EDE]">
-          <span className="inline-block w-2 h-2 rounded-full bg-[#0A9EDE] animate-pulse" />
-          <span>
-            {isUrdu ? "Urdu (Locked)" : "English (Locked)"}
-          </span>
-        </div>
-      </div>
+
 
       <div className="space-y-3">
         {modules.map((module, index) => {
@@ -109,16 +140,19 @@ export default function CourseModulesList({
           return (
             <div key={module.id}>
               {isUnlocked ? (
-                <Link href={`/lms/lessons/${module.id}`} className="block" prefetch={false}>
+                <Link href={`/lms/lessons/${module.id}`} className="block group" prefetch={false}>
                   <div className={`bg-white border rounded-2xl p-4 flex items-center justify-between transition-colors shadow-sm hover:shadow-md ${isCompleted ? 'border-[#0BA242] bg-green-50/10' : 'border-[#E5E5E5] hover:border-[#0A9EDE]'}`}>
-                    <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCompleted ? 'bg-[#0BA242]/10 text-[#0BA242]' : 'bg-[#0A9EDE]/10 text-[#0A9EDE]'}`}>
                         {isCompleted ? <CheckCircle size={20} /> : <PlayCircle size={20} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className={`font-bold text-sm text-[#1D1D1D] truncate ${isUrdu ? "font-nastaliq text-right text-base leading-relaxed" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
-                          {isUrdu && module.titleUr ? module.titleUr : module.title}
-                        </h4>
+                        <MarqueeText
+                          text={isUrdu && module.titleUr ? module.titleUr : module.title}
+                          className={`font-bold text-sm text-[#1D1D1D] ${isUrdu ? "font-nastaliq text-right text-base leading-relaxed" : ""}`}
+                          dir={isUrdu ? "rtl" : "ltr"}
+                          isUrdu={isUrdu}
+                        />
                         
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
                           <span className="text-xs text-[#555555]">{module.duration}</span>
@@ -166,15 +200,18 @@ export default function CourseModulesList({
                   </div>
                 </Link>
               ) : (
-                <div className="bg-[#F5F5F5] border border-[#E5E5E5] rounded-2xl p-4 flex items-center justify-between opacity-70">
-                  <div className="flex items-center gap-4 flex-1">
+                <div className="group bg-[#F5F5F5] border border-[#E5E5E5] rounded-2xl p-4 flex items-center justify-between opacity-70">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-10 h-10 rounded-full bg-[#E5E5E5] text-[#A3A3A3] flex items-center justify-center shrink-0">
                       <Lock size={18} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className={`font-bold text-sm text-[#555555] truncate ${isUrdu ? "font-nastaliq text-right text-base leading-relaxed" : ""}`} dir={isUrdu ? "rtl" : "ltr"}>
-                        {isUrdu && module.titleUr ? module.titleUr : module.title}
-                      </h4>
+                      <MarqueeText
+                        text={isUrdu && module.titleUr ? module.titleUr : module.title}
+                        className={`font-bold text-sm text-[#555555] ${isUrdu ? "font-nastaliq text-right text-base leading-relaxed" : ""}`}
+                        dir={isUrdu ? "rtl" : "ltr"}
+                        isUrdu={isUrdu}
+                      />
                       <div className="flex flex-wrap items-center gap-2 mt-1.5">
                         <span className="text-xs text-[#A3A3A3] font-semibold">
                           Locked

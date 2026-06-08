@@ -427,12 +427,12 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
       .single()
 
     if (eventError || !event) {
-      return { error: 'Event not found.' }
+      return { error: 'Event not found.', userId: resolvedUserId }
     }
     eventForCheckIn = event
 
     if (adminProfile?.role === 'president' && event.unit_id !== adminProfile.unit_id) {
-      return { error: 'Permission denied. You can only scan events in your own unit.' }
+      return { error: 'Permission denied. You can only scan events in your own unit.', userId: resolvedUserId }
     }
 
     const { data: targetProfile } = await supabase
@@ -442,15 +442,15 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
       .single()
 
     if (!targetProfile) {
-      return { error: 'Volunteer profile not found.' }
+      return { error: 'Volunteer profile not found.', userId: resolvedUserId }
     }
     if (event.unit_id && event.unit_id !== targetProfile.unit_id) {
-      return { error: 'This volunteer belongs to a different unit.' }
+      return { error: 'This volunteer belongs to a different unit.', userId: resolvedUserId }
     }
     if (event.custom_criteria && Object.keys(event.custom_criteria).length > 0) {
       const criteria = await evaluateCriteria(supabase, resolvedUserId, event.custom_criteria)
       if (!criteria.eligible) {
-        return { error: criteria.reason || 'Volunteer is not eligible for this event.' }
+        return { error: criteria.reason || 'Volunteer is not eligible for this event.', userId: resolvedUserId }
       }
     }
 
@@ -469,7 +469,7 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
         .single()
 
       if (insertError) {
-        return { error: insertError.message }
+        return { error: insertError.message, userId: resolvedUserId }
       }
       registration = newReg
     }
@@ -495,14 +495,18 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
   }
 
   if (!registration) {
-    return { error: 'Ticket not found. This user is not registered for the event.' }
+    return { 
+      error: 'Ticket not found. This user is not registered for the event.',
+      userId: !scannedId.trim().startsWith('TKT-') ? scannedId.trim() : null
+    }
   }
 
   if (registration.attended) {
     return { 
       error: 'Ticket already scanned.', 
       alreadyScanned: true,
-      userName: registration.profiles?.full_name || 'Volunteer' 
+      userName: registration.profiles?.full_name || 'Volunteer',
+      userId: registration.user_id
     }
   }
 
@@ -552,7 +556,8 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
   return { 
     success: true, 
     userName: registration.profiles?.full_name || 'Volunteer',
-    coinsAwarded: attendanceReward
+    coinsAwarded: attendanceReward,
+    userId: registration.user_id
   }
 }
 

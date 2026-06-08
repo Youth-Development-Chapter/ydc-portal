@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Globe } from "lucide-react";
+import { Languages } from "lucide-react";
 import LanguageSelectModal from "./LanguageSelectModal";
 
 interface ChangeLanguageButtonProps {
@@ -23,10 +23,11 @@ export default function ChangeLanguageButton({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#E5E5E5] hover:bg-[#D5D5D5] transition-colors rounded-full text-xs font-bold text-[#1D1D1D]"
+        className="flex items-center gap-1.5 px-3 py-1 bg-white border border-[#E5E5E5] hover:bg-[#F5F5F5] transition-all rounded-full text-[10px] font-extrabold text-[#1D1D1D] shadow-sm uppercase tracking-wider shrink-0 cursor-pointer"
+        title="Change Course Language"
       >
-        <Globe size={14} />
-        Change Track
+        <Languages size={12} className="text-[#0A9EDE]" />
+        <span>{currentLanguage === "ur" ? "Urdu" : "English"}</span>
       </button>
 
       {isOpen && (

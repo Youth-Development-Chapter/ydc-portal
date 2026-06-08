@@ -65,9 +65,9 @@ export default function LanguageSelectModal({
           <div className="w-14 h-14 bg-gradient-to-br from-[#0A9EDE] to-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-[#0A9EDE]/25">
             <Globe size={28} className="text-white animate-spin-slow" />
           </div>
-          <h2 className="text-2xl font-bold font-coolvetica tracking-tight text-[#1D1D1D]">Select Course Language</h2>
+          <h2 className="text-2xl font-bold font-coolvetica tracking-tight text-[#1D1D1D]">Change Language</h2>
           <p className="text-xs text-[#555555] font-medium leading-relaxed px-4">
-            Pick your preferred track. Note: your progress will reset if you change the language.
+            Pick your preferred one. Note: your progress will reset if you change the language.
           </p>
         </div>
 
@@ -90,7 +90,7 @@ export default function LanguageSelectModal({
               <Check size={16} />
             </div>
             <div>
-              <h3 className="font-bold text-sm">English Track</h3>
+              <h3 className="font-bold text-sm">English</h3>
               <p className="text-[10px] text-[#A3A3A3] mt-0.5">Chapters & Quizzes</p>
             </div>
           </button>
@@ -112,7 +112,7 @@ export default function LanguageSelectModal({
               <Check size={16} />
             </div>
             <div>
-              <h3 className="font-bold text-sm font-nastaliq pt-1">اردو ٹریک</h3>
+              <h3 className="font-bold text-sm font-nastaliq pt-1">اردو</h3>
               <p className="text-[10px] text-[#A3A3A3] mt-0.5">اسباق اور کوئز</p>
             </div>
           </button>
@@ -137,7 +137,7 @@ export default function LanguageSelectModal({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
           )}
-          <span>Confirm Track Selection</span>
+          <span>Change</span>
         </button>
       </div>
     </div>

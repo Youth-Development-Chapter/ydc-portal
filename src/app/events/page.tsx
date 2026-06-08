@@ -17,7 +17,7 @@ export default async function EventsPage() {
   // Fetch user profile to get unit scoping
   const { data: profile } = await supabase
     .from("profiles")
-    .select("unit_id")
+    .select("unit_id, full_name")
     .eq("id", user.id)
     .single();
   const userUnitId = profile?.unit_id ?? null;
