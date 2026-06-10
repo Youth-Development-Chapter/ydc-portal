@@ -59,12 +59,12 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
         </div>
 
         <div className="border border-[#F0F0F0] rounded-2xl p-4 bg-slate-50/50 space-y-3">
-          <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">Incredible Work!</p>
-          <p className="text-sm font-semibold text-[#1D1D1D] italic">You have submitted 3 deeds today. Thank you for your amazing contributions!</p>
+          <p className="text-xs text-[#8A8A8A] font-semibold uppercase tracking-wider">All Done!</p>
+          <p className="text-sm font-semibold text-[#1D1D1D] italic">Your daily limit has reached</p>
         </div>
 
         <p className="text-[10px] text-[#8A8A8A] mt-4 text-center leading-relaxed">
-          Limit 3 submissions per day. Check back tomorrow to log your next deed and keep your fire active!
+          You can add up to 3 streaks per day. 
         </p>
       </div>
     );
@@ -82,8 +82,8 @@ export default function LogDeedForm({ submissions = [] }: { submissions?: any[] 
           <Heart size={24} className="fill-[#0BA242]/20" />
         </div>
         <div>
-          <h2 className="text-lg font-bold">Goodness Tracker</h2>
-          <p className="text-xs text-[#555555]">Log a daily good deed to keep your active streak burning! ({submissionsTodayCount}/3 logged today)</p>
+          <h2 className="text-lg font-bold">Add Streak</h2>
+          <p className="text-xs text-[#555555]">Log a daily goodness streak. ({submissionsTodayCount}/3 logged today)</p>
         </div>
       </div>
 

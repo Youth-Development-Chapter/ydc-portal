@@ -13,42 +13,37 @@ interface ErrorDetails {
 
 export default function AuthCodeErrorPage() {
   const [errorDetails, setErrorDetails] = useState<ErrorDetails | null>(null);
-  const [isDev] = useState(() => {
-    if (typeof window !== "undefined") {
-      const hostname = window.location.hostname;
-      return hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168.");
-    }
-    return false;
-  });
+  const [isDev, setIsDev] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    // Resolve isDev on the client only (avoids SSR/client hydration mismatch)
+    const hostname = window.location.hostname;
+    setIsDev(hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("192.168."));
 
-      // 1. Check URL Hash (Supabase auth errors typically redirect to #error=...)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const hashError = hashParams.get("error");
-      const hashErrorCode = hashParams.get("error_code");
-      const hashErrorDesc = hashParams.get("error_description");
+    // 1. Check URL Hash (Supabase auth errors typically redirect to #error=...)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hashError = hashParams.get("error");
+    const hashErrorCode = hashParams.get("error_code");
+    const hashErrorDesc = hashParams.get("error_description");
 
-      // 2. Check Query Params as fallback
-      const queryParams = new URLSearchParams(window.location.search);
-      const queryError = queryParams.get("error");
-      const queryErrorCode = queryParams.get("error_code");
-      const queryErrorDesc = queryParams.get("error_description");
+    // 2. Check Query Params as fallback
+    const queryParams = new URLSearchParams(window.location.search);
+    const queryError = queryParams.get("error");
+    const queryErrorCode = queryParams.get("error_code");
+    const queryErrorDesc = queryParams.get("error_description");
 
-      const error = hashError || queryError;
-      const errorCode = hashErrorCode || queryErrorCode;
-      const errorDescription = hashErrorDesc || queryErrorDesc;
+    const error = hashError || queryError;
+    const errorCode = hashErrorCode || queryErrorCode;
+    const errorDescription = hashErrorDesc || queryErrorDesc;
 
-      if (error || errorCode || errorDescription) {
-        setTimeout(() => {
-          setErrorDetails({
-            error: error || "authentication_error",
-            errorCode: errorCode || "unknown",
-            errorDescription: errorDescription ? decodeURIComponent(errorDescription).replace(/\+/g, " ") : "An unknown authentication error occurred.",
-          });
-        }, 0);
-      }
+    if (error || errorCode || errorDescription) {
+      setTimeout(() => {
+        setErrorDetails({
+          error: error || "authentication_error",
+          errorCode: errorCode || "unknown",
+          errorDescription: errorDescription ? decodeURIComponent(errorDescription).replace(/\+/g, " ") : "An unknown authentication error occurred.",
+        });
+      }, 0);
     }
   }, []);
 

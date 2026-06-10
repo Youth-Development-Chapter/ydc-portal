@@ -15,6 +15,11 @@ export default function LoginClient({ next }: { next?: string }) {
     const supabase = createClient();
     const origin = window.location.origin;
     const nextPath = next || "/dashboard";
+    // Clear any stale session / partial PKCE state before starting a new OAuth
+    // flow. Without this, a lingering invalid refresh token can cause the
+    // Supabase client to fire a SIGNED_OUT event mid-redirect, which wipes the
+    // freshly-written PKCE code_verifier cookie before the callback receives it.
+    await supabase.auth.signOut({ scope: 'local' });
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
