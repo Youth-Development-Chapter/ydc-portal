@@ -173,6 +173,53 @@ CREATE POLICY "Allow administrators full control over registrations"
         WHERE role IN ('admin', 'superadmin', 'president', 'tier-3')
     ));
 
+-- Enforce event capacity at the database level so all registration paths are covered
+-- atomically (no per-route TOCTOU race). Staff (admin/superadmin/president/tier-3) may
+-- override a full event, e.g. checking in a walk-in. Volunteers are blocked when full.
+CREATE OR REPLACE FUNCTION public.enforce_event_capacity()
+RETURNS TRIGGER AS $$
+DECLARE
+    event_capacity INTEGER;
+    current_count INTEGER;
+    is_staff BOOLEAN;
+BEGIN
+    SELECT capacity INTO event_capacity
+    FROM public.events
+    WHERE id = NEW.event_id;
+
+    -- No capacity configured (null) means unlimited.
+    IF event_capacity IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles
+        WHERE id = auth.uid()
+          AND role IN ('admin', 'superadmin', 'president', 'tier-3')
+    ) INTO is_staff;
+
+    IF is_staff THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT COUNT(*) INTO current_count
+    FROM public.event_registrations
+    WHERE event_id = NEW.event_id;
+
+    IF current_count >= event_capacity THEN
+        RAISE EXCEPTION 'EVENT_FULL' USING ERRCODE = 'check_violation';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_registration_enforce_capacity ON public.event_registrations;
+CREATE TRIGGER on_registration_enforce_capacity
+    BEFORE INSERT ON public.event_registrations
+    FOR EACH ROW
+    EXECUTE FUNCTION public.enforce_event_capacity();
+
 -- =========================================================================
 -- 3. DEED SUBMISSIONS & STREAKS
 -- =========================================================================
@@ -644,7 +691,7 @@ DECLARE
 BEGIN
     SELECT MAX(local_date) INTO latest_deed_date
     FROM public.deed_submissions
-    WHERE user_id = target_user_id AND status IN ('approved', 'pending');
+    WHERE user_id = target_user_id AND status = 'approved';
 
     IF latest_deed_date IS NULL THEN
         UPDATE public.streaks
@@ -660,7 +707,7 @@ BEGIN
             SELECT 1 FROM public.deed_submissions
             WHERE user_id = target_user_id
               AND local_date = check_date
-              AND status IN ('approved', 'pending')
+              AND status = 'approved'
         ) INTO has_deed;
 
         IF has_deed THEN
@@ -709,13 +756,12 @@ CREATE TRIGGER on_deed_change_update_streak
 CREATE OR REPLACE FUNCTION public.handle_deed_coins()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Award coins on approval. Flag deductions are handled entirely in app code
+    -- (flagDeedSubmission / overrideDeedDecision) so the admin-chosen amount is the
+    -- single source of truth; the trigger must NOT deduct here or coins double-count.
     IF NEW.status = 'approved' AND (OLD.status IS NULL OR OLD.status != 'approved') THEN
         INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, processed_by)
         VALUES (NEW.user_id, NEW.coin_reward + NEW.bonus_coins, 'daily_deed', NEW.id, NEW.status_updated_by);
-
-    ELSIF NEW.status = 'flagged' AND (OLD.status IS NULL OR OLD.status != 'flagged') THEN
-        INSERT INTO public.coin_transactions (user_id, amount, reason, reference_id, processed_by)
-        VALUES (NEW.user_id, -10, 'deed_flagged', NEW.id, NEW.status_updated_by);
     END IF;
 
     RETURN NEW;

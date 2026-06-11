@@ -1,10 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
+import { Flame, Clock } from "lucide-react";
 
-export default function WeeklyActivity({ submissions }: { submissions: any[] }) {
-  const [last7Days, setLast7Days] = useState<any[]>([]);
+type DeedSubmission = { local_date: string; status: string };
+
+type DayCell = {
+  dateStr: string;
+  dayName: string;
+  dayNum: number;
+  isToday: boolean;
+  hasDeed: boolean;
+  isPending: boolean;
+};
+
+export default function WeeklyActivity({ submissions }: { submissions: DeedSubmission[] }) {
+  const [last7Days, setLast7Days] = useState<DayCell[]>([]);
 
   useEffect(() => {
     const days = [];
@@ -20,16 +31,20 @@ export default function WeeklyActivity({ submissions }: { submissions: any[] }) 
       const dayNum = d.getDate();
       const isToday = i === 0;
 
-      const hasDeed = (submissions || []).some(
-        (sub: any) => sub.local_date === dateStr && (sub.status === 'approved' || sub.status === 'pending')
-      );
+      // Only approved deeds count toward the streak (filled flame). Pending deeds are
+      // shown as "under review" so the user sees their submission registered without it
+      // locking in a streak day before an admin approves it.
+      const dayDeeds = (submissions || []).filter((sub) => sub.local_date === dateStr);
+      const hasDeed = dayDeeds.some((sub) => sub.status === 'approved');
+      const isPending = !hasDeed && dayDeeds.some((sub) => sub.status === 'pending');
 
       days.push({
         dateStr,
         dayName,
         dayNum,
         isToday,
-        hasDeed
+        hasDeed,
+        isPending
       });
     }
     setLast7Days(days);
@@ -55,17 +70,22 @@ export default function WeeklyActivity({ submissions }: { submissions: any[] }) 
       
       {last7Days.map((day) => (
         <div key={day.dateStr} className="flex flex-col items-center flex-1">
-          <div 
+          <div
             className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 ${
-              day.hasDeed 
-                ? "bg-gradient-to-br from-[#0BA242] to-emerald-600 border-[#0BA242] shadow-md shadow-emerald-500/10 text-white" 
-                : day.isToday
-                  ? "bg-[#F0F9FF] border-[#0A9EDE] text-[#0A9EDE] animate-pulse shadow-inner"
-                  : "bg-[#F5F5F5] border-[#E5E5E5] text-[#8A8A8A]"
+              day.hasDeed
+                ? "bg-gradient-to-br from-[#0BA242] to-emerald-600 border-[#0BA242] shadow-md shadow-emerald-500/10 text-white"
+                : day.isPending
+                  ? "bg-[#FFF7ED] border-[#F59E0B] text-[#F59E0B] shadow-inner"
+                  : day.isToday
+                    ? "bg-[#F0F9FF] border-[#0A9EDE] text-[#0A9EDE] animate-pulse shadow-inner"
+                    : "bg-[#F5F5F5] border-[#E5E5E5] text-[#8A8A8A]"
             }`}
+            title={day.isPending ? "Deed submitted — under review" : undefined}
           >
             {day.hasDeed ? (
               <Flame size={18} className="fill-white/20" />
+            ) : day.isPending ? (
+              <Clock size={16} />
             ) : (
               <span className="text-xs font-bold font-mono">{day.dayNum}</span>
             )}

@@ -71,6 +71,13 @@ export async function claimTicket(eventId: string) {
     })
 
   if (error) {
+    if (error.code === '23505') {
+      return { error: 'You are already registered for this event.' }
+    }
+    // Capacity trigger (enforce_event_capacity) raises EVENT_FULL when the event is full.
+    if (error.message?.includes('EVENT_FULL')) {
+      return { error: 'This event is full.' }
+    }
     return { error: error.message }
   }
 

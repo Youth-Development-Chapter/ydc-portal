@@ -79,6 +79,13 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         )
       }
+      // Capacity trigger (enforce_event_capacity) raises EVENT_FULL when the event is full.
+      if (error.message?.includes('EVENT_FULL')) {
+        return NextResponse.json(
+          { error: 'This event is full.' },
+          { status: 409 }
+        )
+      }
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
