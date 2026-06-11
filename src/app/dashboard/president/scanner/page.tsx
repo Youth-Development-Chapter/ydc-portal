@@ -25,11 +25,18 @@ export default async function PresidentScannerPage() {
   
   const adminUnitId = adminProfile?.unit_id || null
 
-  let eventsQuery = supabase.from('events').select('id, title, date').eq('is_archived', false)
+  // Only surface today's and upcoming events in the scanner picker — past events
+  // just create confusion when choosing which event to check volunteers into.
+  const todayStr = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD (local)
+  let eventsQuery = supabase
+    .from('events')
+    .select('id, title, date')
+    .eq('is_archived', false)
+    .gte('date', todayStr)
   if (role === 'president' && adminUnitId) {
     eventsQuery = eventsQuery.eq('unit_id', adminUnitId)
   }
-  const { data: events } = await eventsQuery.order('date', { ascending: false })
+  const { data: events } = await eventsQuery.order('date', { ascending: true })
 
   return (
     <div className="space-y-4">

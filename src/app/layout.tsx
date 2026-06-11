@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Poppins, Noto_Nastaliq_Urdu } from "next/font/google";
 import Script from "next/script";
+import { Toaster } from "sonner";
+import { createClient } from "@/utils/supabase/server";
+import CheckInListener from "@/components/CheckInListener";
 import "./globals.css";
 
 const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
@@ -21,11 +24,14 @@ export const metadata: Metadata = {
   description: "Youth Development Center",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   return (
     <html
       lang="en"
@@ -34,6 +40,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col relative font-sans">
         {children}
 
+        <Toaster position="top-right" richColors />
+        {user && <CheckInListener userId={user.id} />}
       </body>
     </html>
   );

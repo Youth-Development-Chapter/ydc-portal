@@ -550,45 +550,16 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
     console.error('Error crediting attendance coins:', coinError)
   }
 
-  // Realtime Broadcast to volunteer client
-  try {
-    const channel = supabase.channel(`checkin-${registration.user_id}`, {
-      config: {
-        broadcast: { self: true }
-      }
-    })
-    await new Promise<void>((resolve) => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          channel.send({
-            type: 'broadcast',
-            event: 'status',
-            payload: {
-              status: 'success',
-              userName: registration.profiles?.full_name || 'Volunteer',
-              eventTitle: registration.events?.title || 'YDC Event',
-              error: null
-            }
-          }).then(() => {
-            setTimeout(() => {
-              supabase.removeChannel(channel)
-              resolve()
-            }, 800)
-          })
-        } else {
-          resolve()
-        }
-      })
-    })
-  } catch (broadcastErr) {
-    console.error('Error broadcasting check-in success:', broadcastErr)
-  }
+  // Note: the volunteer-facing realtime broadcast is sent from the scanner's browser
+  // (PresidentScannerClient) which reliably reaches the user's <CheckInListener>.
+  // We intentionally do NOT broadcast from this server action — opening a websocket
+  // here raced the client broadcast and produced duplicate/none-at-all popups.
 
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
-  
-  return { 
-    success: true, 
+
+  return {
+    success: true,
     userName: registration.profiles?.full_name || 'Volunteer',
     coinsAwarded: attendanceReward,
     userId: registration.user_id

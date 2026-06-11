@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 import { getAdminContext } from '@/lib/admin'
-import { Toaster } from 'sonner'
 import AdminNav from '@/components/admin/AdminNav'
 import {
   ArrowLeft,
@@ -119,8 +118,6 @@ export default async function AdminLayout({
       
       {/* Mobile Bottom Tab Navigation */}
       <AdminNav role={role} permissions={permissions} mobileOnly />
-      
-      <Toaster position="top-right" richColors />
     </div>
   )
 }
