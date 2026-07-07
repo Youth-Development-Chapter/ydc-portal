@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
+import { claimTicket } from "@/app/actions";
+import { toast } from "sonner";
 import { 
   BookOpen, 
   AlertTriangle, 
@@ -29,6 +31,8 @@ export interface Flashcard {
   iconName: 'book' | 'alert' | 'calendar' | 'check' | 'bell' | 'gift';
   progress?: number;
   isUrdu?: boolean;
+  showJoinButton?: boolean;
+  eventId?: string;
 }
 
 interface DashboardFlashcardsProps {
@@ -40,7 +44,28 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isJoining, setIsJoining] = useState<string | null>(null);
   const autoPlayTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const handleJoin = async (e: React.MouseEvent, fcId: string, eventId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsJoining(fcId);
+    try {
+      const res = await claimTicket(eventId);
+      if (res && res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success("RSVP successful! You are marked as Going.");
+        setDismissedIds(prev => new Set([...prev, fcId]));
+        setTimeout(() => window.location.reload(), 800);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to RSVP");
+    } finally {
+      setIsJoining(null);
+    }
+  };
 
   // Drag/swipe state
   const touchStartX = useRef<number | null>(null);
@@ -279,6 +304,16 @@ export default function DashboardFlashcards({ flashcards }: DashboardFlashcardsP
             >
               {isUrdu && currentCard.descriptionUr ? currentCard.descriptionUr : currentCard.description}
             </p>
+
+            {currentCard.showJoinButton && currentCard.eventId && (
+              <button
+                disabled={isJoining === currentCard.id}
+                onClick={(e) => handleJoin(e, currentCard.id, currentCard.eventId!)}
+                className="mt-3 w-fit px-3.5 py-1.5 rounded-lg bg-[#0A9EDE] hover:bg-[#0A9EDE]/95 text-white font-bold text-[10px] uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-sm disabled:opacity-50 inline-flex items-center justify-center min-h-[1.75rem]"
+              >
+                {isJoining === currentCard.id ? "Joining..." : (isUrdu ? "شرکت کریں" : "Mark as Going")}
+              </button>
+            )}
 
             {typeof currentCard.progress === 'number' && (
               <div className="w-full bg-[#E5E5E5] h-1.5 rounded-full overflow-hidden mt-2">

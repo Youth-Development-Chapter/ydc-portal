@@ -17,6 +17,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "lib_lms_data_lesson_html_options": "LESSON_HTML_OPTIONS" | kind=code-symbol | source=src/lib/lms-data.ts:L19 | neighbors=[lms-data.ts]
 - "lib_lms_data_sanitizelessoncontent": "sanitizeLessonContent()" | kind=code-symbol | source=src/lib/lms-data.ts:L36 | neighbors=[lms-data.ts]
 - "lib_perf_data_getrecentannouncementscached": "getRecentAnnouncementsCached" | kind=code-symbol | source=src/lib/perf-data.ts:L97 | neighbors=[perf-data.ts]
 - "lib_perf_data_leaderboardentry": "LeaderboardEntry" | kind=code-symbol | source=src/lib/perf-data.ts:L16 | neighbors=[perf-data.ts]
@@ -56,7 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "migrations_20260608000002_update_leaderboard_rpc_unit_filter_public_get_leaderboard": "public.get_leaderboard()" | kind=code-symbol | source=supabase/migrations/20260608000002_update_leaderboard_rpc_unit_filter.sql:L1 | neighbors=[20260608000002_update_leaderboard_rpc_u…]
 - "migrations_202606080036_event_criteria_leaves": "202606080036_event_criteria_leaves.sql" | kind=code-symbol | source=supabase/migrations/202606080036_event_criteria_leaves.sql:L1 | neighbors=[35fbf30 Introduce units and unit-based …]
 - "migrations_20260608120000_sync_updated_schema_public_get_leaderboard": "public.get_leaderboard()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L340 | neighbors=[20260608120000_sync_updated_schema.sql]
-- "migrations_20260608120000_sync_updated_schema_public_get_user_coin_balance": "public.get_user_coin_balance()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L326 | neighbors=[20260608120000_sync_updated_schema.sql]
 
 ## Instructions
 

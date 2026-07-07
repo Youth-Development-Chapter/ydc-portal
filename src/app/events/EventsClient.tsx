@@ -24,7 +24,7 @@ interface Event {
   location: string;
   capacity: number;
   is_compulsory: boolean;
-  status: 'none' | 'registered' | 'present' | 'absent' | 'leave_pending' | 'leave_approved' | 'leave_rejected';
+  status: 'none' | 'registered' | 'present' | 'absent' | 'leave_pending' | 'leave_approved' | 'leave_rejected' | 'not_going';
   isUpcoming?: boolean;
   poster_url?: string | null;
   poster_color?: string | null;
@@ -146,6 +146,26 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
     setShowLeaveModal(true);
   };
 
+  const handleMarkNotGoing = (eventId: string) => {
+    setError(null);
+    startTransition(async () => {
+      const res = await fetch('/api/events/not-going', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to update RSVP.');
+        return;
+      }
+      toast.success("RSVP updated!", {
+        description: "You have marked yourself as not going."
+      });
+      router.refresh();
+    });
+  };
+
   const submitLeaveRequest = () => {
     if (!leaveEventId || !leaveReason.trim()) return;
     setError(null);
@@ -229,8 +249,9 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
       <div className="space-y-4">
         {events.map((event) => {
           const isExpected = event.is_compulsory || event.status === 'registered';
-          const canJoin = !event.is_compulsory && event.status === 'none';
-          const canLeave = isExpected && event.status !== 'leave_pending' && event.status !== 'leave_approved' && event.status !== 'present' && event.status !== 'absent';
+          const canJoin = !event.is_compulsory && (event.status === 'none' || event.status === 'not_going');
+          const canLeave = event.is_compulsory && event.status !== 'leave_pending' && event.status !== 'leave_approved' && event.status !== 'present' && event.status !== 'absent';
+          const canMarkNotGoing = !event.is_compulsory && event.status === 'registered';
           
           const hasPosterColor = !!event.poster_color;
           const cardBgColor = event.poster_color || '#FFFFFF';
@@ -401,14 +422,37 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
                       onClick={() => handleMarkLeave(event.id)}
                       isLoading={isPending}
                       disabled={isPending}
-                      variant="outline"
+                      variant={hasPosterColor ? "ghost" : "outline"}
+                      leftIcon={<CalendarOff size={14} />}
                       className={`flex-1 min-w-[120px] ${
-                        isDarkBg 
-                          ? "border-white/40 hover:bg-white/15 text-white hover:text-white" 
+                        hasPosterColor
+                          ? (isDarkBg 
+                            ? "bg-white/10 hover:bg-white/20 border border-white/25 text-white hover:text-white" 
+                            : "bg-black/5 hover:bg-black/10 border border-black/20 text-zinc-950 hover:text-zinc-950 font-bold"
+                          )
                           : ""
                       }`}
                     >
-                      <CalendarOff size={14} className="mr-2" /> Mark Leave
+                      Mark Leave
+                    </Button>
+                  )}
+                  {event.isUpcoming && canMarkNotGoing && (
+                    <Button
+                      onClick={() => handleMarkNotGoing(event.id)}
+                      isLoading={isPending}
+                      disabled={isPending}
+                      variant={hasPosterColor ? "ghost" : "outline"}
+                      leftIcon={<CalendarOff size={14} />}
+                      className={`flex-1 min-w-[120px] ${
+                        hasPosterColor
+                          ? (isDarkBg 
+                            ? "bg-white/10 hover:bg-white/20 border border-white/25 text-white hover:text-white" 
+                            : "bg-black/5 hover:bg-black/10 border border-black/20 text-zinc-950 hover:text-zinc-950 font-bold"
+                          )
+                          : ""
+                      }`}
+                    >
+                      Mark as Not Going
                     </Button>
                   )}
                   {event.isUpcoming && event.status === 'leave_pending' && (
@@ -416,14 +460,18 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
                       onClick={() => handleRevokeLeave(event.id)}
                       isLoading={isPending}
                       disabled={isPending}
-                      variant="outline"
+                      variant={hasPosterColor ? "ghost" : "outline"}
+                      leftIcon={<Undo2 size={14} />}
                       className={`flex-1 min-w-[120px] ${
-                        isDarkBg 
-                          ? "border-white/45 hover:bg-white/20 text-white hover:text-white" 
+                        hasPosterColor
+                          ? (isDarkBg 
+                            ? "bg-white/15 hover:bg-white/25 border border-white/30 text-white hover:text-white" 
+                            : "bg-black/10 hover:bg-black/15 border border-black/25 text-zinc-950 hover:text-zinc-950 font-bold"
+                          )
                           : "border-amber-200 hover:bg-amber-50 hover:text-amber-700 text-amber-600"
                       }`}
                     >
-                      <Undo2 size={14} className="mr-2" /> Revoke Leave
+                      Revoke Leave
                     </Button>
                   )}
                 </div>

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/Input'
 import { 
   ArrowLeft, Calendar, MapPin, Clock, Search, Check, 
   Plus, Coins, Edit2, X, ChevronLeft, ChevronRight, Loader2,
-  CheckSquare, Square, Trash2, HelpCircle, Archive, RotateCcw
+  CheckSquare, Square, Trash2, HelpCircle, Archive, RotateCcw,
+  CalendarOff
 } from 'lucide-react'
 import { 
   toggleManualAttendance, 
@@ -279,6 +280,24 @@ export default function EventDetailsClient({
 
   const itemsPerPage = 20
 
+  const [withdrawnRoster, setWithdrawnRoster] = useState<RosterEntry[]>([])
+  const [isLoadingWithdrawn, setIsLoadingWithdrawn] = useState(false)
+
+  const fetchWithdrawnRoster = useCallback(async () => {
+    if (event.is_compulsory) return;
+    setIsLoadingWithdrawn(true)
+    try {
+      const res = await getEventRoster(event.id, 1, 100, '', 'not_going')
+      if (res && !res.error) {
+        setWithdrawnRoster(res.roster || [])
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch withdrawn list:', err)
+    } finally {
+      setIsLoadingWithdrawn(false)
+    }
+  }, [event.id, event.is_compulsory])
+
   const fetchRoster = useCallback(async (page: number, search: string, filter: string) => {
     setIsLoading(true)
     try {
@@ -298,7 +317,8 @@ export default function EventDetailsClient({
 
   useEffect(() => {
     fetchRoster(currentPage, searchQuery, statusFilter)
-  }, [currentPage, searchQuery, statusFilter, fetchRoster])
+    fetchWithdrawnRoster()
+  }, [currentPage, searchQuery, statusFilter, fetchRoster, fetchWithdrawnRoster])
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
@@ -1037,6 +1057,65 @@ export default function EventDetailsClient({
           )}
         </Card>
       </div>
+
+      {/* Withdrawn RSVPs Card for Optional Events */}
+      {!event.is_compulsory && (
+        <Card className="mt-6 shadow-sm border border-zinc-200 bg-white rounded-3xl overflow-hidden flex flex-col">
+          <CardHeader className="pb-4 border-b border-zinc-100 bg-zinc-50/50">
+            <div>
+              <CardTitle className="text-sm font-extrabold text-zinc-950 flex items-center gap-1.5">
+                <CalendarOff size={16} className="text-zinc-500" />
+                Withdrawn RSVPs (Returned Registrations)
+              </CardTitle>
+              <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">
+                List of volunteers who registered for this optional event but later marked themselves as not going.
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoadingWithdrawn ? (
+              <div className="py-8 flex items-center justify-center">
+                <span className="text-xs font-bold text-zinc-500">Querying withdrawn registrations...</span>
+              </div>
+            ) : withdrawnRoster.length === 0 ? (
+              <div className="py-12 flex flex-col items-center justify-center text-zinc-400 bg-zinc-50/30">
+                <CalendarOff size={28} className="text-zinc-300 stroke-[1.5] mb-2" />
+                <span className="text-xs font-bold">No Withdrawn RSVPs</span>
+                <span className="text-[10px] text-zinc-400 mt-0.5">No registered volunteers have opted out of this event.</span>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-zinc-50/50 border-b border-zinc-100 text-[10px] text-zinc-500 font-extrabold uppercase tracking-wider">
+                      <th className="py-3 px-5 font-extrabold">Name</th>
+                      <th className="py-3 px-5 font-extrabold">Unit</th>
+                      <th className="py-3 px-5 font-extrabold">Qualification</th>
+                      <th className="py-3 px-5 font-extrabold">Ticket Code</th>
+                      <th className="py-3 px-5 font-extrabold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-50">
+                    {withdrawnRoster.map((reg) => (
+                      <tr key={reg.id} className="hover:bg-zinc-50/50 transition duration-150">
+                        <td className="py-3 px-5 font-bold text-zinc-900">{reg.full_name}</td>
+                        <td className="py-3 px-5 text-zinc-600 font-semibold">{reg.unit_name}</td>
+                        <td className="py-3 px-5 text-zinc-500 font-medium">{reg.qualification}</td>
+                        <td className="py-3 px-5 font-mono text-zinc-400 text-[10px]">{reg.ticket_code}</td>
+                        <td className="py-3 px-5">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-zinc-100 text-zinc-600 border border-zinc-200">
+                            Withdrawn
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* EDIT EVENT MODAL */}
       {showEditModal && (

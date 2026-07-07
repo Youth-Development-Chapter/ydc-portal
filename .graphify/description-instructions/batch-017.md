@@ -12,18 +12,13 @@ describing what it is or does. Use only the provided context.
 For a code symbol (kind=code-symbol — a function, class, or constant),
 describe what the function/symbol does based on its name, source location
 and neighbors — e.g. "Resolves the configured ontology profile from graphify.yaml.".
-For an entity node (any other kind — e.g. a person, place, event, object),
-describe what the entity is and its role, grounded in its type, its
-relations (neighbors) and the provided citations/evidence — e.g.
-"Lady Carfax, a wealthy heiress who disappears en route to Lausanne.".
-Ground entity descriptions in the citations/evidence when present; do not
-speculate beyond the context, so a node with no supporting context may be
-left out of the reply.
 Write every description in English (en). Do not switch languages.
 No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "settings_page_adminsettingspage": "AdminSettingsPage()" | kind=code-symbol | source=src/app/admin/settings/page.tsx:L9 | neighbors=[page.tsx]
+- "settings_page_settingspage": "SettingsPage()" | kind=code-symbol | source=src/app/dashboard/settings/page.tsx:L8 | neighbors=[page.tsx]
 - "settings_settingsform_profile": "Profile" | kind=code-symbol | source=src/app/dashboard/settings/SettingsForm.tsx:L9 | neighbors=[SettingsForm.tsx]
 - "settings_settingsform_settingsform": "SettingsForm()" | kind=code-symbol | source=src/app/dashboard/settings/SettingsForm.tsx:L26 | neighbors=[SettingsForm.tsx]
 - "settings_settingsform_unit": "Unit" | kind=code-symbol | source=src/app/dashboard/settings/SettingsForm.tsx:L20 | neighbors=[SettingsForm.tsx]
@@ -62,8 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "verify_route_get": "GET()" | kind=code-symbol | source=src/app/auth/v1/verify/route.ts:L3 | neighbors=[route.ts]
 - "wallet_loading_walletloading": "WalletLoading()" | kind=code-symbol | source=src/app/dashboard/wallet/loading.tsx:L3 | neighbors=[loading.tsx]
 - "wallet_page_walletpage": "WalletPage()" | kind=code-symbol | source=src/app/dashboard/wallet/page.tsx:L11 | neighbors=[page.tsx]
-- "logocolor_png": "YDC Colored Logo" | kind=entity | source=public/logocolor.png
-- "public_icon_png": "YDC Portal Logo Icon" | kind=entity | source=public/icon.png
 
 ## Instructions
 

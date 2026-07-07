@@ -26,8 +26,9 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@9abbc7f917d95761013b7ad7e5a8447edc90668d": "9abbc7f Add profile onboarding flow and redirects" | kind=Commit | source=git | neighbors=[actions.ts, main, 7522853 Add admin user management & tic…, page.tsx, page.tsx, a227584 Add LMS gamification rewards & …] | lang=en
+- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@a7f817779fa176616d06fed0f2dfab4fe33d3ba2": "a7f8177 Add email to profiles with migration & triggers" | kind=Commit | source=git | neighbors=[actions.ts, main, d73e533 Add auth UIs, president console…, 20260523140000_add_email_to_profiles.sql, schema.sql, fb18f2e Add division scoping, reward ed…] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@d17ee1f6a4859ad32f8eb88f04b67448ed048a5b": "d17ee1f Add fluid top gradient, tweak dashboard headers" | kind=Commit | source=git | neighbors=[8cc013d Add dynamic dashboard flashcard…, main, fb18f2e Add division scoping, reward ed…, loading.tsx, page.tsx, page.tsx] | lang=en
-- "components_checkinlistener": "CheckInListener.tsx" | kind=code-symbol | source=src/components/CheckInListener.tsx:L1 | neighbors=[layout.tsx, c06ef93 fixed check in logic, CheckInListener(), CheckInPayload, client.ts, createClient()] | lang=en
 - "leave_route": "route.ts" | kind=code-symbol | source=src/app/api/events/leave/route.ts:L1 | neighbors=[07226c4 Add event posters, archiving & …, 35fbf30 Introduce units and unit-based …, DELETE(), POST(), api.ts, createApiClient()] | lang=en
 - "lib_public_supabase": "public-supabase.ts" | kind=code-symbol | source=src/lib/public-supabase.ts:L1 | neighbors=[390bb7c perf: optimize hot queries and …, 90ef3d6 Merge pull request #3 from Yout…, 9e0c0d2 Merge branch 'main' of https://…, lms-data.ts, perf-data.ts, createPublicSupabaseServerClient()] | lang=en
 - "log_deed_deedhistoryclient": "DeedHistoryClient.tsx" | kind=code-symbol | source=src/app/dashboard/log-deed/DeedHistoryClient.tsx:L1 | neighbors=[986cd4b Split President console; add ev…, DeedHistoryClient(), Button.tsx, Button, LocalTime.tsx, page.tsx] | lang=en
@@ -65,7 +66,6 @@ one-sentence description — no prose, no markdown fences.
 - "supabase_schema_public_courses": "public.courses" | kind=code-symbol | source=supabase/schema.sql:L354 | neighbors=[schema.sql, public.handle_course_completion(), public.modules, public.user_course_settings, public.user_progress] | lang=en
 - "supabase_schema_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/schema.sql:L228 | neighbors=[schema.sql, on_deed_change_update_streak, on_deed_status_coins, public.profiles, public.update_user_streak()] | lang=en
 - "supabase_schema_public_event_registrations": "public.event_registrations" | kind=code-symbol | source=supabase/schema.sql:L144 | neighbors=[schema.sql, on_registration_enforce_capacity, public.enforce_event_capacity(), public.events, public.profiles] | lang=en
-- "ui_localtime": "LocalTime.tsx" | kind=code-symbol | source=src/components/ui/LocalTime.tsx:L1 | neighbors=[463284b Enforce 3-per-day deeds and add…, DeedHistoryClient.tsx, page.tsx, LocalTime(), LocalTimeProps] | lang=en
 
 ## Instructions
 

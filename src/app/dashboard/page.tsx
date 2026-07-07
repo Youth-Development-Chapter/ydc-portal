@@ -70,7 +70,7 @@ export default async function UserDashboard() {
     supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
     supabase
       .from('event_registrations')
-      .select('id, event_id, ticket_code, attended, events(id, title, date, time, location, poster_url, poster_color)')
+      .select('id, event_id, ticket_code, attended, status, events(id, title, date, start_time, end_time, location, poster_url, poster_color)')
       .eq('user_id', user.id),
     supabase.from('deed_submissions').select('id, status').eq('user_id', user.id).eq('local_date', todayStr),
     getUserCoinBalance(user.id),
@@ -269,43 +269,81 @@ export default async function UserDashboard() {
     });
   }
 
-  // Compile Registered Event Starting Soon (< 48 hours)
-  if (upcomingEvent48h) {
-    const event = extractEvent(upcomingEvent48h);
-    if (event) {
-    flashcards.push({
-      id: `reg-event-48h-${event.id}`,
-      type: "upcoming_event",
-      title: "Event Tomorrow!",
-      titleUr: "تقریب شروع ہونے والی ہے",
-      description: `"${event.title}" starts soon. Your entry ticket is ready!`,
-      descriptionUr: `"${event.title}" اگلے 48 گھنٹوں میں شروع ہو رہی ہے۔ آپ کا انٹری ٹکٹ تیار ہے!`,
-      link: "/events",
-      badgeText: "Starting Soon",
-      badgeTextUr: "جلد شروع ہو رہا ہے",
-      badgeColor: "green",
-      iconName: "calendar"
-    });
-    }
-  }
+  // Compile Upcoming Events Flashcards
+  // Show ALL upcoming events except those where the user has specifically marked leave.
+  // "none passed events" -> we only select events where date >= todayStr.
+  const upcomingEventsForFlashcards = (allUpcomingEventsCached || []).filter(e => e.date >= todayStr);
 
-  // Compile Unregistered Upcoming Events (so they can join)
-  const registeredEventIds = new Set((registrations || []).map(r => r.event_id));
-  const unregisteredEvents = (allUpcomingEvents || []).filter(e => !registeredEventIds.has(e.id));
-  unregisteredEvents.forEach(event => {
-    flashcards.push({
-      id: `unreg-event-${event.id}`,
-      type: "unregistered_event",
-      title: "Upcoming Event",
-      titleUr: "تقریب آرہی ہے",
-      description: `Claim entry ticket for "${event.title}" (${new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${event.time}).`,
-      descriptionUr: `ٹکٹ حاصل کریں: "${event.title}"، (${new Date(event.date).toLocaleDateString('ur-PK', { month: 'short', day: 'numeric' })} بوقت ${event.time})۔`,
-      link: "/events",
-      badgeText: "Claim Ticket",
-      badgeTextUr: "ٹکٹ حاصل کریں",
-      badgeColor: "blue",
-      iconName: "calendar"
-    });
+  upcomingEventsForFlashcards.forEach(event => {
+    // Find the user's registration status for this event
+    const reg = (registrations || []).find(r => r.event_id === event.id);
+    let status = 'none';
+    if (reg) {
+      if (reg.status === 'present' || reg.attended) status = 'present';
+      else if (reg.status === 'leave_pending') status = 'leave_pending';
+      else if (reg.status === 'leave_approved') status = 'leave_approved';
+      else if (reg.status === 'leave_rejected') status = 'leave_rejected';
+      else status = 'registered';
+    }
+
+    // Exclude if marked as leave (pending, approved, or rejected)
+    if (['leave_pending', 'leave_approved', 'leave_rejected'].includes(status)) {
+      return;
+    }
+
+    const eventDateStr = new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const eventDateStrUr = new Date(event.date).toLocaleDateString('ur-PK', { month: 'short', day: 'numeric' });
+
+    if (status === 'registered' || status === 'present') {
+      // User is already going to this event
+      flashcards.push({
+        id: `reg-event-fc-${event.id}`,
+        type: "upcoming_event",
+        title: event.is_compulsory ? "Compulsory Event" : "Upcoming Event",
+        titleUr: event.is_compulsory ? "لازمی شرکت تقریب" : "تقریب آرہی ہے",
+        description: `You are Going to "${event.title}" (${eventDateStr} at ${event.time}).`,
+        descriptionUr: `آپ تقریب "${event.title}" میں شامل ہو رہے ہیں (${eventDateStrUr} بوقت ${event.time})۔`,
+        link: "/events",
+        badgeText: event.is_compulsory ? "Compulsory" : "Going",
+        badgeTextUr: event.is_compulsory ? "لازمی" : "شامل ہوں",
+        badgeColor: event.is_compulsory ? "red" : "green",
+        iconName: "calendar"
+      });
+    } else {
+      // User is not registered yet (status === 'none')
+      if (event.is_compulsory) {
+        flashcards.push({
+          id: `comp-event-fc-${event.id}`,
+          type: "upcoming_event",
+          title: "Compulsory Event",
+          titleUr: "لازمی شرکت تقریب",
+          description: `"${event.title}" is compulsory. Make sure to attend (${eventDateStr} at ${event.time}).`,
+          descriptionUr: `"${event.title}" لازمی ہے۔ شرکت یقینی بنائیں (${eventDateStrUr} بوقت ${event.time})۔`,
+          link: "/events",
+          badgeText: "Compulsory",
+          badgeTextUr: "لازمی شرکت",
+          badgeColor: "red",
+          iconName: "calendar"
+        });
+      } else {
+        // Optional event not registered yet -> show RSVP with "Mark as Going" button!
+        flashcards.push({
+          id: `opt-event-fc-${event.id}`,
+          type: "unregistered_event",
+          title: "Upcoming Event",
+          titleUr: "تقریب آرہی ہے",
+          description: `RSVP for "${event.title}" (${eventDateStr} at ${event.time}).`,
+          descriptionUr: `شرکت کی تصدیق کریں: "${event.title}" (${eventDateStrUr} بوقت ${event.time})۔`,
+          link: "/events",
+          badgeText: "RSVP",
+          badgeTextUr: "تصدیق کریں",
+          badgeColor: "blue",
+          iconName: "calendar",
+          showJoinButton: true,
+          eventId: event.id
+        } as any);
+      }
+    }
   });
 
   // Compile Recent Deed Approvals (within 48 hours)
@@ -403,19 +441,31 @@ export default async function UserDashboard() {
     });
   }
 
-  const myEvents = (registrations || [])
-    .map((reg) => ({ reg, event: extractEvent(reg) }))
+  // Find compulsory events that are not registered
+  const registeredEventIds = new Set((registrations || []).map(r => r.event_id));
+  const unregisteredCompulsoryEvents = (allUpcomingEvents || [])
+    .filter(e => e.is_compulsory && !registeredEventIds.has(e.id));
+
+  // Create list of My Events combining registered events and unregistered compulsory events
+  const myEvents = [
+    ...(registrations || []).map((reg) => ({ reg, event: extractEvent(reg) })),
+    ...unregisteredCompulsoryEvents.map(e => ({
+      reg: { id: null, ticket_code: null, attended: false, status: 'none' },
+      event: e
+    }))
+  ]
     .filter(({ event }) => !!event)
-    .map(reg => ({
-      id: reg.event!.id,
-      title: reg.event!.title,
-      date: new Date(reg.event!.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      time: reg.event!.time,
-      location: reg.event!.location,
-      ticketCode: reg.reg.ticket_code,
-      attended: reg.reg.attended,
-      poster_url: reg.event!.poster_url || null,
-      poster_color: reg.event!.poster_color || null
+    .map(item => ({
+      id: item.event!.id,
+      title: item.event!.title,
+      date: new Date(item.event!.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      time: item.event!.time,
+      location: item.event!.location,
+      ticketCode: item.reg.ticket_code,
+      attended: item.reg.attended,
+      poster_url: item.event!.poster_url || null,
+      poster_color: item.event!.poster_color || null,
+      isCompulsory: item.event!.is_compulsory || false
     })); 
 
   const showNotificationBadge = !hasLoggedDeedToday || (recentAnnouncements && recentAnnouncements.length > 0) || !!upcomingEvent48h;
@@ -637,55 +687,43 @@ export default async function UserDashboard() {
           <MyEventsCarousel events={myEvents} />
         </div>
 
-        {/* REWARDS & SHOP PERKS */}
-        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <Gift size={18} className="text-[#0BA242]" />
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Rewards</h3>
-          </div>
-
-          <Link href="/dashboard/rewards" className="block">
-            <div className="bg-gradient-to-br from-green-500/5 to-[#0BA242]/5 border border-[#0BA242]/20 hover:border-[#0BA242]/40 rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-all duration-300">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0BA242]/10 text-[#0BA242] flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
-                  <Gift size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1D1D1D]">Shop</h4>
-                  <p className="text-[10px] text-[#555555] mt-0.5">Use your {coins} YDC coins to claim gifts</p>
-                </div>
+        {/* REWARDS / SHOP CARD */}
+        <Link href="/dashboard/rewards" className="block">
+          <div className="bg-gradient-to-br from-[#0BA242]/5 to-[#0BA242]/15 border border-[#0BA242]/20 hover:border-[#0BA242]/45 hover:bg-[#0BA242]/10 rounded-3xl p-5 flex items-center justify-between group cursor-pointer transition-all duration-300 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#0BA242] text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300 shadow-sm shadow-[#0BA242]/20">
+                <Gift size={24} />
               </div>
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-green-50 group-hover:border-[#0BA242]/25 transition duration-200">
-                <ChevronRight size={16} className="text-[#555555] group-hover:text-[#0BA242]" />
+              <div>
+                <span className="text-[9px] uppercase font-extrabold tracking-widest text-[#0BA242] font-mono">Rewards</span>
+                <h4 className="font-extrabold text-base text-[#1D1D1D] leading-tight mt-0.5">Shop</h4>
+                <p className="text-xs text-[#555555] mt-1 font-semibold">Use your {coins} YDC coins to claim gifts</p>
               </div>
             </div>
-          </Link>
-        </div>
-
-        {/* COMMUNITY HUB */}
-        <div className="bg-white/95 border border-[#E5E5E5]/90 rounded-3xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-2">
-            <Trophy size={18} className="text-yellow-600" />
-            <h3 className="font-extrabold text-xs uppercase tracking-wider text-[#1D1D1D]">Community Hub</h3>
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-[#0BA242] group-hover:border-transparent group-hover:text-white transition-all duration-300 shadow-sm">
+              <ChevronRight size={18} className="text-[#555555] group-hover:text-white transition-all duration-300" />
+            </div>
           </div>
+        </Link>
 
-          <Link href="/leaderboard" className="block">
-            <div className="bg-gradient-to-br from-yellow-500/5 to-amber-500/5 border border-yellow-500/20 hover:border-yellow-500/40 rounded-2xl p-4 flex items-center justify-between group cursor-pointer transition-all duration-300">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-500/10 text-yellow-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300">
-                  <Trophy size={20} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-[#1D1D1D]">Leaderboard</h4>
-                  <p className="text-[10px] text-[#555555] mt-0.5">Check public standings, active streaks, and top volunteers</p>
-                </div>
+        {/* COMMUNITY HUB / LEADERBOARD CARD */}
+        <Link href="/leaderboard" className="block">
+          <div className="bg-gradient-to-br from-yellow-500/5 to-amber-500/10 border border-yellow-500/20 hover:border-yellow-500/45 hover:bg-yellow-500/10 rounded-3xl p-5 flex items-center justify-between group cursor-pointer transition-all duration-300 shadow-sm">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-yellow-500 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition duration-300 shadow-sm shadow-yellow-500/20">
+                <Trophy size={24} />
               </div>
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-yellow-50 group-hover:border-yellow-500/25 transition duration-200">
-                <ChevronRight size={16} className="text-[#555555] group-hover:text-yellow-500" />
+              <div>
+                <span className="text-[9px] uppercase font-extrabold tracking-widest text-yellow-600 font-mono">Community Hub</span>
+                <h4 className="font-extrabold text-base text-[#1D1D1D] leading-tight mt-0.5">Leaderboard</h4>
+                <p className="text-xs text-[#555555] mt-1 font-semibold">Check public standings, active streaks, and top volunteers</p>
               </div>
             </div>
-          </Link>
-        </div>
+            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-[#E5E5E5] group-hover:bg-yellow-500 group-hover:border-transparent group-hover:text-white transition-all duration-300 shadow-sm">
+              <ChevronRight size={18} className="text-[#555555] group-hover:text-white transition-all duration-300" />
+            </div>
+          </div>
+        </Link>
 
         {/* President / Admin Quick Access Console */}
         {profile && ['president', 'superadmin', 'admin'].includes(profile.role) && (

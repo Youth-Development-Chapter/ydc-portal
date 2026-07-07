@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS public.event_registrations (
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
     ticket_code TEXT UNIQUE NOT NULL, -- e.g., "TKT-PION-XXXXXXXX"
     attended BOOLEAN DEFAULT false NOT NULL,
-    status TEXT DEFAULT 'registered' CHECK (status IN ('registered', 'present', 'absent', 'leave_pending', 'leave_approved', 'leave_rejected')),
+    status TEXT DEFAULT 'registered' CHECK (status IN ('registered', 'present', 'absent', 'leave_pending', 'leave_approved', 'leave_rejected', 'not_going')),
     leave_note TEXT,
     attended_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,

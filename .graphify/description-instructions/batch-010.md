@@ -17,6 +17,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "migrations_20260608120000_sync_updated_schema_total_lessons": "total_lessons" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L273 | neighbors=[20260608120000_sync_updated_schema.sql, public.handle_course_completion()]
 - "migrations_20260608120000_sync_updated_schema_total_modules": "total_modules" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L225 | neighbors=[20260608120000_sync_updated_schema.sql, public.handle_course_completion()]
 - "migrations_20260608130000_check_user_providers_auth_identities": "auth.identities" | kind=code-symbol | source=supabase/migrations/20260608130000_check_user_providers.sql:L8 | neighbors=[20260608130000_check_user_providers.sql, public.check_user_providers()]
 - "migrations_20260608130000_check_user_providers_auth_users": "auth.users" | kind=code-symbol | source=supabase/migrations/20260608130000_check_user_providers.sql:L9 | neighbors=[20260608130000_check_user_providers.sql, public.check_user_providers()]
@@ -56,7 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "supabase_middleware_updatesession": "updateSession()" | kind=code-symbol | source=src/utils/supabase/middleware.ts:L4 | neighbors=[proxy.ts, middleware.ts]
 - "supabase_schema_already_awarded": "already_awarded" | kind=code-symbol | source=supabase/schema.sql:L873 | neighbors=[schema.sql, public.handle_course_completion()]
 - "supabase_schema_auth_identities": "auth.identities" | kind=code-symbol | source=supabase/schema.sql:L1061 | neighbors=[schema.sql, public.check_user_providers()]
-- "supabase_schema_completed_lessons": "completed_lessons" | kind=code-symbol | source=supabase/schema.sql:L859 | neighbors=[schema.sql, public.handle_course_completion()]
 
 ## Instructions
 

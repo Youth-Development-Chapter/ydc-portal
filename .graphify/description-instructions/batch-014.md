@@ -12,11 +12,19 @@ describing what it is or does. Use only the provided context.
 For a code symbol (kind=code-symbol — a function, class, or constant),
 describe what the function/symbol does based on its name, source location
 and neighbors — e.g. "Resolves the configured ontology profile from graphify.yaml.".
+For an entity node (any other kind — e.g. a person, place, event, object),
+describe what the entity is and its role, grounded in its type, its
+relations (neighbors) and the provided citations/evidence — e.g.
+"Lady Carfax, a wealthy heiress who disappears en route to Lausanne.".
+Ground entity descriptions in the citations/evidence when present; do not
+speculate beyond the context, so a node with no supporting context may be
+left out of the reply.
 Write every description in English (en). Do not switch languages.
 No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "docs_mobile_integration_guide_md": "Mobile App Integration Guide" | kind=entity | source=docs/mobile-integration-guide.md | neighbors=[Developer & Agent Guide]
 - "eslint_config_eslintconfig": "eslintConfig" | kind=code-symbol | source=eslint.config.mjs:L5 | neighbors=[eslint.config.mjs]
 - "events_eventsclient_event": "Event" | kind=code-symbol | source=src/app/events/EventsClient.tsx:L18 | neighbors=[EventsClient.tsx]
 - "events_eventsclient_eventsclient": "EventsClient()" | kind=code-symbol | source=src/app/events/EventsClient.tsx:L48 | neighbors=[EventsClient.tsx]
@@ -56,7 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "lib_env_envschema": "envSchema" | kind=code-symbol | source=src/lib/env.ts:L3 | neighbors=[env.ts]
 - "lib_env_validateenv": "validateEnv()" | kind=code-symbol | source=src/lib/env.ts:L26 | neighbors=[env.ts]
 - "lib_lms_data_getprogress": "getProgress()" | kind=code-symbol | source=src/lib/lms-data.ts:L152 | neighbors=[lms-data.ts]
-- "lib_lms_data_lesson_html_options": "LESSON_HTML_OPTIONS" | kind=code-symbol | source=src/lib/lms-data.ts:L19 | neighbors=[lms-data.ts]
 
 ## Instructions
 

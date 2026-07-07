@@ -17,6 +17,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "supabase_schema_completed_lessons": "completed_lessons" | kind=code-symbol | source=supabase/schema.sql:L859 | neighbors=[schema.sql, public.handle_course_completion()]
 - "supabase_schema_course_reward": "course_reward" | kind=code-symbol | source=supabase/schema.sql:L797 | neighbors=[schema.sql, public.handle_course_completion()]
 - "supabase_schema_current_count": "current_count" | kind=code-symbol | source=supabase/schema.sql:L206 | neighbors=[schema.sql, public.enforce_event_capacity()]
 - "supabase_schema_event_capacity": "event_capacity" | kind=code-symbol | source=supabase/schema.sql:L187 | neighbors=[schema.sql, public.enforce_event_capacity()]
@@ -56,7 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "admin_approvalsqueue_modaltype": "ModalType" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L61 | neighbors=[ApprovalsQueue.tsx]
 - "admin_approvalsqueue_resolvedsubmission": "ResolvedSubmission" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L42 | neighbors=[ApprovalsQueue.tsx]
 - "admin_error_adminerror": "AdminError()" | kind=code-symbol | source=src/app/admin/error.tsx:L7 | neighbors=[error.tsx]
-- "admin_eventdetailsclient_eventdetailsclient": "EventDetailsClient()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L130 | neighbors=[EventDetailsClient.tsx]
 
 ## Instructions
 

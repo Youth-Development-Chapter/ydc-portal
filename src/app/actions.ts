@@ -72,6 +72,24 @@ export async function claimTicket(eventId: string) {
 
   if (error) {
     if (error.code === '23505') {
+      const { data: existing } = await supabase
+        .from('event_registrations')
+        .select('id, status')
+        .eq('event_id', eventId)
+        .eq('user_id', user.id)
+        .single()
+      
+      if (existing && existing.status === 'not_going') {
+        const { error: updateError } = await supabase
+          .from('event_registrations')
+          .update({ status: 'registered' })
+          .eq('id', existing.id)
+        if (updateError) return { error: updateError.message }
+        revalidatePath('/events')
+        revalidatePath('/dashboard')
+        revalidateTag('events', 'max')
+        return { success: true }
+      }
       return { error: 'You are already registered for this event.' }
     }
     // Capacity trigger (enforce_event_capacity) raises EVENT_FULL when the event is full.
@@ -263,6 +281,7 @@ export async function getEventsFromServer(
       else if (reg.status === 'leave_pending') status = 'leave_pending'
       else if (reg.status === 'leave_approved') status = 'leave_approved'
       else if (reg.status === 'leave_rejected') status = 'leave_rejected'
+      else if (reg.status === 'not_going') status = 'not_going'
       else status = 'registered'
     }
 

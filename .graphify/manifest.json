@@ -208,12 +208,12 @@
     "hash": "47f76d5fbebe5ac1fc0544f232e27bb0"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/dashboard/notifications/page.tsx": {
-    "mtime": 1783444737393.063,
-    "hash": "c3258c9688b03fd83bbeceb9621aaa9a"
+    "mtime": 1783447130958.275,
+    "hash": "7f762aa3522e66e14f2d742c38563082"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/dashboard/page.tsx": {
-    "mtime": 1783444733192.0474,
-    "hash": "d9616e144987387c5cd2b454985aa289"
+    "mtime": 1783447333985.0435,
+    "hash": "c0f6a89350f630093c420413238bc3f8"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/dashboard/president/approvals/page.tsx": {
     "mtime": 1780876779748.7136,
@@ -292,8 +292,8 @@
     "hash": "f2b1307716c43002acec82260807171a"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/events/page.tsx": {
-    "mtime": 1783444714466.383,
-    "hash": "b1c6a340f48c653e1568b2937b7404ee"
+    "mtime": 1783447121452.5393,
+    "hash": "3387af3f23c5f3ec65afe5a09a10471e"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/global-error.tsx": {
     "mtime": 1779436464472.6824,
@@ -404,8 +404,8 @@
     "hash": "11fe213ba6010cd926c2a155210eaff5"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/dashboard/MyEventsCarousel.tsx": {
-    "mtime": 1780922200200.9922,
-    "hash": "b3862994f89519e3b11820736bf7c3f0"
+    "mtime": 1783447144889.1975,
+    "hash": "1ffbefacc307d4c4e585a95afdeb8734"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/dashboard/PresidentApprovalsManager.tsx": {
     "mtime": 1780878604601.682,
@@ -678,5 +678,121 @@
   "D:/Coding Practices/ydc/ydc-portal/public/logocolor.png": {
     "mtime": 1779361284045.3848,
     "hash": "9c74a3ea8901996a2e95939d1edf66ff"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/_detect.js": {
+    "mtime": 1783441938884.4421,
+    "hash": "df7263322db3c943f095f013fc821f55"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/studio/assets/index-CU5cXRnL.js": {
+    "mtime": 1783441971812.3958,
+    "hash": "4a1731652aadc733229941e111688870"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/supabase/migrations/20260707221500_split_event_time.sql": {
+    "mtime": 1783444653000.4573,
+    "hash": "1ea072f829b3cc26553842da4506fe90"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.agents/AGENTS.md": {
+    "mtime": 1783443862253.8655,
+    "hash": "e8327d87a71a0e11a06d3aeb92cf7896"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/2026-07-07/GRAPH_REPORT.md": {
+    "mtime": 1783444985102.3066,
+    "hash": "d2558e28b77149e93c19789ecd594714"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/GRAPH_REPORT.md": {
+    "mtime": 1783447196214.429,
+    "hash": "2953946816ce8abff04d4a1d9d57c002"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-000.md": {
+    "mtime": 1783447196134.816,
+    "hash": "713ef911ff97b100b7e1ccae46855e90"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-001.md": {
+    "mtime": 1783447196135.9998,
+    "hash": "f280167f791df3bbba8cd3e3d1d9c019"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-002.md": {
+    "mtime": 1783447196136.525,
+    "hash": "2fa2ccfe11c808f9c3fba604b6697cd4"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-003.md": {
+    "mtime": 1783447196137.067,
+    "hash": "b88ccd58f5eccfb2a91e668ed6b5dfbf"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-004.md": {
+    "mtime": 1783447196137.6177,
+    "hash": "da8fd685b6c3a2d30093b90ca329f715"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-005.md": {
+    "mtime": 1783447196137.6177,
+    "hash": "aadc6630e45a6679584831d7f2358a02"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-006.md": {
+    "mtime": 1783447196138.165,
+    "hash": "3eb5fbe32518ccc340c6cb75a4af213b"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-007.md": {
+    "mtime": 1783447196138.7166,
+    "hash": "a7aac5199f1f6b425bbb32a2672d465b"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-008.md": {
+    "mtime": 1783447196138.7166,
+    "hash": "d0f18f98df2136622f406db39dfcfa18"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-009.md": {
+    "mtime": 1783447196139.7173,
+    "hash": "17fa09bf9ef8047c614647029a315992"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-010.md": {
+    "mtime": 1783447196139.7173,
+    "hash": "c09e581e86135cd1c9f9c3ce8ce3a92f"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-011.md": {
+    "mtime": 1783447196140.7148,
+    "hash": "b5494d10e908df24b0072457aff476ed"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-012.md": {
+    "mtime": 1783447196140.7148,
+    "hash": "f10fc0dccf6f63a05a988b047fb488ad"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-013.md": {
+    "mtime": 1783447196141.7117,
+    "hash": "0ad45dc92a8d6fe5b77d087e0893cc77"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-014.md": {
+    "mtime": 1783447196141.7117,
+    "hash": "5ef4b762eb218824889202208ffaafc3"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-015.md": {
+    "mtime": 1783447196141.7117,
+    "hash": "9d8a5d73f2b0eaf5dc17933c0318e97c"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-016.md": {
+    "mtime": 1783447196142.7102,
+    "hash": "bc7ea293b87060cb9ddc6090bb02aa09"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-017.md": {
+    "mtime": 1783447196142.7102,
+    "hash": "76288ec73c5aa8fcf6988b66272aebc4"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/description-instructions/batch-018.md": {
+    "mtime": 1783447196143.7065,
+    "hash": "7e24fc2ea75e9db10337b3d0e909d827"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/scratch/assistant-extract-instructions.md": {
+    "mtime": 1783443308044.223,
+    "hash": "44d0f5fb830f348109d69b58707d6793"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/studio/index.html": {
+    "mtime": 1783441970137.2402,
+    "hash": "e0de6f474f81b1f12f740e284df72b38"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/studio/studio-template.html": {
+    "mtime": 1783441970294.8967,
+    "hash": "7c18608bfef6b2223ce0af585ad18e47"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/.graphify/studio/studio.html": {
+    "mtime": 1783443478714.4507,
+    "hash": "75b7a679a456ca2e66066b9004eab5b4"
   }
 }

@@ -21,6 +21,8 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "logocolor_png": "YDC Colored Logo" | kind=entity | source=public/logocolor.png
+- "public_icon_png": "YDC Portal Logo Icon" | kind=entity | source=public/icon.png
 - "public_icontransparent_png": "YDC Transparent Logo" | kind=entity | source=public/icontransparent.png
 - "readme_md": "README.md" | kind=entity | source=README.md
 

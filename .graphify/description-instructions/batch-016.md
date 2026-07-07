@@ -17,10 +17,12 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "migrations_20260608120000_sync_updated_schema_public_get_user_coin_balance": "public.get_user_coin_balance()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L326 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608120000_sync_updated_schema_public_trigger_update_streak": "public.trigger_update_streak()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L116 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608120000_sync_updated_schema_public_units": "public.units" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L8 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608140000_add_event_posters": "20260608140000_add_event_posters.sql" | kind=code-symbol | source=supabase/migrations/20260608140000_add_event_posters.sql:L1 | neighbors=[07226c4 Add event posters, archiving & …]
 - "migrations_20260608150500_add_event_archiving": "20260608150500_add_event_archiving.sql" | kind=code-symbol | source=supabase/migrations/20260608150500_add_event_archiving.sql:L1 | neighbors=[07226c4 Add event posters, archiving & …]
+- "migrations_20260707221500_split_event_time": "20260707221500_split_event_time.sql" | kind=code-symbol | source=supabase/migrations/20260707221500_split_event_time.sql:L1 | neighbors=[0aff7f1 add graphify]
 - "migrations_consolidated_migration_public_get_leaderboard": "public.get_leaderboard()" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L191 | neighbors=[consolidated_migration.sql]
 - "migrations_consolidated_migration_public_trigger_update_streak": "public.trigger_update_streak()" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L143 | neighbors=[consolidated_migration.sql]
 - "migrations_consolidated_migration_public_units": "public.units" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L5 | neighbors=[consolidated_migration.sql]
@@ -55,8 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "seed_route_get": "GET()" | kind=code-symbol | source=src/app/api/lms/seed/route.ts:L7 | neighbors=[route.ts]
 - "settings_actions_allowed_image_types": "ALLOWED_IMAGE_TYPES" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L8 | neighbors=[actions.ts]
 - "settings_actions_updateprofileresult": "UpdateProfileResult" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L17 | neighbors=[actions.ts]
-- "settings_page_adminsettingspage": "AdminSettingsPage()" | kind=code-symbol | source=src/app/admin/settings/page.tsx:L9 | neighbors=[page.tsx]
-- "settings_page_settingspage": "SettingsPage()" | kind=code-symbol | source=src/app/dashboard/settings/page.tsx:L8 | neighbors=[page.tsx]
 
 ## Instructions
 

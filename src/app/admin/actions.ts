@@ -1830,7 +1830,11 @@ export async function getEventRoster(
         query = query.eq('status', 'leave_rejected')
       } else if (statusFilter === 'expected') {
         query = query.eq('attended', false).eq('status', 'registered')
+      } else if (statusFilter === 'not_going') {
+        query = query.eq('status', 'not_going')
       }
+    } else {
+      query = query.neq('status', 'not_going')
     }
 
     // Sort: show leave_pending first

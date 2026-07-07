@@ -24,6 +24,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "supabase_schema_public_announcements": "public.announcements" | kind=code-symbol | source=supabase/schema.sql:L546 | neighbors=[schema.sql, public.profiles, public.units]
 - "supabase_schema_public_events": "public.events" | kind=code-symbol | source=supabase/schema.sql:L101 | neighbors=[schema.sql, public.enforce_event_capacity(), public.event_registrations]
 - "supabase_schema_public_quiz_attempts": "public.quiz_attempts" | kind=code-symbol | source=supabase/schema.sql:L580 | neighbors=[schema.sql, public.lessons, public.profiles]
 - "supabase_schema_public_reward_redemptions": "public.reward_redemptions" | kind=code-symbol | source=supabase/schema.sql:L648 | neighbors=[schema.sql, public.profiles, public.rewards]
@@ -63,7 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "auth_actions_signup": "signup()" | kind=code-symbol | source=src/app/auth/actions.ts:L20 | neighbors=[actions.ts, SignupClient.tsx]
 - "auth_actions_updatepassword": "updatePassword()" | kind=code-symbol | source=src/app/auth/actions.ts:L222 | neighbors=[actions.ts, page.tsx]
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@35b9ddf8de70483b1d76c403e38d77f257732a7b": "35b9ddf Initial commit" | kind=Commit | source=git | neighbors=[main, d6aee11 Merge branch 'main' of https://…]
-- "courses_actions_lockcourselanguage": "lockCourseLanguage()" | kind=code-symbol | source=src/app/lms/courses/actions.ts:L6 | neighbors=[actions.ts, LanguageSelectModal.tsx]
 
 ## Instructions
 

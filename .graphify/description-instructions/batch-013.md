@@ -24,6 +24,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "claim_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/claim/route.ts:L8 | neighbors=[route.ts]
 - "claude_md": "Claude Configuration Reference" | kind=entity | source=CLAUDE.md | neighbors=[Developer & Agent Guide]
 - "components_checkinlistener_checkinlistener": "CheckInListener()" | kind=code-symbol | source=src/components/CheckInListener.tsx:L25 | neighbors=[CheckInListener.tsx]
 - "components_checkinlistener_checkinpayload": "CheckInPayload" | kind=code-symbol | source=src/components/CheckInListener.tsx:L9 | neighbors=[CheckInListener.tsx]
@@ -46,7 +47,7 @@ one-sentence description — no prose, no markdown fences.
 - "dashboard_error_dashboarderror": "DashboardError()" | kind=code-symbol | source=src/app/dashboard/error.tsx:L7 | neighbors=[error.tsx]
 - "dashboard_loading_dashboardloading": "DashboardLoading()" | kind=code-symbol | source=src/app/dashboard/loading.tsx:L3 | neighbors=[loading.tsx]
 - "dashboard_myeventscarousel_eventcarouselitem": "EventCarouselItem" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L7 | neighbors=[MyEventsCarousel.tsx]
-- "dashboard_myeventscarousel_myeventscarousel": "MyEventsCarousel()" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L19 | neighbors=[MyEventsCarousel.tsx]
+- "dashboard_myeventscarousel_myeventscarousel": "MyEventsCarousel()" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L20 | neighbors=[MyEventsCarousel.tsx]
 - "dashboard_page_userdashboard": "UserDashboard()" | kind=code-symbol | source=src/app/dashboard/page.tsx:L20 | neighbors=[page.tsx]
 - "dashboard_presidentapprovalsmanager_mappedsubmission": "MappedSubmission" | kind=code-symbol | source=src/components/dashboard/PresidentApprovalsManager.tsx:L20 | neighbors=[PresidentApprovalsManager.tsx]
 - "dashboard_presidentapprovalsmanager_presidentapprovalsmanager": "PresidentApprovalsManager()" | kind=code-symbol | source=src/components/dashboard/PresidentApprovalsManager.tsx:L35 | neighbors=[PresidentApprovalsManager.tsx]
@@ -63,7 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "dashboard_presidentscannerclient_supabase": "supabase" | kind=code-symbol | source=src/components/dashboard/PresidentScannerClient.tsx:L10 | neighbors=[PresidentScannerClient.tsx]
 - "dashboard_qrscannermodal_qrscannermodal": "QRScannerModal()" | kind=code-symbol | source=src/components/dashboard/QRScannerModal.tsx:L12 | neighbors=[QRScannerModal.tsx]
 - "dashboard_qrscannermodal_qrscannermodalprops": "QRScannerModalProps" | kind=code-symbol | source=src/components/dashboard/QRScannerModal.tsx:L7 | neighbors=[QRScannerModal.tsx]
-- "docs_mobile_integration_guide_md": "Mobile App Integration Guide" | kind=entity | source=docs/mobile-integration-guide.md | neighbors=[Developer & Agent Guide]
 
 ## Instructions
 

@@ -24,6 +24,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "courses_actions_lockcourselanguage": "lockCourseLanguage()" | kind=code-symbol | source=src/app/lms/courses/actions.ts:L6 | neighbors=[actions.ts, LanguageSelectModal.tsx]
 - "courses_coursesadminclient_courserow": "CourseRow" | kind=code-symbol | source=src/app/admin/courses/CoursesAdminClient.tsx:L12 | neighbors=[CoursesAdminClient.tsx, page.tsx]
 - "dashboard_dashboardflashcards_flashcard": "Flashcard" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L18 | neighbors=[DashboardFlashcards.tsx, page.tsx]
 - "docs_course_import_schema_md": "Course JSON Import Schema Guide" | kind=entity | source=docs/course_import_schema.md | neighbors=[AI Course Prompt Guide, Developer & Agent Guide]
@@ -63,7 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "migrations_20260523170000_lms_gamification_rewards_course_reward": "course_reward" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L26 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_max_earned_coins": "max_earned_coins" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L70 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_module_idx": "module_idx" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L34 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
-- "migrations_20260523170000_lms_gamification_rewards_public_coin_transactions": "public.coin_transactions" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L71 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 
 ## Instructions
 

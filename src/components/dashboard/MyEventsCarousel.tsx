@@ -14,6 +14,7 @@ interface EventCarouselItem {
   attended: boolean
   poster_url: string | null
   poster_color: string | null
+  isCompulsory?: boolean
 }
 
 export default function MyEventsCarousel({ events }: { events: EventCarouselItem[] }) {
@@ -170,7 +171,13 @@ export default function MyEventsCarousel({ events }: { events: EventCarouselItem
                         )}
                       </div>
                       <p className={`text-[10px] leading-relaxed line-clamp-2 ${textSecondaryClass}`}>
-                        Registered Ticket: {event.ticketCode || 'Default'}
+                        {event.attended 
+                          ? "Status: Attended" 
+                          : (event.isCompulsory 
+                            ? "Attendance Required (Compulsory)" 
+                            : "RSVP: Going"
+                          )
+                        }
                       </p>
                     </div>
 

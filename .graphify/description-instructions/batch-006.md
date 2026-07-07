@@ -26,6 +26,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "supabase_schema_public_coin_transactions": "public.coin_transactions" | kind=code-symbol | source=supabase/schema.sql:L290 | neighbors=[schema.sql, public.profiles, public.handle_course_completion(), public.handle_deed_coins()] | lang=en
 - "supabase_schema_public_modules": "public.modules" | kind=code-symbol | source=supabase/schema.sql:L380 | neighbors=[schema.sql, public.handle_course_completion(), public.lessons, public.courses] | lang=en
 - "ui_select_select": "Select" | kind=code-symbol | source=src/components/ui/Select.tsx:L13 | neighbors=[UserDirectory.tsx, OnboardingClient.tsx, page.tsx, Select.tsx] | lang=en
 - "admin_actions_approvedeedsubmission": "approveDeedSubmission()" | kind=code-symbol | source=src/app/admin/actions.ts:L13 | neighbors=[actions.ts, ApprovalsQueue.tsx, PresidentApprovalsManager.tsx] | lang=en
@@ -65,7 +66,6 @@ one-sentence description — no prose, no markdown fences.
 - "notifications_actions_createannouncement": "createAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L7 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
 - "notifications_actions_deleteannouncement": "deleteAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L55 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
 - "notifications_actions_togglepinannouncement": "togglePinAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L90 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
-- "supabase_schema_public_announcements": "public.announcements" | kind=code-symbol | source=supabase/schema.sql:L546 | neighbors=[schema.sql, public.profiles, public.units] | lang=en
 
 ## Instructions
 

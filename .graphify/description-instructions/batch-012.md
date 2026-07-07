@@ -24,6 +24,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "admin_eventdetailsclient_eventdetailsclient": "EventDetailsClient()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L130 | neighbors=[EventDetailsClient.tsx]
 - "admin_eventdetailsclient_eventitem": "EventItem" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L27 | neighbors=[EventDetailsClient.tsx]
 - "admin_eventdetailsclient_extractaccentcolor": "extractAccentColor()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L47 | neighbors=[EventDetailsClient.tsx]
 - "admin_eventdetailsclient_rosterentry": "RosterEntry" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L115 | neighbors=[EventDetailsClient.tsx]
@@ -63,7 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "auth_code_error_page_errordetails": "ErrorDetails" | kind=code-symbol | source=src/app/auth/auth-code-error/page.tsx:L8 | neighbors=[page.tsx]
 - "callback_route_get": "GET()" | kind=code-symbol | source=src/app/auth/callback/route.ts:L5 | neighbors=[route.ts]
 - "check_in_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/check-in/route.ts:L7 | neighbors=[route.ts]
-- "claim_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/claim/route.ts:L8 | neighbors=[route.ts]
 
 ## Instructions
 

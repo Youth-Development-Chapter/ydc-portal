@@ -78,6 +78,7 @@ export default async function EventsPage() {
       else if (reg.status === 'leave_pending') status = 'leave_pending';
       else if (reg.status === 'leave_approved') status = 'leave_approved';
       else if (reg.status === 'leave_rejected') status = 'leave_rejected';
+      else if (reg.status === 'not_going') status = 'not_going';
       else status = 'registered';
     }
 
@@ -113,7 +114,8 @@ export default async function EventsPage() {
       status: status as any,
       rawDate: event.date, // internal sorting field
       poster_url: event.poster_url || null,
-      poster_color: event.poster_color || null
+      poster_color: event.poster_color || null,
+      isUpcoming: !isPast
     };
   });
 
