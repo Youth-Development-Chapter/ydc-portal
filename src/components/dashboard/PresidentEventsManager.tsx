@@ -50,7 +50,9 @@ interface EventItem {
   title: string
   description: string
   date: string
-  time: string
+  time?: string
+  start_time: string
+  end_time: string
   location: string
   capacity: number
   coin_reward?: number
@@ -178,7 +180,8 @@ export default function PresidentEventsManager({
   const [createTitle, setCreateTitle] = useState('')
   const [createDescription, setCreateDescription] = useState('')
   const [createDate, setCreateDate] = useState('')
-  const [createTime, setCreateTime] = useState('')
+  const [createStartTime, setCreateStartTime] = useState('09:00')
+  const [createEndTime, setCreateEndTime] = useState('17:00')
   const [createLocation, setCreateLocation] = useState('')
   const [createCapacity, setCreateCapacity] = useState('100')
   const [createCoinReward, setCreateCoinReward] = useState('50')
@@ -309,7 +312,8 @@ export default function PresidentEventsManager({
         createTitle,
         createDescription,
         createDate,
-        createTime,
+        createStartTime,
+        createEndTime,
         createLocation,
         capacityVal,
         coinRewardVal,
@@ -331,7 +335,8 @@ export default function PresidentEventsManager({
         setCreateTitle('')
         setCreateDescription('')
         setCreateDate('')
-        setCreateTime('')
+        setCreateStartTime('09:00')
+        setCreateEndTime('17:00')
         setCreateLocation('')
         setCreateCapacity('100')
         setCreateCoinReward('50')
@@ -494,7 +499,20 @@ export default function PresidentEventsManager({
                       </td>
                       <td className="px-5 py-4 text-xs text-zinc-600">
                         <div className="font-semibold">{new Date(event.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                        <div className="text-zinc-400 mt-0.5 flex items-center gap-1"><Clock size={12}/>{event.time}</div>
+                        <div className="text-zinc-400 mt-0.5 flex items-center gap-1">
+                          <Clock size={12}/>
+                          {(() => {
+                            const formatTime = (t: string) => {
+                              if (!t) return ''
+                              const [h, m] = t.split(':')
+                              const hour = parseInt(h, 10)
+                              const ampm = hour >= 12 ? 'PM' : 'AM'
+                              const displayHour = hour % 12 || 12
+                              return `${displayHour}:${m} ${ampm}`
+                            }
+                            return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`
+                          })()}
+                        </div>
                       </td>
                       <td className="px-5 py-4 text-xs text-zinc-600">
                         <div className="flex items-center gap-1.5">
@@ -702,15 +720,27 @@ export default function PresidentEventsManager({
                     required
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Time</label>
-                  <Input 
-                    placeholder="e.g. 10:00 AM - 1:00 PM"
-                    value={createTime}
-                    onChange={(e) => setCreateTime(e.target.value)}
-                    className="h-9 text-xs"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block font-medium">Start Time</label>
+                    <Input 
+                      type="time"
+                      value={createStartTime}
+                      onChange={(e) => setCreateStartTime(e.target.value)}
+                      className="h-9 text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block font-medium">End Time</label>
+                    <Input 
+                      type="time"
+                      value={createEndTime}
+                      onChange={(e) => setCreateEndTime(e.target.value)}
+                      className="h-9 text-xs"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

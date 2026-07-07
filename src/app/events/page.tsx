@@ -25,7 +25,7 @@ export default async function EventsPage() {
   // 1. Query all events and filter them locally by visibility rules.
   let eventsQuery = supabase
     .from('events')
-    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
+    .select('id, title, description, date, start_time, end_time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
     .eq('is_archived', false)
     .order('date', { ascending: true });
 
@@ -96,7 +96,17 @@ export default async function EventsPage() {
       title: event.title,
       description: event.description || "",
       date: new Date(event.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-      time: event.time,
+      time: (() => {
+        const formatTime = (t: string) => {
+          if (!t) return '';
+          const [h, m] = t.split(':');
+          const hour = parseInt(h, 10);
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const displayHour = hour % 12 || 12;
+          return `${displayHour}:${m} ${ampm}`;
+        };
+        return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`;
+      })(),
       location: event.location,
       capacity: event.capacity,
       is_compulsory: event.is_compulsory || false,
@@ -120,8 +130,8 @@ export default async function EventsPage() {
     leave: processedEvents.filter(e => e.status.startsWith("leave")).length,
   };
 
-  const initialUpcomingEvents = upcomingEvents.slice(0, 3);
-  const initialPastEvents = pastEvents.slice(0, 3);
+  const initialUpcomingEvents = upcomingEvents.slice(0, 15);
+  const initialPastEvents = pastEvents.slice(0, 15);
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-[#1D1D1D] pb-24 relative overflow-hidden">

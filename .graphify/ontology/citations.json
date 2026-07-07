@@ -1,0 +1,32 @@
+{
+  "schema": "graphify_ontology_citations_v1",
+  "graph_signature": "4673622d447a726c57a0a2ec92db7bb73447b2c21fb978259a29b211c5d4473b",
+  "nodes": {
+    "dashboard_presidentscannerclient_supabase": {
+      "count": 3,
+      "citations": [
+        {
+          "source_file": "src/components/dashboard/PresidentScannerClient.tsx",
+          "source_location": "document",
+          "quote": "… checkInTicket } from '@/app/admin/actions' import { toast } from 'sonner' import { createClient } from '@/utils/supabase/client'",
+          "confidence": "EXTRACTED",
+          "paragraph_id": "p1"
+        },
+        {
+          "source_file": "src/components/dashboard/PresidentScannerClient.tsx",
+          "source_location": "document",
+          "quote": "… targetUserId = res?.userId || (!input.startsWith('TKT-') ? input : null) if (targetUserId) { const channel = supabase.channel(`checkin-${targetUserId}`, { config: { broadcast: { self: true } } }) channel.subscribe((status) => { if (status === 'SUBSCRIBED') { channel.send({ type: 'broadcast', event: 'status', payload:",
+          "confidence": "EXTRACTED",
+          "paragraph_id": "p15"
+        },
+        {
+          "source_file": "src/components/dashboard/PresidentScannerClient.tsx",
+          "source_location": "document",
+          "quote": "const supabase = createClient()",
+          "confidence": "EXTRACTED",
+          "paragraph_id": "p2"
+        }
+      ]
+    }
+  }
+}

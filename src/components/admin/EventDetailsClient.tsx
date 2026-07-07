@@ -29,7 +29,9 @@ interface EventItem {
   title: string
   description: string
   date: string
-  time: string
+  time?: string
+  start_time: string
+  end_time: string
   location: string
   capacity: number
   coin_reward?: number
@@ -214,7 +216,8 @@ export default function EventDetailsClient({
   const [editTitle, setEditTitle] = useState(event.title)
   const [editDescription, setEditDescription] = useState(event.description || '')
   const [editDate, setEditDate] = useState(event.date)
-  const [editTime, setEditTime] = useState(event.time)
+  const [editStartTime, setEditStartTime] = useState(event.start_time || '09:00')
+  const [editEndTime, setEditEndTime] = useState(event.end_time || '17:00')
   const [editLocation, setEditLocation] = useState(event.location)
   const [editCapacity, setEditCapacity] = useState(String(event.capacity || 100))
   const [editCoinReward, setEditCoinReward] = useState(String(event.coin_reward ?? 50))
@@ -485,7 +488,8 @@ export default function EventDetailsClient({
         editTitle,
         editDescription,
         editDate,
-        editTime,
+        editStartTime,
+        editEndTime,
         editLocation,
         capacityVal,
         coinRewardVal,
@@ -647,7 +651,17 @@ export default function EventDetailsClient({
               </div>
               <div className="flex items-center gap-3 text-xs font-semibold">
                 <Clock size={15} className={iconClockClass} />
-                <span>{event.time}</span>
+                <span>{(() => {
+                  const formatTime = (t: string) => {
+                    if (!t) return ''
+                    const [h, m] = t.split(':')
+                    const hour = parseInt(h, 10)
+                    const ampm = hour >= 12 ? 'PM' : 'AM'
+                    const displayHour = hour % 12 || 12
+                    return `${displayHour}:${m} ${ampm}`
+                  }
+                  return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`
+                })()}</span>
               </div>
               <div className="flex items-center gap-3 text-xs font-semibold">
                 <MapPin size={15} className={iconMapPinClass} />
@@ -1125,14 +1139,27 @@ export default function EventDetailsClient({
                     required
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block">Time</label>
-                  <Input 
-                    value={editTime}
-                    onChange={(e) => setEditTime(e.target.value)}
-                    className="h-9 text-xs rounded-xl"
-                    required
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block">Start Time</label>
+                    <Input 
+                      type="time"
+                      value={editStartTime}
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      className="h-9 text-xs rounded-xl"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block">End Time</label>
+                    <Input 
+                      type="time"
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className="h-9 text-xs rounded-xl"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

@@ -95,7 +95,7 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
   const loadEvents = async (filter: FilterType, offset: number) => {
     setIsLoadingMore(true);
     try {
-      const res = await getEventsFromServer(offset, 3, filter);
+      const res = await getEventsFromServer(offset, 15, filter);
       if (res && 'error' in res) {
         toast.error(res.error);
       } else if (res) {
@@ -107,7 +107,7 @@ export default function EventsClient({ initialUpcomingEvents, initialPastEvents,
             [filter]: {
               list: newList as Event[],
               hasMore: res.hasMore,
-              offset: offset + 3
+              offset: offset + 15
             }
           };
         });

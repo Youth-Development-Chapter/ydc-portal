@@ -1,0 +1,1 @@
+{"nodes":[{"id":"migrations_20260608150500_add_event_archiving","label":"20260608150500_add_event_archiving.sql","file_type":"code","source_file":"supabase/migrations/20260608150500_add_event_archiving.sql","source_location":"L1"}],"edges":[]}

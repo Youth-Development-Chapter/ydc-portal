@@ -141,7 +141,8 @@ export default function EventsManager({
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [newDate, setNewDate] = useState('')
-  const [newTime, setNewTime] = useState('')
+  const [newStartTime, setNewStartTime] = useState('09:00')
+  const [newEndTime, setNewEndTime] = useState('17:00')
   const [newLocation, setNewLocation] = useState('')
   const [newCapacity, setNewCapacity] = useState('100')
   const [newCoinReward, setNewCoinReward] = useState('50')
@@ -227,7 +228,8 @@ export default function EventsManager({
         newTitle,
         newDescription,
         newDate,
-        newTime,
+        newStartTime,
+        newEndTime,
         newLocation,
         capacityVal,
         coinRewardVal,
@@ -248,7 +250,8 @@ export default function EventsManager({
         setNewTitle('')
         setNewDescription('')
         setNewDate('')
-        setNewTime('')
+        setNewStartTime('09:00')
+        setNewEndTime('17:00')
         setNewLocation('')
         setNewCapacity('100')
         setNewCoinReward('50')
@@ -602,14 +605,25 @@ export default function EventsManager({
                       required
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Time (Duration)</label>
-                    <Input 
-                      placeholder="e.g. 9:00 AM - 5:00 PM"
-                      value={newTime}
-                      onChange={(e) => setNewTime(e.target.value)}
-                      required
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">Start Time</label>
+                      <Input 
+                        type="time"
+                        value={newStartTime}
+                        onChange={(e) => setNewStartTime(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-500 font-bold uppercase tracking-wider block font-medium">End Time</label>
+                      <Input 
+                        type="time"
+                        value={newEndTime}
+                        onChange={(e) => setNewEndTime(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 

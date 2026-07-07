@@ -30,41 +30,59 @@ export default function CheckInListener({ userId }: { userId: string }) {
     if (!userId) return
 
     const supabase = createClient()
-    const channel = supabase.channel(`checkin-${userId}`, {
-      config: { broadcast: { self: true } },
-    })
+    const channel = supabase
+      .channel('volunteer-checkin-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'event_registrations',
+          filter: `user_id=eq.${userId}`,
+        },
+        async (payload) => {
+          const newRow = payload.new as any
+          if (newRow.status === 'present' && newRow.attended) {
+            // Fetch event title
+            const { data: eventData } = await supabase
+              .from('events')
+              .select('title')
+              .eq('id', newRow.event_id)
+              .single()
 
-    channel.on('broadcast', { event: 'status' }, (payload) => {
-      const data = payload.payload as CheckInPayload
-      setCheckInStatus(data)
+            // Fetch profile name
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', userId)
+              .single()
 
-      if (data.status === 'success') {
-        toast.success('Check-In Complete!', {
-          description: `${data.userName}, you are checked in for "${data.eventTitle}".`,
-        })
-        if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          navigator.vibrate([100, 50, 100])
+            const eventTitle = eventData?.title || 'YDC Event'
+            const userName = profileData?.full_name || 'Volunteer'
+
+            setCheckInStatus({
+              status: 'success',
+              userName,
+              eventTitle
+            })
+
+            toast.success('Check-In Complete!', {
+              description: `${userName}, you are checked in for "${eventTitle}".`,
+            })
+
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              navigator.vibrate([100, 50, 100])
+            }
+            
+            router.refresh()
+            setTimeout(() => {
+              setCheckInStatus(null)
+              router.push('/dashboard')
+            }, 2200)
+          }
         }
-        // Refresh server data, then take the volunteer home after a brief beat.
-        router.refresh()
-        setTimeout(() => {
-          setCheckInStatus(null)
-          router.push('/dashboard')
-        }, 2200)
-      } else if (data.status === 'already_checked_in') {
-        toast.warning('Already Checked In', {
-          description: `${data.userName} is already checked in for "${data.eventTitle}".`,
-        })
-        router.refresh()
-        setTimeout(() => setCheckInStatus(null), 2200)
-      } else if (data.status === 'failed') {
-        toast.error('Check-In Failed', {
-          description: data.error || 'You are not eligible or registered for this event.',
-        })
-      }
-    })
-
-    channel.subscribe()
+      )
+      .subscribe()
 
     return () => {
       supabase.removeChannel(channel)

@@ -1,0 +1,1 @@
+{"nodes":[{"id":"migrations_20260523130000_role_based_access_controls","label":"20260523130000_role_based_access_controls.sql","file_type":"code","source_file":"supabase/migrations/20260523130000_role_based_access_controls.sql","source_location":"L1"}],"edges":[]}

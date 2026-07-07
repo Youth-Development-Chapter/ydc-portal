@@ -121,15 +121,31 @@ export async function getUpcomingEventsForUnitCached(unitId: string | null) {
       const supabase = createPublicSupabaseServerClient()
       const eventsQuery = supabase
         .from('events')
-        .select('id, title, description, date, time, location, capacity, unit_id, is_compulsory, poster_url, poster_color')
+        .select('id, title, description, date, start_time, end_time, location, capacity, unit_id, is_compulsory, poster_url, poster_color')
         .eq('is_archived', false)
+
+      let rawData: any[] = []
       if (unitId) {
         const { data } = await eventsQuery.or(`unit_id.is.null,unit_id.eq.${unitId}`).order('date', { ascending: true })
-        return data || []
+        rawData = data || []
       } else {
         const { data } = await eventsQuery.is('unit_id', null).order('date', { ascending: true })
-        return data || []
+        rawData = data || []
       }
+
+      const formatTime = (t: string) => {
+        if (!t) return ''
+        const [h, m] = t.split(':')
+        const hour = parseInt(h, 10)
+        const ampm = hour >= 12 ? 'PM' : 'AM'
+        const displayHour = hour % 12 || 12
+        return `${displayHour}:${m} ${ampm}`
+      }
+
+      return rawData.map(event => ({
+        ...event,
+        time: `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`
+      }))
     },
     [key],
     { revalidate: 60, tags: ['events', key] },

@@ -5,9 +5,6 @@ import { QrCode, Loader2, Calendar, MapPin, Search, Check, ChevronDown, ChevronU
 import QrScannerWidget from '@/components/admin/QrScannerWidget'
 import { checkInTicket } from '@/app/admin/actions'
 import { toast } from 'sonner'
-import { createClient } from '@/utils/supabase/client'
-
-const supabase = createClient()
 
 
 interface ScannerEvent {
@@ -80,34 +77,6 @@ export default function PresidentScannerClient({
     setIsScanning(true)
     try {
       const res = await checkInTicket(input, scanEventId)
-      
-      // Realtime Broadcast to volunteer client
-      const targetUserId = res?.userId || (!input.startsWith('TKT-') ? input : null)
-      if (targetUserId) {
-        const channel = supabase.channel(`checkin-${targetUserId}`, {
-          config: {
-            broadcast: { self: true }
-          }
-        })
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            channel.send({
-              type: 'broadcast',
-              event: 'status',
-              payload: {
-                status: res?.error ? (res.alreadyScanned ? 'already_checked_in' : 'failed') : 'success',
-                userName: res?.userName || 'Volunteer',
-                eventTitle: selectedEvent?.title || 'YDC Event',
-                error: res?.error || null
-              }
-            }).then(() => {
-              setTimeout(() => {
-                supabase.removeChannel(channel)
-              }, 5000)
-            })
-          }
-        })
-      }
 
       if (res?.error) {
         if (res.alreadyScanned) {

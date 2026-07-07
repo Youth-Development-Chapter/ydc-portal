@@ -194,40 +194,6 @@ export async function POST(request: NextRequest) {
       console.error('Error crediting attendance coins in API:', coinError)
     }
 
-    // Realtime Broadcast to volunteer client
-    try {
-      const channel = supabase.channel(`checkin-${resolvedUserId}`, {
-        config: {
-          broadcast: { self: true }
-        }
-      })
-      await new Promise<void>((resolve) => {
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            channel.send({
-              type: 'broadcast',
-              event: 'status',
-              payload: {
-                status: 'success',
-                userName: targetProfile.full_name || 'Volunteer',
-                eventTitle: event.title || 'YDC Event',
-                error: null
-              }
-            }).then(() => {
-              setTimeout(() => {
-                supabase.removeChannel(channel)
-                resolve()
-              }, 800)
-            })
-          } else {
-            resolve()
-          }
-        })
-      })
-    } catch (broadcastErr) {
-      console.error('Error broadcasting check-in success:', broadcastErr)
-    }
-
     return NextResponse.json({ 
       success: true, 
       userName: targetProfile.full_name || 'Volunteer',

@@ -171,7 +171,7 @@ export default async function NotificationsPage(props: {
   registrations.forEach(reg => {
     const event = reg.events as any;
     if (!event || reg.attended) return;
-    const eventDate = new Date(`${event.date}T${event.time.split(' - ')[0] || '00:00:00'}`);
+    const eventDate = new Date(`${event.date}T${event.start_time || '00:00:00'}`);
     const diffHours = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (diffHours > 0 && diffHours <= 48) {

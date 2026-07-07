@@ -103,7 +103,8 @@ CREATE TABLE IF NOT EXISTS public.events (
     title TEXT NOT NULL,
     description TEXT,
     date DATE NOT NULL,
-    time TEXT NOT NULL, -- e.g., "9:00 AM - 5:00 PM"
+    start_time TIME NOT NULL DEFAULT '09:00:00',
+    end_time TIME NOT NULL DEFAULT '17:00:00',
     location TEXT NOT NULL,
     capacity INTEGER NOT NULL DEFAULT 100,
     coin_reward INTEGER NOT NULL DEFAULT 50,

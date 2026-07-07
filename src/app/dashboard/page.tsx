@@ -19,8 +19,27 @@ import {
 
 export default async function UserDashboard() {
   const extractEvent = (registration: { events?: unknown }) => {
-    if (Array.isArray(registration.events)) return registration.events[0] || null;
-    return (registration.events as { id: string; title: string; date: string; time: string; location: string; poster_url?: string | null; poster_color?: string | null } | null) || null;
+    let ev: any = null;
+    if (Array.isArray(registration.events)) {
+      ev = registration.events[0] || null;
+    } else {
+      ev = registration.events || null;
+    }
+    if (!ev) return null;
+
+    const formatTime = (t: string) => {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hour = parseInt(h, 10);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${m} ${ampm}`;
+    };
+
+    return {
+      ...ev,
+      time: ev.time || `${formatTime(ev.start_time)} - ${formatTime(ev.end_time)}`
+    };
   };
 
   const supabase = await createClient();
@@ -113,7 +132,7 @@ export default async function UserDashboard() {
   const upcomingEvent48h = (registrations || []).find(reg => {
     const event = extractEvent(reg);
     if (!event) return false;
-    const eventDate = new Date(`${event.date}T${event.time.split(' - ')[0] || '00:00:00'}`);
+    const eventDate = new Date(`${event.date}T${event.start_time || '00:00:00'}`);
     const diffMs = eventDate.getTime() - now.getTime();
     const diffHours = diffMs / (1000 * 60 * 60);
     return diffHours > 0 && diffHours <= 48;

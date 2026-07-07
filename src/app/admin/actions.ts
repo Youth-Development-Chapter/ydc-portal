@@ -574,7 +574,8 @@ export async function createEvent(
   title: string,
   description: string,
   date: string,
-  time: string,
+  startTime: string,
+  endTime: string,
   location: string,
   capacity: number,
   coinReward: number,
@@ -595,7 +596,7 @@ export async function createEvent(
   const allowed = await hasAdminPermission(user.id, 'can_manage_events')
   if (!allowed) return { error: 'Permission denied. You cannot manage events.' }
 
-  if (!title || !date || !time || !location) {
+  if (!title || !date || !startTime || !endTime || !location) {
     return { error: 'Missing required event fields.' }
   }
 
@@ -624,7 +625,8 @@ export async function createEvent(
       title,
       description,
       date,
-      time,
+      start_time: startTime,
+      end_time: endTime,
       location,
       capacity,
       coin_reward: coinReward,
@@ -735,42 +737,6 @@ export async function toggleManualAttendance(registrationId: string, attended: b
     console.error('Error modifying attendance coins:', coinError)
   }
 
-  // Realtime Broadcast to volunteer client
-  if (attended) {
-    try {
-      const channel = supabase.channel(`checkin-${registration.user_id}`, {
-        config: {
-          broadcast: { self: true }
-        }
-      })
-      await new Promise<void>((resolve) => {
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            channel.send({
-              type: 'broadcast',
-              event: 'status',
-              payload: {
-                status: 'success',
-                userName: (registration as any).profiles?.full_name || 'Volunteer',
-                eventTitle: (registration as any).events?.title || 'YDC Event',
-                error: null
-              }
-            }).then(() => {
-              setTimeout(() => {
-                supabase.removeChannel(channel)
-                resolve()
-              }, 800)
-            })
-          } else {
-            resolve()
-          }
-        })
-      })
-    } catch (broadcastErr) {
-      console.error('Error broadcasting check-in success:', broadcastErr)
-    }
-  }
-
   revalidatePath('/admin/events')
   revalidatePath('/dashboard')
   revalidateTag('events', 'max')
@@ -835,7 +801,8 @@ export async function updateEvent(
   title: string,
   description: string,
   date: string,
-  time: string,
+  startTime: string,
+  endTime: string,
   location: string,
   capacity: number,
   coinReward: number,
@@ -855,7 +822,7 @@ export async function updateEvent(
   const allowed = await hasAdminPermission(user.id, 'can_manage_events')
   if (!allowed) return { error: 'Permission denied. You cannot manage events.' }
 
-  if (!title || !date || !time || !location) {
+  if (!title || !date || !startTime || !endTime || !location) {
     return { error: 'Missing required event fields.' }
   }
 
@@ -895,7 +862,8 @@ export async function updateEvent(
       title,
       description,
       date,
-      time,
+      start_time: startTime,
+      end_time: endTime,
       location,
       capacity: capacity || 100,
       coin_reward: coinReward,

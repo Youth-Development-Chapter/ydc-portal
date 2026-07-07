@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "branchName": "main",
+  "worktreePath": "D:\\Coding Practices\\ydc\\ydc-portal",
+  "upstream": "origin/main",
+  "mergeBase": "c06ef9398335eb2eb30ac3ea7f718ed178cbc53a",
+  "firstSeenHead": "c06ef9398335eb2eb30ac3ea7f718ed178cbc53a",
+  "lastSeenHead": "c06ef9398335eb2eb30ac3ea7f718ed178cbc53a",
+  "lastAnalyzedHead": "c06ef9398335eb2eb30ac3ea7f718ed178cbc53a",
+  "stale": false,
+  "staleReason": null,
+  "staleSince": null,
+  "lifecycleEvent": null,
+  "createdAt": "2026-07-07T17:23:05.226Z",
+  "updatedAt": "2026-07-07T17:23:05.226Z"
+}

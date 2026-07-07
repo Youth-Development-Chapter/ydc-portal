@@ -214,7 +214,7 @@ export async function getEventsFromServer(
   // Fetch all active events (excluding archived)
   const { data: dbEvents, error: eventsError } = await supabase
     .from('events')
-    .select('id, title, description, date, time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
+    .select('id, title, description, date, start_time, end_time, location, capacity, unit_id, excluded_unit_ids, is_compulsory, poster_url, poster_color')
     .eq('is_archived', false)
     .order('date', { ascending: true })
 
@@ -276,7 +276,17 @@ export async function getEventsFromServer(
       title: event.title,
       description: event.description || '',
       date: new Date(event.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-      time: event.time,
+      time: (() => {
+        const formatTime = (t: string) => {
+          if (!t) return ''
+          const [h, m] = t.split(':')
+          const hour = parseInt(h, 10)
+          const ampm = hour >= 12 ? 'PM' : 'AM'
+          const displayHour = hour % 12 || 12
+          return `${displayHour}:${m} ${ampm}`
+        }
+        return `${formatTime(event.start_time)} - ${formatTime(event.end_time)}`
+      })(),
       location: event.location,
       capacity: event.capacity,
       is_compulsory: event.is_compulsory || false,
