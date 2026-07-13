@@ -5,6 +5,21 @@ import qrcode from 'qrcode-terminal';
 import { createClient } from '@supabase/supabase-js';
 import { processAgentMessage } from './agent';
 import pino from 'pino';
+import net from 'net';
+
+function acquireBotLock(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.on('error', () => {
+      resolve(false);
+    });
+    server.listen(port, '127.0.0.1', () => {
+      // Keep the server listening to lock the port
+      (globalThis as any).whatsappLockServer = server;
+      resolve(true);
+    });
+  });
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,7 +46,15 @@ export async function startWhatsAppBot() {
     return;
   }
 
-  console.log('Initializing WhatsApp Bot...');
+  // TCP Port Lock to prevent multiple processes from connecting simultaneously in production
+  const lockPort = parseInt(process.env.WHATSAPP_BOT_LOCK_PORT || '3099', 10);
+  const hasLock = await acquireBotLock(lockPort);
+  if (!hasLock) {
+    console.log(`[WhatsApp] Another Next.js process/worker is already running the WhatsApp bot on port ${lockPort}. Skipping duplicate initialization.`);
+    return;
+  }
+
+  console.log(`Initializing WhatsApp Bot (Process PID: ${process.pid}, Lock Port: ${lockPort})...`);
   const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
   const sock = makeWASocket({
