@@ -26,6 +26,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@60d2f3fe1cea9d550cb9d8dee65334473bc09534": "60d2f3f Use local state for auth forms; require 8-char pwd" | kind=Commit | source=git | neighbors=[37e3b0a Improve auth error UI, callback…, main, f9b6a15 Improve CSP, error handling, an…, page.tsx, page.tsx, page.tsx] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@9abbc7f917d95761013b7ad7e5a8447edc90668d": "9abbc7f Add profile onboarding flow and redirects" | kind=Commit | source=git | neighbors=[actions.ts, main, 7522853 Add admin user management & tic…, page.tsx, page.tsx, a227584 Add LMS gamification rewards & …] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@a7f817779fa176616d06fed0f2dfab4fe33d3ba2": "a7f8177 Add email to profiles with migration & triggers" | kind=Commit | source=git | neighbors=[actions.ts, main, d73e533 Add auth UIs, president console…, 20260523140000_add_email_to_profiles.sql, schema.sql, fb18f2e Add division scoping, reward ed…] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@d17ee1f6a4859ad32f8eb88f04b67448ed048a5b": "d17ee1f Add fluid top gradient, tweak dashboard headers" | kind=Commit | source=git | neighbors=[8cc013d Add dynamic dashboard flashcard…, main, fb18f2e Add division scoping, reward ed…, loading.tsx, page.tsx, page.tsx] | lang=en
@@ -54,6 +55,7 @@ one-sentence description — no prose, no markdown fences.
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@81653c4da832cecaf15e7bd95e99970a5941600e": "81653c4 remove manual login forms" | kind=Commit | source=git | neighbors=[main, 430dc36 Update OnboardingClient.tsx, LoginClient.tsx, SignupClient.tsx, e41ebed try patch #3] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@835d3b916ab108d76d96692d624bbfdc6450930d": "835d3b9 Add unit roster & event visibility rules" | kind=Commit | source=git | neighbors=[EventsManager.tsx, main, bda94d0 Add inspect scripts; simplify e…, page.tsx, 9be5451 Add unit scoping and eligibilit…] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@d1d9dc29ecdd005e5b8395e5a884b6151dab160d": "d1d9dc2 Replace Link with external anchor to YDC home" | kind=Commit | source=git | neighbors=[9ddb8b2 chore: sync package-lock.json t…, main, 33d76b0 Refactor auth, storage, and adm…, page.tsx, page.tsx] | lang=en
+- "dashboard_myeventscarousel": "MyEventsCarousel.tsx" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L1 | neighbors=[07226c4 Add event posters, archiving & …, 7026f95 update events, EventCarouselItem, MyEventsCarousel(), page.tsx] | lang=en
 - "dashboard_presidentnav": "PresidentNav.tsx" | kind=code-symbol | source=src/components/dashboard/PresidentNav.tsx:L1 | neighbors=[54a4d65 Replace announcements with noti…, 986cd4b Split President console; add ev…, PresidentNav(), PresidentNavProps, layout.tsx] | lang=en
 - "lib_env": "env.ts" | kind=code-symbol | source=src/lib/env.ts:L1 | neighbors=[41b5a86 security: fix XSS, API ownershi…, a4961d0 Merge pull request #1 from Yout…, Env, envSchema, validateEnv()] | lang=en
 - "lib_perf_data_getusercoinbalance": "getUserCoinBalance()" | kind=code-symbol | source=src/lib/perf-data.ts:L6 | neighbors=[page.tsx, perf-data.ts, actions.ts, page.tsx, page.tsx] | lang=en
@@ -64,8 +66,6 @@ one-sentence description — no prose, no markdown fences.
 - "president_page": "page.tsx" | kind=code-symbol | source=src/app/dashboard/president/page.tsx:L1 | neighbors=[35fbf30 Introduce units and unit-based …, 986cd4b Split President console; add ev…, 9be5451 Add unit scoping and eligibilit…, d73e533 Add auth UIs, president console…, PresidentConsolePage()] | lang=en
 - "supabase_schema_auth_users": "auth.users" | kind=code-symbol | source=supabase/schema.sql:L9 | neighbors=[schema.sql, on_auth_user_email_updated, public.check_user_providers(), public.profiles, public.set_profile_email()] | lang=en
 - "supabase_schema_public_courses": "public.courses" | kind=code-symbol | source=supabase/schema.sql:L354 | neighbors=[schema.sql, public.handle_course_completion(), public.modules, public.user_course_settings, public.user_progress] | lang=en
-- "supabase_schema_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/schema.sql:L228 | neighbors=[schema.sql, on_deed_change_update_streak, on_deed_status_coins, public.profiles, public.update_user_streak()] | lang=en
-- "supabase_schema_public_event_registrations": "public.event_registrations" | kind=code-symbol | source=supabase/schema.sql:L144 | neighbors=[schema.sql, on_registration_enforce_capacity, public.enforce_event_capacity(), public.events, public.profiles] | lang=en
 
 ## Instructions
 

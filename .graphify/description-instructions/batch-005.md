@@ -26,6 +26,8 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "supabase_schema_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/schema.sql:L228 | neighbors=[schema.sql, on_deed_change_update_streak, on_deed_status_coins, public.profiles, public.update_user_streak()] | lang=en
+- "supabase_schema_public_event_registrations": "public.event_registrations" | kind=code-symbol | source=supabase/schema.sql:L144 | neighbors=[schema.sql, on_registration_enforce_capacity, public.enforce_event_capacity(), public.events, public.profiles] | lang=en
 - "ui_localtime": "LocalTime.tsx" | kind=code-symbol | source=src/components/ui/LocalTime.tsx:L1 | neighbors=[463284b Enforce 3-per-day deeds and add…, DeedHistoryClient.tsx, page.tsx, LocalTime(), LocalTimeProps] | lang=en
 - "ui_tabs_tabs": "Tabs()" | kind=code-symbol | source=src/components/ui/Tabs.tsx:L18 | neighbors=[ApprovalsQueue.tsx, UserDirectory.tsx, AdminRewardsManager.tsx, page.tsx, Tabs.tsx] | lang=en
 - "ui_tabs_tabscontent": "TabsContent()" | kind=code-symbol | source=src/components/ui/Tabs.tsx:L117 | neighbors=[ApprovalsQueue.tsx, UserDirectory.tsx, AdminRewardsManager.tsx, page.tsx, Tabs.tsx] | lang=en
@@ -58,14 +60,12 @@ one-sentence description — no prose, no markdown fences.
 - "courses_actions_updatelesson": "updateLesson()" | kind=code-symbol | source=src/app/admin/courses/actions.ts:L242 | neighbors=[actions.ts, requireCourseAdmin(), revalidateCourse(), CourseBuilder.tsx] | lang=en
 - "courses_actions_updatemcq": "updateMcq()" | kind=code-symbol | source=src/app/admin/courses/actions.ts:L335 | neighbors=[actions.ts, requireCourseAdmin(), revalidateCourse(), CourseBuilder.tsx] | lang=en
 - "courses_actions_updatemodule": "updateModule()" | kind=code-symbol | source=src/app/admin/courses/actions.ts:L164 | neighbors=[actions.ts, requireCourseAdmin(), revalidateCourse(), CourseBuilder.tsx] | lang=en
-- "dashboard_myeventscarousel": "MyEventsCarousel.tsx" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L1 | neighbors=[07226c4 Add event posters, archiving & …, EventCarouselItem, MyEventsCarousel(), page.tsx] | lang=en
 - "lib_lms_data_getcourses": "getCourses()" | kind=code-symbol | source=src/lib/lms-data.ts:L40 | neighbors=[page.tsx, page.tsx, lms-data.ts, page.tsx] | lang=en
 - "migrations_20260608000000_comprehensive_updates_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/migrations/20260608000000_comprehensive_updates.sql:L141 | neighbors=[20260608000000_comprehensive_updates.sql, on_deed_change_update_streak, on_deed_status_coins, public.update_user_streak()] | lang=en
 - "migrations_20260608120000_sync_updated_schema_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L133 | neighbors=[20260608120000_sync_updated_schema.sql, on_deed_change_update_streak, on_deed_status_coins, public.update_user_streak()] | lang=en
 - "migrations_20260608130000_check_user_providers_public_check_user_providers": "public.check_user_providers()" | kind=code-symbol | source=supabase/migrations/20260608130000_check_user_providers.sql:L2 | neighbors=[20260608130000_check_user_providers.sql, auth.identities, auth.users, providers] | lang=en
 - "migrations_consolidated_migration_public_deed_submissions": "public.deed_submissions" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L163 | neighbors=[consolidated_migration.sql, on_deed_change_update_streak, on_deed_status_coins, public.update_user_streak()] | lang=en
-- "submit_route": "route.ts" | kind=code-symbol | source=src/app/api/lms/quiz/submit/route.ts:L1 | neighbors=[3f188c3 Add mobile API routes and supab…, POST(), api.ts, createApiClient()] | lang=en
-- "supabase_schema_public_check_user_providers": "public.check_user_providers()" | kind=code-symbol | source=supabase/schema.sql:L1055 | neighbors=[schema.sql, auth.identities, auth.users, providers] | lang=en
+- "not_going_route": "route.ts" | kind=code-symbol | source=src/app/api/events/not-going/route.ts:L1 | neighbors=[7026f95 update events, POST(), api.ts, createApiClient()] | lang=en
 
 ## Instructions
 

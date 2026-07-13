@@ -24,9 +24,11 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "auth_actions_updatepassword": "updatePassword()" | kind=code-symbol | source=src/app/auth/actions.ts:L222 | neighbors=[actions.ts, page.tsx]
+- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@35b9ddf8de70483b1d76c403e38d77f257732a7b": "35b9ddf Initial commit" | kind=Commit | source=git | neighbors=[main, d6aee11 Merge branch 'main' of https://…]
 - "courses_actions_lockcourselanguage": "lockCourseLanguage()" | kind=code-symbol | source=src/app/lms/courses/actions.ts:L6 | neighbors=[actions.ts, LanguageSelectModal.tsx]
 - "courses_coursesadminclient_courserow": "CourseRow" | kind=code-symbol | source=src/app/admin/courses/CoursesAdminClient.tsx:L12 | neighbors=[CoursesAdminClient.tsx, page.tsx]
-- "dashboard_dashboardflashcards_flashcard": "Flashcard" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L18 | neighbors=[DashboardFlashcards.tsx, page.tsx]
+- "dashboard_dashboardflashcards_flashcard": "Flashcard" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L20 | neighbors=[DashboardFlashcards.tsx, page.tsx]
 - "docs_course_import_schema_md": "Course JSON Import Schema Guide" | kind=entity | source=docs/course_import_schema.md | neighbors=[AI Course Prompt Guide, Developer & Agent Guide]
 - "eslint_config": "eslint.config.mjs" | kind=code-symbol | source=eslint.config.mjs:L1 | neighbors=[64f6af9 Initial commit from Create Next…, eslintConfig]
 - "events_loading": "loading.tsx" | kind=code-symbol | source=src/app/events/loading.tsx:L1 | neighbors=[f5b2296 Add social OAuth, deed local_da…, EventsLoading()]
@@ -62,8 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "migrations_20260523170000_lms_gamification_rewards_already_awarded": "already_awarded" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L109 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_completed_lessons": "completed_lessons" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L94 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_course_reward": "course_reward" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L26 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
-- "migrations_20260523170000_lms_gamification_rewards_max_earned_coins": "max_earned_coins" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L70 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
-- "migrations_20260523170000_lms_gamification_rewards_module_idx": "module_idx" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L34 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 
 ## Instructions
 

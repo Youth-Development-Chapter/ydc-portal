@@ -17,6 +17,8 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "supabase_schema_already_awarded": "already_awarded" | kind=code-symbol | source=supabase/schema.sql:L873 | neighbors=[schema.sql, public.handle_course_completion()]
+- "supabase_schema_auth_identities": "auth.identities" | kind=code-symbol | source=supabase/schema.sql:L1061 | neighbors=[schema.sql, public.check_user_providers()]
 - "supabase_schema_completed_lessons": "completed_lessons" | kind=code-symbol | source=supabase/schema.sql:L859 | neighbors=[schema.sql, public.handle_course_completion()]
 - "supabase_schema_course_reward": "course_reward" | kind=code-symbol | source=supabase/schema.sql:L797 | neighbors=[schema.sql, public.handle_course_completion()]
 - "supabase_schema_current_count": "current_count" | kind=code-symbol | source=supabase/schema.sql:L206 | neighbors=[schema.sql, public.enforce_event_capacity()]
@@ -55,8 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "admin_approvalsqueue_approvalsqueue": "ApprovalsQueue()" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L63 | neighbors=[ApprovalsQueue.tsx]
 - "admin_approvalsqueue_mappedsubmission": "MappedSubmission" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L26 | neighbors=[ApprovalsQueue.tsx]
 - "admin_approvalsqueue_modaltype": "ModalType" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L61 | neighbors=[ApprovalsQueue.tsx]
-- "admin_approvalsqueue_resolvedsubmission": "ResolvedSubmission" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L42 | neighbors=[ApprovalsQueue.tsx]
-- "admin_error_adminerror": "AdminError()" | kind=code-symbol | source=src/app/admin/error.tsx:L7 | neighbors=[error.tsx]
 
 ## Instructions
 

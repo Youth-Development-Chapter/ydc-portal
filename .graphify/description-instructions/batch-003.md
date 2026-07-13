@@ -26,6 +26,7 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@c0dc63298b2cbfed50acb535615981a84fba89f1": "c0dc632 Add Urdu localization to lessons and UI" | kind=Commit | source=git | neighbors=[463284b Enforce 3-per-day deeds and add…, layout.tsx, main, 02a44a2 Add bilingual (Urdu) support fo…, lms-data.ts, wellms.ts] | lang=en
 - "migrations_20260611100200_event_capacity_trigger": "20260611100200_event_capacity_trigger.sql" | kind=code-symbol | source=supabase/migrations/20260611100200_event_capacity_trigger.sql:L1 | neighbors=[fc9a24e fix(gamification): correct flag…, current_count, event_capacity, is_staff, on_registration_enforce_capacity, public.enforce_event_capacity()] | lang=en
 - "reset_password_page": "page.tsx" | kind=code-symbol | source=src/app/auth/reset-password/page.tsx:L1 | neighbors=[03e257b feat: complete dashboard, auth …, 60d2f3f Use local state for auth forms;…, actions.ts, updatePassword(), ResetPasswordPage(), Button.tsx] | lang=en
 - "claim_route": "route.ts" | kind=code-symbol | source=src/app/api/events/ticket/claim/route.ts:L1 | neighbors=[POST(), criteria.ts, evaluateCriteria(), api.ts, createApiClient(), 3f188c3 Add mobile API routes and supab…] | lang=en
@@ -65,7 +66,6 @@ one-sentence description — no prose, no markdown fences.
 - "units_page": "page.tsx" | kind=code-symbol | source=src/app/admin/units/page.tsx:L1 | neighbors=[35fbf30 Introduce units and unit-based …, UnitsManager.tsx, admin.ts, getAdminContext(), server.ts, createClient()] | lang=en
 - "admin_qrscannerwidget": "QrScannerWidget.tsx" | kind=code-symbol | source=src/components/admin/QrScannerWidget.tsx:L1 | neighbors=[BarcodeDetector, QrScannerWidget(), QrScannerWidgetProps, 35fbf30 Introduce units and unit-based …, e714bb0 Improve QR scanner, realtime ch…, PresidentScannerClient.tsx] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@28caec0993a982de63355fe88223d3f890c694d7": "28caec0 fix(auth): resolve PKCE verifier loss on OAuth and hydration mismatch o…" | kind=Commit | source=git | neighbors=[page.tsx, main, fc9a24e fix(gamification): correct flag…, LogDeedForm.tsx, LoginClient.tsx, fc280be Update next.config.ts] | lang=en
-- "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@60d2f3fe1cea9d550cb9d8dee65334473bc09534": "60d2f3f Use local state for auth forms; require 8-char pwd" | kind=Commit | source=git | neighbors=[37e3b0a Improve auth error UI, callback…, main, f9b6a15 Improve CSP, error handling, an…, page.tsx, page.tsx, page.tsx] | lang=en
 
 ## Instructions
 

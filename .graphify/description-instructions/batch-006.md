@@ -26,11 +26,13 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "submit_route": "route.ts" | kind=code-symbol | source=src/app/api/lms/quiz/submit/route.ts:L1 | neighbors=[3f188c3 Add mobile API routes and supab…, POST(), api.ts, createApiClient()] | lang=en
+- "supabase_schema_public_check_user_providers": "public.check_user_providers()" | kind=code-symbol | source=supabase/schema.sql:L1055 | neighbors=[schema.sql, auth.identities, auth.users, providers] | lang=en
 - "supabase_schema_public_coin_transactions": "public.coin_transactions" | kind=code-symbol | source=supabase/schema.sql:L290 | neighbors=[schema.sql, public.profiles, public.handle_course_completion(), public.handle_deed_coins()] | lang=en
 - "supabase_schema_public_modules": "public.modules" | kind=code-symbol | source=supabase/schema.sql:L380 | neighbors=[schema.sql, public.handle_course_completion(), public.lessons, public.courses] | lang=en
 - "ui_select_select": "Select" | kind=code-symbol | source=src/components/ui/Select.tsx:L13 | neighbors=[UserDirectory.tsx, OnboardingClient.tsx, page.tsx, Select.tsx] | lang=en
 - "admin_actions_approvedeedsubmission": "approveDeedSubmission()" | kind=code-symbol | source=src/app/admin/actions.ts:L13 | neighbors=[actions.ts, ApprovalsQueue.tsx, PresidentApprovalsManager.tsx] | lang=en
-- "admin_actions_bulkcheckinattendees": "bulkCheckInAttendees()" | kind=code-symbol | source=src/app/admin/actions.ts:L1873 | neighbors=[actions.ts, checkInTicket(), EventDetailsClient.tsx] | lang=en
+- "admin_actions_bulkcheckinattendees": "bulkCheckInAttendees()" | kind=code-symbol | source=src/app/admin/actions.ts:L1877 | neighbors=[actions.ts, checkInTicket(), EventDetailsClient.tsx] | lang=en
 - "admin_actions_createevent": "createEvent()" | kind=code-symbol | source=src/app/admin/actions.ts:L573 | neighbors=[actions.ts, EventsManager.tsx, PresidentEventsManager.tsx] | lang=en
 - "admin_actions_rejectdeedsubmission": "rejectDeedSubmission()" | kind=code-symbol | source=src/app/admin/actions.ts:L83 | neighbors=[actions.ts, ApprovalsQueue.tsx, PresidentApprovalsManager.tsx] | lang=en
 - "admin_actions_updatecoursereward": "updateCourseReward()" | kind=code-symbol | source=src/app/admin/actions.ts:L168 | neighbors=[actions.ts, SettingsManager.tsx, CoursesAdminClient.tsx] | lang=en
@@ -38,6 +40,7 @@ one-sentence description — no prose, no markdown fences.
 - "admin_error": "error.tsx" | kind=code-symbol | source=src/app/admin/error.tsx:L1 | neighbors=[AdminError(), a4961d0 Merge pull request #1 from Yout…, c993599 perf: fix N+1 queries, parallel…] | lang=en
 - "admin_loading": "loading.tsx" | kind=code-symbol | source=src/app/admin/loading.tsx:L1 | neighbors=[AdminLoading(), a4961d0 Merge pull request #1 from Yout…, c993599 perf: fix N+1 queries, parallel…] | lang=en
 - "agents_md": "Developer & Agent Guide" | kind=entity | source=AGENTS.md | neighbors=[Claude Configuration Reference, Course JSON Import Schema Guide, Mobile App Integration Guide] | lang=en
+- "app_actions_claimticket": "claimTicket()" | kind=code-symbol | source=src/app/actions.ts:L22 | neighbors=[actions.ts, DashboardFlashcards.tsx, EventsClient.tsx] | lang=en
 - "app_error": "error.tsx" | kind=code-symbol | source=src/app/error.tsx:L1 | neighbors=[RootError(), 2a2d0ed feat: add leaderboard, announce…, a4961d0 Merge pull request #1 from Yout…] | lang=en
 - "app_global_error": "global-error.tsx" | kind=code-symbol | source=src/app/global-error.tsx:L1 | neighbors=[GlobalError(), a4961d0 Merge pull request #1 from Yout…, c993599 perf: fix N+1 queries, parallel…] | lang=en
 - "commit:repo:github.com/Youth-Development-Chapter/ydc-portal@50d072a7e5ad1639e25b0c40244129c4a29526fa": "50d072a chore: start performance optimization plan" | kind=Commit | source=git | neighbors=[4950c5b Revamp dashboard, wallet & LMS …, main, 390bb7c perf: optimize hot queries and …] | lang=pt
@@ -63,9 +66,6 @@ one-sentence description — no prose, no markdown fences.
 - "migrations_20260608120000_sync_updated_schema_public_user_progress": "public.user_progress" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L307 | neighbors=[20260608120000_sync_updated_schema.sql, on_progress_completed, public.handle_course_completion()] | lang=en
 - "migrations_20260611100000_fix_flag_double_deduction": "20260611100000_fix_flag_double_deduction.sql" | kind=code-symbol | source=supabase/migrations/20260611100000_fix_flag_double_deduction.sql:L1 | neighbors=[fc9a24e fix(gamification): correct flag…, public.coin_transactions, public.handle_deed_coins()] | lang=en
 - "migrations_20260611100200_event_capacity_trigger_public_event_registrations": "public.event_registrations" | kind=code-symbol | source=supabase/migrations/20260611100200_event_capacity_trigger.sql:L47 | neighbors=[20260611100200_event_capacity_trigger.s…, on_registration_enforce_capacity, public.enforce_event_capacity()] | lang=en
-- "notifications_actions_createannouncement": "createAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L7 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
-- "notifications_actions_deleteannouncement": "deleteAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L55 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
-- "notifications_actions_togglepinannouncement": "togglePinAnnouncement()" | kind=code-symbol | source=src/app/admin/notifications/actions.ts:L90 | neighbors=[PresidentNotificationsClient.tsx, actions.ts, NotificationsManager.tsx] | lang=en
 
 ## Instructions
 

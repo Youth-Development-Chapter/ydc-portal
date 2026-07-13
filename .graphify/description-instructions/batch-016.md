@@ -17,18 +17,22 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "migrations_202606080036_event_criteria_leaves": "202606080036_event_criteria_leaves.sql" | kind=code-symbol | source=supabase/migrations/202606080036_event_criteria_leaves.sql:L1 | neighbors=[35fbf30 Introduce units and unit-based …]
+- "migrations_20260608120000_sync_updated_schema_public_get_leaderboard": "public.get_leaderboard()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L340 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608120000_sync_updated_schema_public_get_user_coin_balance": "public.get_user_coin_balance()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L326 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608120000_sync_updated_schema_public_trigger_update_streak": "public.trigger_update_streak()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L116 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608120000_sync_updated_schema_public_units": "public.units" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L8 | neighbors=[20260608120000_sync_updated_schema.sql]
 - "migrations_20260608140000_add_event_posters": "20260608140000_add_event_posters.sql" | kind=code-symbol | source=supabase/migrations/20260608140000_add_event_posters.sql:L1 | neighbors=[07226c4 Add event posters, archiving & …]
 - "migrations_20260608150500_add_event_archiving": "20260608150500_add_event_archiving.sql" | kind=code-symbol | source=supabase/migrations/20260608150500_add_event_archiving.sql:L1 | neighbors=[07226c4 Add event posters, archiving & …]
 - "migrations_20260707221500_split_event_time": "20260707221500_split_event_time.sql" | kind=code-symbol | source=supabase/migrations/20260707221500_split_event_time.sql:L1 | neighbors=[0aff7f1 add graphify]
+- "migrations_20260707231500_add_not_going_status": "20260707231500_add_not_going_status.sql" | kind=code-symbol | source=supabase/migrations/20260707231500_add_not_going_status.sql:L1 | neighbors=[7026f95 update events]
 - "migrations_consolidated_migration_public_get_leaderboard": "public.get_leaderboard()" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L191 | neighbors=[consolidated_migration.sql]
 - "migrations_consolidated_migration_public_trigger_update_streak": "public.trigger_update_streak()" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L143 | neighbors=[consolidated_migration.sql]
 - "migrations_consolidated_migration_public_units": "public.units" | kind=code-symbol | source=supabase/migrations/consolidated_migration.sql:L5 | neighbors=[consolidated_migration.sql]
 - "next_config_nextconfig": "nextConfig" | kind=code-symbol | source=next.config.ts:L47 | neighbors=[next.config.ts]
 - "next_config_securityheaders": "securityHeaders" | kind=code-symbol | source=next.config.ts:L3 | neighbors=[next.config.ts]
 - "next_config_serviceworkerheaders": "serviceWorkerHeaders" | kind=code-symbol | source=next.config.ts:L42 | neighbors=[next.config.ts]
+- "not_going_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/not-going/route.ts:L6 | neighbors=[route.ts]
 - "notifications_notificationsmanager_announcement": "Announcement" | kind=code-symbol | source=src/app/admin/notifications/NotificationsManager.tsx:L11 | neighbors=[NotificationsManager.tsx]
 - "notifications_notificationsmanager_notificationsmanager": "NotificationsManager()" | kind=code-symbol | source=src/app/admin/notifications/NotificationsManager.tsx:L19 | neighbors=[NotificationsManager.tsx]
 - "notifications_page_activealert": "ActiveAlert" | kind=code-symbol | source=src/app/dashboard/notifications/page.tsx:L25 | neighbors=[page.tsx]
@@ -53,10 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "rewards_page_rewardspage": "RewardsPage()" | kind=code-symbol | source=src/app/dashboard/rewards/page.tsx:L13 | neighbors=[page.tsx]
 - "rewards_rewardsclient_reward": "Reward" | kind=code-symbol | source=src/app/dashboard/rewards/RewardsClient.tsx:L7 | neighbors=[RewardsClient.tsx]
 - "rewards_rewardsclient_rewardsclient": "RewardsClient()" | kind=code-symbol | source=src/app/dashboard/rewards/RewardsClient.tsx:L16 | neighbors=[RewardsClient.tsx]
-- "scanner_page_presidentscannerpage": "PresidentScannerPage()" | kind=code-symbol | source=src/app/dashboard/president/scanner/page.tsx:L9 | neighbors=[page.tsx]
-- "seed_route_get": "GET()" | kind=code-symbol | source=src/app/api/lms/seed/route.ts:L7 | neighbors=[route.ts]
-- "settings_actions_allowed_image_types": "ALLOWED_IMAGE_TYPES" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L8 | neighbors=[actions.ts]
-- "settings_actions_updateprofileresult": "UpdateProfileResult" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L17 | neighbors=[actions.ts]
 
 ## Instructions
 

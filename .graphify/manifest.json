@@ -12,12 +12,12 @@
     "hash": "239f3ebf717465dc636818a1a619398d"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/actions.ts": {
-    "mtime": 1783444722767.1921,
-    "hash": "95c9c08cc65d9d16b3ccc752c0659785"
+    "mtime": 1783448120391.7056,
+    "hash": "1577381db69f05761ed66e4a371113f6"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/admin/actions.ts": {
-    "mtime": 1783444702398.8809,
-    "hash": "dba4f4df6615e6a3bbb8ddc120b725c9"
+    "mtime": 1783448230236.3154,
+    "hash": "fd14542c2a085c6fc911eaeb4479b439"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/admin/approvals/page.tsx": {
     "mtime": 1780865666179.7441,
@@ -212,8 +212,8 @@
     "hash": "7f762aa3522e66e14f2d742c38563082"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/dashboard/page.tsx": {
-    "mtime": 1783447333985.0435,
-    "hash": "c0f6a89350f630093c420413238bc3f8"
+    "mtime": 1783447907476.8452,
+    "hash": "d1319324976e44a12d89c7d30442c952"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/dashboard/president/approvals/page.tsx": {
     "mtime": 1780876779748.7136,
@@ -284,16 +284,16 @@
     "hash": "1e758f3f047d621d966d5d23bf072910"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/events/EventsClient.tsx": {
-    "mtime": 1783444906485.6455,
-    "hash": "ba09d7c920f712038eadd651e1c1493f"
+    "mtime": 1783448311763.5796,
+    "hash": "5e5a62d1baa9cb7983ed5f73bda7dc01"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/events/loading.tsx": {
     "mtime": 1779394046429,
     "hash": "f2b1307716c43002acec82260807171a"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/events/page.tsx": {
-    "mtime": 1783447121452.5393,
-    "hash": "3387af3f23c5f3ec65afe5a09a10471e"
+    "mtime": 1783448131370.6323,
+    "hash": "2af33928c03b4353b29dd847581ebcd6"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/app/global-error.tsx": {
     "mtime": 1779436464472.6824,
@@ -376,8 +376,8 @@
     "hash": "b03e71733eb7e34834cf7380df410e74"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/admin/EventDetailsClient.tsx": {
-    "mtime": 1783444788495.3032,
-    "hash": "c2213b9aa9005d2f0620733fe6add1b2"
+    "mtime": 1783448265384.4329,
+    "hash": "32cfd6f2ff9ccada9e1618e4ac415673"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/admin/EventsManager.tsx": {
     "mtime": 1783444755454.518,
@@ -400,8 +400,8 @@
     "hash": "34edf2c4003528d560837d664a80e5bc"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/dashboard/DashboardFlashcards.tsx": {
-    "mtime": 1779562529429.2063,
-    "hash": "11fe213ba6010cd926c2a155210eaff5"
+    "mtime": 1783447725563.5063,
+    "hash": "d60403572accc75e07fcb1a46bf798eb"
   },
   "D:/Coding Practices/ydc/ydc-portal/src/components/dashboard/MyEventsCarousel.tsx": {
     "mtime": 1783447144889.1975,
@@ -628,8 +628,8 @@
     "hash": "6a4738fc598879939425259ab02f0b2b"
   },
   "D:/Coding Practices/ydc/ydc-portal/supabase/schema.sql": {
-    "mtime": 1783444657005.5293,
-    "hash": "928232653189924cbfdff437cf292f95"
+    "mtime": 1783448007025.5945,
+    "hash": "938db03d759553ff1fc48865f8fd64d1"
   },
   "D:/Coding Practices/ydc/ydc-portal/AGENTS.md": {
     "mtime": 1780862352102.5535,
@@ -794,5 +794,13 @@
   "D:/Coding Practices/ydc/ydc-portal/.graphify/studio/studio.html": {
     "mtime": 1783443478714.4507,
     "hash": "75b7a679a456ca2e66066b9004eab5b4"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/src/app/api/events/not-going/route.ts": {
+    "mtime": 1783448070406.0916,
+    "hash": "0e1e173e20bd6d380131a51f8d4c12b5"
+  },
+  "D:/Coding Practices/ydc/ydc-portal/supabase/migrations/20260707231500_add_not_going_status.sql": {
+    "mtime": 1783447997477.4822,
+    "hash": "efc7ca3c66cfa845955460ec4ca5fa4a"
   }
 }

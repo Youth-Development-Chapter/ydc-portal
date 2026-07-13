@@ -24,10 +24,12 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
-- "admin_eventdetailsclient_eventdetailsclient": "EventDetailsClient()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L130 | neighbors=[EventDetailsClient.tsx]
-- "admin_eventdetailsclient_eventitem": "EventItem" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L27 | neighbors=[EventDetailsClient.tsx]
-- "admin_eventdetailsclient_extractaccentcolor": "extractAccentColor()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L47 | neighbors=[EventDetailsClient.tsx]
-- "admin_eventdetailsclient_rosterentry": "RosterEntry" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L115 | neighbors=[EventDetailsClient.tsx]
+- "admin_approvalsqueue_resolvedsubmission": "ResolvedSubmission" | kind=code-symbol | source=src/components/admin/ApprovalsQueue.tsx:L42 | neighbors=[ApprovalsQueue.tsx]
+- "admin_error_adminerror": "AdminError()" | kind=code-symbol | source=src/app/admin/error.tsx:L7 | neighbors=[error.tsx]
+- "admin_eventdetailsclient_eventdetailsclient": "EventDetailsClient()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L131 | neighbors=[EventDetailsClient.tsx]
+- "admin_eventdetailsclient_eventitem": "EventItem" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L28 | neighbors=[EventDetailsClient.tsx]
+- "admin_eventdetailsclient_extractaccentcolor": "extractAccentColor()" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L48 | neighbors=[EventDetailsClient.tsx]
+- "admin_eventdetailsclient_rosterentry": "RosterEntry" | kind=code-symbol | source=src/components/admin/EventDetailsClient.tsx:L116 | neighbors=[EventDetailsClient.tsx]
 - "admin_eventsmanager_eventitem": "EventItem" | kind=code-symbol | source=src/components/admin/EventsManager.tsx:L30 | neighbors=[EventsManager.tsx]
 - "admin_eventsmanager_eventsmanager": "EventsManager()" | kind=code-symbol | source=src/components/admin/EventsManager.tsx:L113 | neighbors=[EventsManager.tsx]
 - "admin_eventsmanager_extractaccentcolor": "extractAccentColor()" | kind=code-symbol | source=src/components/admin/EventsManager.tsx:L45 | neighbors=[EventsManager.tsx]
@@ -62,8 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "auth_actions_allowed_image_types": "ALLOWED_IMAGE_TYPES" | kind=code-symbol | source=src/app/auth/actions.ts:L11 | neighbors=[actions.ts]
 - "auth_code_error_page_authcodeerrorpage": "AuthCodeErrorPage()" | kind=code-symbol | source=src/app/auth/auth-code-error/page.tsx:L14 | neighbors=[page.tsx]
 - "auth_code_error_page_errordetails": "ErrorDetails" | kind=code-symbol | source=src/app/auth/auth-code-error/page.tsx:L8 | neighbors=[page.tsx]
-- "callback_route_get": "GET()" | kind=code-symbol | source=src/app/auth/callback/route.ts:L5 | neighbors=[route.ts]
-- "check_in_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/check-in/route.ts:L7 | neighbors=[route.ts]
 
 ## Instructions
 

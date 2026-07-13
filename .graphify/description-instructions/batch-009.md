@@ -17,6 +17,8 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "migrations_20260523170000_lms_gamification_rewards_max_earned_coins": "max_earned_coins" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L70 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
+- "migrations_20260523170000_lms_gamification_rewards_module_idx": "module_idx" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L34 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_public_coin_transactions": "public.coin_transactions" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L71 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_public_courses": "public.courses" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L27 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
 - "migrations_20260523170000_lms_gamification_rewards_public_lessons": "public.lessons" | kind=code-symbol | source=supabase/migrations/20260523170000_lms_gamification_rewards.sql:L41 | neighbors=[20260523170000_lms_gamification_rewards…, public.handle_course_completion()]
@@ -55,8 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "migrations_20260608120000_sync_updated_schema_public_handle_deed_coins": "public.handle_deed_coins()" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L137 | neighbors=[20260608120000_sync_updated_schema.sql, public.coin_transactions]
 - "migrations_20260608120000_sync_updated_schema_public_lessons": "public.lessons" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L236 | neighbors=[20260608120000_sync_updated_schema.sql, public.handle_course_completion()]
 - "migrations_20260608120000_sync_updated_schema_public_modules": "public.modules" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L226 | neighbors=[20260608120000_sync_updated_schema.sql, public.handle_course_completion()]
-- "migrations_20260608120000_sync_updated_schema_public_profiles": "public.profiles" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L183 | neighbors=[20260608120000_sync_updated_schema.sql, public.user_course_settings]
-- "migrations_20260608120000_sync_updated_schema_public_streaks": "public.streaks" | kind=code-symbol | source=supabase/migrations/20260608120000_sync_updated_schema.sql:L77 | neighbors=[20260608120000_sync_updated_schema.sql, public.update_user_streak()]
 
 ## Instructions
 

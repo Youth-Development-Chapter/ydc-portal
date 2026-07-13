@@ -24,6 +24,8 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "callback_route_get": "GET()" | kind=code-symbol | source=src/app/auth/callback/route.ts:L5 | neighbors=[route.ts]
+- "check_in_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/check-in/route.ts:L7 | neighbors=[route.ts]
 - "claim_route_post": "POST()" | kind=code-symbol | source=src/app/api/events/ticket/claim/route.ts:L8 | neighbors=[route.ts]
 - "claude_md": "Claude Configuration Reference" | kind=entity | source=CLAUDE.md | neighbors=[Developer & Agent Guide]
 - "components_checkinlistener_checkinlistener": "CheckInListener()" | kind=code-symbol | source=src/components/CheckInListener.tsx:L25 | neighbors=[CheckInListener.tsx]
@@ -42,8 +44,8 @@ one-sentence description — no prose, no markdown fences.
 - "courses_page_admincoursespage": "AdminCoursesPage()" | kind=code-symbol | source=src/app/admin/courses/page.tsx:L9 | neighbors=[page.tsx]
 - "courses_page_lmscoursespage": "LmsCoursesPage()" | kind=code-symbol | source=src/app/lms/courses/page.tsx:L9 | neighbors=[page.tsx]
 - "courses_route_get": "GET()" | kind=code-symbol | source=src/app/api/courses/route.ts:L8 | neighbors=[route.ts]
-- "dashboard_dashboardflashcards_dashboardflashcards": "DashboardFlashcards()" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L38 | neighbors=[DashboardFlashcards.tsx]
-- "dashboard_dashboardflashcards_dashboardflashcardsprops": "DashboardFlashcardsProps" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L34 | neighbors=[DashboardFlashcards.tsx]
+- "dashboard_dashboardflashcards_dashboardflashcards": "DashboardFlashcards()" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L42 | neighbors=[DashboardFlashcards.tsx]
+- "dashboard_dashboardflashcards_dashboardflashcardsprops": "DashboardFlashcardsProps" | kind=code-symbol | source=src/components/dashboard/DashboardFlashcards.tsx:L38 | neighbors=[DashboardFlashcards.tsx]
 - "dashboard_error_dashboarderror": "DashboardError()" | kind=code-symbol | source=src/app/dashboard/error.tsx:L7 | neighbors=[error.tsx]
 - "dashboard_loading_dashboardloading": "DashboardLoading()" | kind=code-symbol | source=src/app/dashboard/loading.tsx:L3 | neighbors=[loading.tsx]
 - "dashboard_myeventscarousel_eventcarouselitem": "EventCarouselItem" | kind=code-symbol | source=src/components/dashboard/MyEventsCarousel.tsx:L7 | neighbors=[MyEventsCarousel.tsx]
@@ -62,8 +64,6 @@ one-sentence description — no prose, no markdown fences.
 - "dashboard_presidentscannerclient_presidentscannerclient": "PresidentScannerClient()" | kind=code-symbol | source=src/components/dashboard/PresidentScannerClient.tsx:L17 | neighbors=[PresidentScannerClient.tsx]
 - "dashboard_presidentscannerclient_scannerevent": "ScannerEvent" | kind=code-symbol | source=src/components/dashboard/PresidentScannerClient.tsx:L10 | neighbors=[PresidentScannerClient.tsx]
 - "dashboard_presidentscannerclient_supabase": "supabase" | kind=code-symbol | source=src/components/dashboard/PresidentScannerClient.tsx:L10 | neighbors=[PresidentScannerClient.tsx]
-- "dashboard_qrscannermodal_qrscannermodal": "QRScannerModal()" | kind=code-symbol | source=src/components/dashboard/QRScannerModal.tsx:L12 | neighbors=[QRScannerModal.tsx]
-- "dashboard_qrscannermodal_qrscannermodalprops": "QRScannerModalProps" | kind=code-symbol | source=src/components/dashboard/QRScannerModal.tsx:L7 | neighbors=[QRScannerModal.tsx]
 
 ## Instructions
 

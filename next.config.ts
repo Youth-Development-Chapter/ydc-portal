@@ -46,6 +46,7 @@ const serviceWorkerHeaders = [
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.1.7"],
+  serverExternalPackages: ["@whiskeysockets/baileys", "pino"],
   experimental: {
     // Proof images can be up to 5 MB; set limit slightly above to give room for
     serverActions: {

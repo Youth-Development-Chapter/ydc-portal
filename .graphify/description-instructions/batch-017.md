@@ -17,6 +17,10 @@ No marketing language.
 Respond ONLY with a JSON object mapping each node id (as a string) to its
 one-sentence description — no prose, no markdown fences.
 
+- "scanner_page_presidentscannerpage": "PresidentScannerPage()" | kind=code-symbol | source=src/app/dashboard/president/scanner/page.tsx:L9 | neighbors=[page.tsx]
+- "seed_route_get": "GET()" | kind=code-symbol | source=src/app/api/lms/seed/route.ts:L7 | neighbors=[route.ts]
+- "settings_actions_allowed_image_types": "ALLOWED_IMAGE_TYPES" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L8 | neighbors=[actions.ts]
+- "settings_actions_updateprofileresult": "UpdateProfileResult" | kind=code-symbol | source=src/app/dashboard/settings/actions.ts:L17 | neighbors=[actions.ts]
 - "settings_page_adminsettingspage": "AdminSettingsPage()" | kind=code-symbol | source=src/app/admin/settings/page.tsx:L9 | neighbors=[page.tsx]
 - "settings_page_settingspage": "SettingsPage()" | kind=code-symbol | source=src/app/dashboard/settings/page.tsx:L8 | neighbors=[page.tsx]
 - "settings_settingsform_profile": "Profile" | kind=code-symbol | source=src/app/dashboard/settings/SettingsForm.tsx:L9 | neighbors=[SettingsForm.tsx]
@@ -53,10 +57,6 @@ one-sentence description — no prose, no markdown fences.
 - "ui_weeklyactivity_weeklyactivity": "WeeklyActivity()" | kind=code-symbol | source=src/components/ui/WeeklyActivity.tsx:L17 | neighbors=[WeeklyActivity.tsx]
 - "units_page_adminunitspage": "AdminUnitsPage()" | kind=code-symbol | source=src/app/admin/units/page.tsx:L9 | neighbors=[page.tsx]
 - "users_page_adminuserspage": "AdminUsersPage()" | kind=code-symbol | source=src/app/admin/users/page.tsx:L9 | neighbors=[page.tsx]
-- "users_page_presidentuserspage": "PresidentUsersPage()" | kind=code-symbol | source=src/app/dashboard/president/users/page.tsx:L9 | neighbors=[page.tsx]
-- "verify_route_get": "GET()" | kind=code-symbol | source=src/app/auth/v1/verify/route.ts:L3 | neighbors=[route.ts]
-- "wallet_loading_walletloading": "WalletLoading()" | kind=code-symbol | source=src/app/dashboard/wallet/loading.tsx:L3 | neighbors=[loading.tsx]
-- "wallet_page_walletpage": "WalletPage()" | kind=code-symbol | source=src/app/dashboard/wallet/page.tsx:L11 | neighbors=[page.tsx]
 
 ## Instructions
 
