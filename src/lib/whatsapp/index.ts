@@ -280,7 +280,7 @@ export async function startWhatsAppBot() {
             data: buffer,
             mediaType: audioMessage.mimetype || 'audio/ogg',
           } as any;
-          logToBot(`Downloaded voice message (${audioFile.data.length} bytes)`, 'success');
+          logToBot(`Downloaded voice message (${buffer.length} bytes)`, 'success');
         } catch (downloadErr) {
           logToBot(`Failed to download voice message: ${downloadErr instanceof Error ? downloadErr.message : downloadErr}`, 'error');
         }
