@@ -1913,3 +1913,140 @@ export async function bulkProcessLeaves(registrationIds: string[], action: 'appr
   return { success: true }
 }
 
+/**
+ * Get the live WhatsApp bot connection and QR code status from global state.
+ */
+export async function getWhatsAppStatus() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized.' }
+
+  const { permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_settings) return { error: 'Permission denied.' }
+
+  const status = (globalThis as any).whatsappStatus || {
+    status: 'disconnected',
+    error: 'Not initialized',
+    updatedAt: new Date().toISOString(),
+  }
+
+  return { success: true, status }
+}
+
+/**
+ * Restart the WhatsApp Bot client and release the port lock.
+ */
+export async function restartWhatsAppBotAction() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized.' }
+
+  const { permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_settings) return { error: 'Permission denied.' }
+
+  const globalForWhatsApp = globalThis as any
+  if (globalForWhatsApp.whatsappSocket) {
+    try {
+      globalForWhatsApp.whatsappSocket.end(new Error('Admin manually restarted connection'))
+    } catch (err) {
+      console.error('Error ending WhatsApp socket:', err)
+    }
+    globalForWhatsApp.whatsappSocket = undefined
+  }
+  if (globalForWhatsApp.whatsappLockServer) {
+    try {
+      globalForWhatsApp.whatsappLockServer.close()
+    } catch (err) {
+      console.error('Error closing WhatsApp lock server:', err)
+    }
+    globalForWhatsApp.whatsappLockServer = undefined
+  }
+
+  // Set connecting status
+  globalForWhatsApp.whatsappStatus = {
+    status: 'connecting',
+    updatedAt: new Date().toISOString(),
+  }
+
+  const { startWhatsAppBot } = await import('@/lib/whatsapp')
+  startWhatsAppBot().catch((err) => {
+    console.error('Failed to start WhatsApp Bot:', err)
+  })
+
+  return { success: true }
+}
+
+/**
+ * Disconnect, log out, delete credentials folder, and restart bot.
+ */
+export async function logoutWhatsAppBotAction() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized.' }
+
+  const { permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_settings) return { error: 'Permission denied.' }
+
+  const globalForWhatsApp = globalThis as any
+  if (globalForWhatsApp.whatsappSocket) {
+    try {
+      await globalForWhatsApp.whatsappSocket.logout()
+    } catch (err) {
+      try {
+        globalForWhatsApp.whatsappSocket.end()
+      } catch (e) {}
+    }
+    globalForWhatsApp.whatsappSocket = undefined
+  }
+  if (globalForWhatsApp.whatsappLockServer) {
+    try {
+      globalForWhatsApp.whatsappLockServer.close()
+    } catch (err) {
+      console.error('Error closing lock server:', err)
+    }
+    globalForWhatsApp.whatsappLockServer = undefined
+  }
+
+  // Delete credentials folder
+  const fs = await import('fs')
+  const path = await import('path')
+  const authDir = path.join(process.cwd(), 'auth_info_baileys')
+  if (fs.existsSync(authDir)) {
+    try {
+      fs.rmSync(authDir, { recursive: true, force: true })
+    } catch (err) {
+      console.error('Error deleting auth_info_baileys:', err)
+    }
+  }
+
+  // Reset status
+  globalForWhatsApp.whatsappStatus = {
+    status: 'disconnected',
+    error: 'Logged out. Ready to connect.',
+    updatedAt: new Date().toISOString(),
+  }
+
+  // Restart to trigger fresh QR code generation
+  const { startWhatsAppBot } = await import('@/lib/whatsapp')
+  startWhatsAppBot().catch((err) => {
+    console.error('Failed to start WhatsApp Bot:', err)
+  })
+
+  return { success: true }
+}
+
+/**
+ * Fetch dynamic WhatsApp bot logs stored in globalThis.whatsappLogs.
+ */
+export async function getWhatsAppLogs() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized.' }
+
+  const { permissions } = await getAdminContext(user.id)
+  if (!permissions.can_manage_settings) return { error: 'Permission denied.' }
+
+  const logs = (globalThis as any).whatsappLogs || []
+  return { success: true, logs }
+}
+

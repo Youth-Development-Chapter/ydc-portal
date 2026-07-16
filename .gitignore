@@ -42,3 +42,6 @@ next-env.d.ts
 
 # graphify
 .graphify/
+
+# whatsapp bot
+auth_info_baileys/

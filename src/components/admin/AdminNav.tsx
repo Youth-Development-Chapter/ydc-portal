@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronRight,
   MapPin,
+  MessageSquare,
 } from 'lucide-react'
 
 interface AdminPermissions {
@@ -111,6 +112,12 @@ const SECTIONS: NavSection[] = [
         name: 'Reward Shop',
         href: '/admin/rewards',
         icon: Gift,
+        permission: 'can_manage_settings',
+      },
+      {
+        name: 'WhatsApp Agent',
+        href: '/admin/whatsapp',
+        icon: MessageSquare,
         permission: 'can_manage_settings',
       },
     ],
