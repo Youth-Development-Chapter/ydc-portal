@@ -8,6 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 import { processAgentMessage } from './agent';
 import pino from 'pino';
 import net from 'net';
+import fs from 'fs';
+import path from 'path';
 
 export interface BotLogEntry {
   timestamp: string;
@@ -30,18 +32,46 @@ export function logToBot(message: string, level: 'info' | 'error' | 'warn' | 'su
   console.log(`[WhatsApp Bot] [${level.toUpperCase()}] ${message}`);
 }
 
-function acquireBotLock(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.on('error', () => {
-      resolve(false);
-    });
-    server.listen(port, '127.0.0.1', () => {
-      // Keep the server listening to lock the port
-      (globalThis as any).whatsappLockServer = server;
-      resolve(true);
-    });
-  });
+function acquireBotLock(lockFile = '.whatsapp-bot.pid'): boolean {
+  try {
+    if (fs.existsSync(lockFile)) {
+      const pidStr = fs.readFileSync(lockFile, 'utf8').trim();
+      const pid = parseInt(pidStr, 10);
+      if (!isNaN(pid) && pid !== process.pid) {
+        try {
+          // Check if process is still alive
+          process.kill(pid, 0);
+          return false; // Process is still running!
+        } catch (e) {
+          // Process is dead, we can take the lock
+          console.log(`[WhatsApp Bot] Found stale lock file with PID ${pid} (process is dead). Overwriting...`);
+        }
+      }
+    }
+    // Write our PID to lock file
+    fs.writeFileSync(lockFile, process.pid.toString(), 'utf8');
+
+    // Setup exit handler to clean up lock file
+    const cleanup = () => {
+      try {
+        if (fs.existsSync(lockFile)) {
+          const pidStr = fs.readFileSync(lockFile, 'utf8').trim();
+          if (parseInt(pidStr, 10) === process.pid) {
+            fs.unlinkSync(lockFile);
+          }
+        }
+      } catch (e) {}
+    };
+
+    process.on('exit', cleanup);
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+
+    return true;
+  } catch (err) {
+    console.error('[WhatsApp Bot] Error checking/acquiring PID lock:', err);
+    return false;
+  }
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -69,15 +99,14 @@ export async function startWhatsAppBot() {
     return;
   }
 
-  // TCP Port Lock to prevent multiple processes from connecting simultaneously in production
-  const lockPort = parseInt(process.env.WHATSAPP_BOT_LOCK_PORT || '3099', 10);
-  const hasLock = await acquireBotLock(lockPort);
+  // PID File Lock to prevent multiple processes/workers from connecting simultaneously in development/production
+  const hasLock = acquireBotLock();
   if (!hasLock) {
-    logToBot(`Another Next.js process/worker is already running the WhatsApp bot on port ${lockPort}. Skipping duplicate initialization.`, 'warn');
+    logToBot(`Another Next.js process/worker is already running the WhatsApp bot. Skipping duplicate initialization.`, 'warn');
     return;
   }
 
-  logToBot(`Initializing WhatsApp Bot (Process PID: ${process.pid}, Lock Port: ${lockPort})...`, 'info');
+  logToBot(`Initializing WhatsApp Bot (Process PID: ${process.pid})...`, 'info');
   (globalThis as any).whatsappStatus = {
     status: 'connecting',
     updatedAt: new Date().toISOString(),
@@ -106,9 +135,11 @@ export async function startWhatsAppBot() {
       };
     }
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
       const errorMsg = (lastDisconnect?.error as Boom)?.message || 'Disconnected';
-      logToBot(`WhatsApp connection closed: ${errorMsg}. Reconnecting: ${shouldReconnect}`, 'warn');
+      console.log('[WhatsApp Bot] Disconnect error details:', lastDisconnect?.error);
+      logToBot(`WhatsApp connection closed: ${errorMsg}. Status Code: ${statusCode}. Reconnecting: true`, 'warn');
       globalForWhatsApp.whatsappSocket = undefined;
       
       (globalThis as any).whatsappStatus = {
@@ -117,9 +148,25 @@ export async function startWhatsAppBot() {
         updatedAt: new Date().toISOString(),
       };
 
-      if (shouldReconnect) {
-        startWhatsAppBot();
+      if (isLoggedOut) {
+        logToBot('Session logged out or credentials invalidated (401). Cleaning up auth folder to allow re-pairing...', 'warn');
+        try {
+          const authDir = path.join(process.cwd(), 'auth_info_baileys');
+          if (fs.existsSync(authDir)) {
+            fs.rmSync(authDir, { recursive: true, force: true });
+          }
+          // Delete PID lock file to allow clean restart
+          if (fs.existsSync('.whatsapp-bot.pid')) {
+            fs.unlinkSync('.whatsapp-bot.pid');
+          }
+        } catch (err) {
+          console.error('[WhatsApp Bot] Error cleaning up auth folder:', err);
+        }
       }
+
+      // Always restart/reconnect: if logged out, it starts fresh and prints a new QR code;
+      // if temporary connection failure, it retries.
+      startWhatsAppBot();
     } else if (connection === 'open') {
       const userPhone = sock.user?.id ? sock.user.id.split(':')[0] : undefined;
       logToBot(`WhatsApp Bot successfully connected and ready! Phone: ${userPhone}`, 'success');

@@ -1990,6 +1990,14 @@ export async function restartWhatsAppBotAction() {
     globalForWhatsApp.whatsappLockServer = undefined
   }
 
+  // Delete lock file to force initialization
+  const fs = await import('fs')
+  try {
+    if (fs.existsSync('.whatsapp-bot.pid')) {
+      fs.unlinkSync('.whatsapp-bot.pid')
+    }
+  } catch (e) {}
+
   // Set connecting status
   globalForWhatsApp.whatsappStatus = {
     status: 'connecting',
@@ -2034,6 +2042,14 @@ export async function logoutWhatsAppBotAction() {
     }
     globalForWhatsApp.whatsappLockServer = undefined
   }
+
+  // Delete lock file to force initialization
+  try {
+    const fs = await import('fs')
+    if (fs.existsSync('.whatsapp-bot.pid')) {
+      fs.unlinkSync('.whatsapp-bot.pid')
+    }
+  } catch (e) {}
 
   // Delete credentials folder
   const fs = await import('fs')
