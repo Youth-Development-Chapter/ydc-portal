@@ -81,7 +81,7 @@ export default async function NotificationsPage(props: {
     todayDeedsResult,
     upcomingEventsResult
   ] = await Promise.all([
-    supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
+    supabase.from('streaks').select('current_streak').eq('user_id', user.id).maybeSingle(),
     supabase.from('event_registrations').select('event_id, attended, events(id, title, date, start_time, end_time, location)').eq('user_id', user.id),
     supabase.from('deed_submissions').select('id, status').eq('user_id', user.id).eq('local_date', todayStr),
     getUpcomingEventsForUnitCached(userUnitId)

@@ -67,7 +67,7 @@ export default async function UserDashboard() {
       .select('id, full_name, unit_id, qualification, role, avatar_url')
       .eq('id', user.id)
       .single(),
-    supabase.from('streaks').select('current_streak').eq('user_id', user.id).single(),
+    supabase.from('streaks').select('current_streak').eq('user_id', user.id).maybeSingle(),
     supabase
       .from('event_registrations')
       .select('id, event_id, ticket_code, attended, status, events(id, title, date, start_time, end_time, location, poster_url, poster_color)')

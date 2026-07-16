@@ -33,7 +33,7 @@ export default async function LogDeedPage() {
     .from('streaks')
     .select('*')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
   const currentStreak = streakRecord?.current_streak || 0;
   const longestStreak = streakRecord?.longest_streak || 0;
