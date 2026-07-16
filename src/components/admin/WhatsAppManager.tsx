@@ -300,10 +300,10 @@ export default function WhatsAppManager({
               </Button>
               <Button
                 type="button"
-                variant="destructive"
+                variant="primary"
                 onClick={handleLogoutBot}
                 disabled={isLoggingOut || isRefreshing}
-                className="w-full text-xs font-semibold bg-red-600 hover:bg-red-700 text-white"
+                className="w-full text-xs font-semibold bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white"
               >
                 {isLoggingOut ? (
                   <>

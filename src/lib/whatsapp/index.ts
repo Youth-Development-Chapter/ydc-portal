@@ -182,17 +182,17 @@ export async function startWhatsAppBot() {
         return;
       }
 
-      const authorizedNumbersStr = settingsMap.get('whatsapp_authorized_numbers') || '';
-      const authorizedRolesStr = settingsMap.get('whatsapp_authorized_roles') || 'superadmin';
+      const authorizedNumbersStr = (settingsMap.get('whatsapp_authorized_numbers') || '') as string;
+      const authorizedRolesStr = (settingsMap.get('whatsapp_authorized_roles') || 'superadmin') as string;
 
       const authNumbers = authorizedNumbersStr
         .split(',')
-        .map(n => n.trim().replace(/\D/g, ''))
+        .map((n: string) => n.trim().replace(/\D/g, ''))
         .filter(Boolean);
 
       const authRoles = authorizedRolesStr
         .split(',')
-        .map(r => r.trim().toLowerCase())
+        .map((r: string) => r.trim().toLowerCase())
         .filter(Boolean);
 
       // 1. Authenticate sender in profiles table (matching ending suffix on phone or whatsapp)
