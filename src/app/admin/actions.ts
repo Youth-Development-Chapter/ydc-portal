@@ -53,7 +53,7 @@ export async function approveDeedSubmission(
   const baseReward = baseSetting ? parseInt(baseSetting.value, 10) : 10
 
   // 4. Update deed submission status
-  const { error } = await supabase
+  const { data: updatedDeed, error } = await supabase
     .from('deed_submissions')
     .update({
       status: 'approved',
@@ -65,9 +65,16 @@ export async function approveDeedSubmission(
       status_updated_by: user.id
     })
     .eq('id', deedId)
+    .select('user_id')
+    .single()
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (updatedDeed) {
+    const { notifyDeedStatus } = await import('@/lib/whatsapp/alerts')
+    notifyDeedStatus(updatedDeed.user_id, 'approved', baseReward + bonusCoins, adminNotes).catch(console.error)
   }
 
   // 5. Revalidate paths
@@ -113,7 +120,7 @@ export async function rejectDeedSubmission(deedId: string, adminNotes: string) {
   }
 
   // 3. Update deed submission status
-  const { error } = await supabase
+  const { data: updatedDeed, error } = await supabase
     .from('deed_submissions')
     .update({
       status: 'rejected',
@@ -123,9 +130,16 @@ export async function rejectDeedSubmission(deedId: string, adminNotes: string) {
       status_updated_by: user.id
     })
     .eq('id', deedId)
+    .select('user_id')
+    .single()
 
   if (error) {
     return { error: error.message }
+  }
+
+  if (updatedDeed) {
+    const { notifyDeedStatus } = await import('@/lib/whatsapp/alerts')
+    notifyDeedStatus(updatedDeed.user_id, 'rejected', 0, adminNotes).catch(console.error)
   }
 
   // 4. Revalidate paths
@@ -219,6 +233,9 @@ export async function adjustUserCoins(userId: string, amount: number, reason: st
   if (error) {
     return { error: error.message }
   }
+
+  const { notifyCoinAdjustment } = await import('@/lib/whatsapp/alerts')
+  notifyCoinAdjustment(userId, amount, reason).catch(console.error)
 
   revalidatePath('/admin/users')
   revalidatePath('/dashboard')
@@ -550,6 +567,11 @@ export async function checkInTicket(scannedId: string, eventId?: string) {
     console.error('Error crediting attendance coins:', coinError)
   }
 
+  // Send WhatsApp event check-in notification
+  const eventTitle = eventForCheckIn?.title || (registration.events as any)?.title || 'YDC Event'
+  const { notifyEventCheckIn } = await import('@/lib/whatsapp/alerts')
+  notifyEventCheckIn(registration.user_id, eventTitle, attendanceReward).catch(console.error)
+
   // Note: the volunteer-facing realtime broadcast is sent from the scanner's browser
   // (PresidentScannerClient) which reliably reaches the user's <CheckInListener>.
   // We intentionally do NOT broadcast from this server action — opening a websocket
@@ -735,6 +757,12 @@ export async function toggleManualAttendance(registrationId: string, attended: b
 
   if (coinError) {
     console.error('Error modifying attendance coins:', coinError)
+  }
+
+  if (attended) {
+    const eventTitle = (registration.events as any)?.title || 'YDC Event'
+    const { notifyEventCheckIn } = await import('@/lib/whatsapp/alerts')
+    notifyEventCheckIn(registration.user_id, eventTitle, attendanceReward).catch(console.error)
   }
 
   revalidatePath('/admin/events')

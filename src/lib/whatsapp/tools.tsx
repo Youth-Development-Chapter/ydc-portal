@@ -1,5 +1,7 @@
 import { lastShownDeeds } from './agent';
 import { z } from 'zod';
+import { ImageResponse } from 'next/og';
+import React from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { hasAdminPermission } from '@/lib/admin';
 import { tool, generateText } from 'ai';
@@ -32,6 +34,17 @@ function getAvatarImageUrl(avatarUrl: string) {
     return `${cleanUrl}/storage/v1/object/public/${avatarUrl}`;
   }
   return `${cleanUrl}/storage/v1/object/public/avatars/${avatarUrl}`;
+}
+
+function formatPhoneToJid(phone: string): string {
+  let cleaned = phone.replace(/[\s\-\+\(\)]/g, '').trim();
+  if (cleaned.startsWith('03')) {
+    cleaned = '92' + cleaned.slice(1);
+  }
+  if (!cleaned.includes('@')) {
+    cleaned = `${cleaned}@s.whatsapp.net`;
+  }
+  return cleaned;
 }
 
 export const adminTools = (adminProfile: any) => ({
@@ -1116,6 +1129,117 @@ Return the filtered list of users as a raw JSON array of user objects in the exa
     },
   }),
 
+  getModules: tool({
+    description: 'Fetch the modules list for a specific course to inspect course structure.',
+    inputSchema: z.object({
+      courseId: z.string().describe('The slug/ID of the course (e.g., "ethics", "seerat", "deenyat").'),
+    }),
+    execute: async (input: { courseId: string }) => {
+      try {
+        const { data, error } = await supabase
+          .from('modules')
+          .select('id, course_id, title, title_ur, duration, order_index')
+          .eq('course_id', input.courseId)
+          .order('order_index', { ascending: true });
+        if (error) return { error: error.message };
+        return { modules: data };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
+
+  getLessons: tool({
+    description: 'Fetch the list of lessons. Can filter by courseId or moduleId. Returns lesson details including text_content and text_content_ur.',
+    inputSchema: z.object({
+      courseId: z.string().optional().describe('Optional course slug/ID to filter lessons by.'),
+      moduleId: z.string().optional().describe('Optional module slug/ID to filter lessons by.'),
+    }),
+    execute: async (input: { courseId?: string; moduleId?: string }) => {
+      try {
+        let query = supabase.from('lessons').select('id, module_id, title, title_ur, text_content, text_content_ur, order_index');
+        
+        if (input.moduleId) {
+          query = query.eq('module_id', input.moduleId);
+        } else if (input.courseId) {
+          const { data: modules, error: modError } = await supabase
+            .from('modules')
+            .select('id')
+            .eq('course_id', input.courseId);
+          if (modError) return { error: modError.message };
+          const moduleIds = (modules || []).map((m: any) => m.id);
+          query = query.in('module_id', moduleIds);
+        }
+
+        const { data: lessons, error } = await query.order('order_index', { ascending: true });
+        if (error) return { error: error.message };
+        return { lessons };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
+
+  updateLessonText: tool({
+    description: 'Modify the text content (English or Urdu) or title of a lesson in the database. Gated by write confirmation policy.',
+    inputSchema: z.object({
+      lessonId: z.string().describe('The slug/ID of the lesson to update.'),
+      title: z.string().optional().describe('New English title of the lesson.'),
+      titleUr: z.string().optional().describe('New Urdu title of the lesson.'),
+      textContent: z.string().optional().describe('New English text content of the lesson.'),
+      textContentUr: z.string().optional().describe('New Urdu text content of the lesson.'),
+    }),
+    execute: async (input: {
+      lessonId: string;
+      title?: string;
+      titleUr?: string;
+      textContent?: string;
+      textContentUr?: string;
+    }) => {
+      try {
+        if (!['superadmin', 'admin', 'president', 'tier-3'].includes(adminProfile.role)) {
+          return { error: 'Permission denied: Insufficient privileges to modify course text.' };
+        }
+
+        if (adminProfile.role === 'tier-3') {
+          const { data: perm } = await supabase
+            .from('admin_permissions')
+            .select('can_manage_courses')
+            .eq('admin_id', adminProfile.id)
+            .maybeSingle();
+          if (!perm?.can_manage_courses) {
+            return { error: 'Permission denied: You do not have permission to manage courses.' };
+          }
+        }
+
+        const updates: any = {};
+        if (input.title !== undefined) updates.title = input.title;
+        if (input.titleUr !== undefined) updates.title_ur = input.titleUr;
+        if (input.textContent !== undefined) updates.text_content = input.textContent;
+        if (input.textContentUr !== undefined) updates.text_content_ur = input.textContentUr;
+
+        if (Object.keys(updates).length === 0) {
+          return { error: 'No fields provided for update.' };
+        }
+
+        const { data, error } = await supabase
+          .from('lessons')
+          .update(updates)
+          .eq('id', input.lessonId)
+          .select('id, title, title_ur, text_content, text_content_ur')
+          .maybeSingle();
+
+        if (error) return { error: error.message };
+        if (!data) return { error: `Lesson with ID "${input.lessonId}" not found.` };
+
+        console.log(`[Tool:updateLessonText] Updated lesson "${input.lessonId}"`);
+        return { success: true, lesson: data };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
+
   // =========================================================================
   // 8. ANNOUNCEMENTS
   // =========================================================================
@@ -1464,11 +1588,12 @@ Return the filtered list of users as a raw JSON array of user objects in the exa
   }),
 
   sendSystemAsset: tool({
-    description: 'Fetch and send system visual assets (like the YDC logo or app icon) directly to the administrator on WhatsApp.',
+    description: 'Fetch and send system visual assets (like the YDC logo or app icon) directly to a user on WhatsApp.',
     inputSchema: z.object({
       assetType: z.enum(['logo', 'icon', 'icontransparent']).describe('The asset type: "logo" (ydc color logo), "icon" (app icon), or "icontransparent" (transparent icon).'),
+      recipientPhone: z.string().optional().describe('Optional recipient phone number. Defaults to sending to yourself.'),
     }),
-    execute: async (input: { assetType: 'logo' | 'icon' | 'icontransparent' }) => {
+    execute: async (input: { assetType: 'logo' | 'icon' | 'icontransparent'; recipientPhone?: string }) => {
       try {
         let filePath = 'public/logocolor.png';
         let caption = '🟢 *Youth Development Chapter (YDC) Color Logo*';
@@ -1485,8 +1610,8 @@ Return the filtered list of users as a raw JSON array of user objects in the exa
         }
 
         const socket = (globalThis as any).whatsappSocket;
-        const phone = adminProfile.phone || adminProfile.whatsapp;
-        const phoneJid = phone.includes('@') ? phone : `${phone.replace('+', '')}@s.whatsapp.net`;
+        const phone = input.recipientPhone || adminProfile.phone || adminProfile.whatsapp;
+        const phoneJid = formatPhoneToJid(phone);
 
         if (socket) {
           console.log(`[Tool:sendSystemAsset] Sending local file ${filePath} directly to ${phoneJid}...`);
@@ -1495,7 +1620,7 @@ Return the filtered list of users as a raw JSON array of user objects in the exa
             image: buffer,
             caption: caption
           });
-          return { success: true, status: `I have sent the YDC ${input.assetType} directly to you.` };
+          return { success: true, status: `I have sent the YDC ${input.assetType} directly to ${phone}.` };
         }
 
         return { error: 'Failed to send asset (socket missing).' };
@@ -1504,4 +1629,356 @@ Return the filtered list of users as a raw JSON array of user objects in the exa
       }
     },
   }),
+
+  generateDataChart: tool({
+    description: 'Create and send a beautiful data chart (bar, line, or pie) directly to a user on WhatsApp. Renders data 100% accurately without hallucinations using QuickChart.io.',
+    inputSchema: z.object({
+      chartType: z.enum(['bar', 'line', 'pie']).describe('The style of chart to draw.'),
+      title: z.string().describe('The main title of the chart.'),
+      labels: z.array(z.string()).describe('The labels for the horizontal axis or segments.'),
+      data: z.array(z.number()).describe('The numerical values for the dataset.'),
+      datasetLabel: z.string().default('Values').describe('Optional label for the dataset (e.g. "Coins", "Deeds").'),
+      recipientPhone: z.string().optional().describe('Optional recipient phone number. Defaults to sending to yourself.'),
+    }),
+    execute: async (input: {
+      chartType: 'bar' | 'line' | 'pie';
+      title: string;
+      labels: string[];
+      data: number[];
+      datasetLabel: string;
+      recipientPhone?: string;
+    }) => {
+      try {
+        const socket = (globalThis as any).whatsappSocket;
+        const phone = input.recipientPhone || adminProfile.phone || adminProfile.whatsapp;
+        const phoneJid = formatPhoneToJid(phone);
+
+        if (!socket) {
+          return { error: 'Failed to send chart (WhatsApp socket not active).' };
+        }
+
+        const colors = [
+          'rgba(10, 158, 222, 0.8)',
+          'rgba(11, 162, 66, 0.8)',
+          'rgba(221, 4, 8, 0.8)',
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(99, 102, 241, 0.8)',
+          'rgba(168, 85, 247, 0.8)',
+        ];
+
+        const borderColors = colors.map(c => c.replace('0.8', '1.0'));
+
+        const chartConfig = {
+          type: input.chartType,
+          data: {
+            labels: input.labels,
+            datasets: [
+              {
+                label: input.datasetLabel,
+                data: input.data,
+                backgroundColor: input.chartType === 'pie' ? colors.slice(0, input.labels.length) : colors[0],
+                borderColor: input.chartType === 'pie' ? borderColors.slice(0, input.labels.length) : borderColors[0],
+                borderWidth: 1.5,
+              }
+            ]
+          },
+          options: {
+            title: {
+              display: true,
+              text: input.title,
+              fontColor: '#1F2937',
+              fontSize: 18,
+            },
+            legend: {
+              display: input.chartType === 'pie',
+              position: 'bottom',
+            },
+            scales: input.chartType !== 'pie' ? {
+              yAxes: [{
+                ticks: {
+                  beginAtZero: true,
+                  fontColor: '#4B5563',
+                }
+              }],
+              xAxes: [{
+                ticks: {
+                  fontColor: '#4B5563',
+                }
+              }]
+            } : undefined
+          }
+        };
+
+        const quickChartUrl = `https://quickchart.io/chart?width=800&height=500&c=${encodeURIComponent(JSON.stringify(chartConfig))}`;
+
+        console.log(`[Tool:generateDataChart] Fetching chart from QuickChart...`);
+        const res = await fetch(quickChartUrl);
+        if (!res.ok) {
+          return { error: `QuickChart API returned error status: ${res.status}` };
+        }
+
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        console.log(`[Tool:generateDataChart] Sending generated chart directly to ${phoneJid}...`);
+        await socket.sendMessage(phoneJid, {
+          image: buffer,
+          caption: `📊 *${input.title}*`
+        });
+
+        return { success: true, status: `I have generated the requested chart and sent it directly to ${phone}.` };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
+
+  generateEventPoster: tool({
+    description: 'Generate and send a premium YDC-branded event poster directly to a user on WhatsApp. Integrates tailored AI background art with high-contrast text overlay.',
+    inputSchema: z.object({
+      title: z.string().describe('The event title (English).'),
+      titleUr: z.string().optional().describe('Optional event title in Urdu.'),
+      date: z.string().describe('Date of the event (e.g. "Sunday, July 26").'),
+      time: z.string().describe('Time of the event (e.g. "10:00 AM - 1:00 PM").'),
+      location: z.string().describe('Location of the event.'),
+      division: z.string().describe('The YDC division/chapter hosting the event (e.g. "Bahawalpur", "Multan").'),
+      layout: z.enum(['glassmorphic_center', 'bottom_banner', 'split_side']).default('glassmorphic_center').describe('Layout template style to structure the poster.'),
+      primaryColor: z.string().default('#0BA242').describe('Primary theme color in Hex format (default: YDC Green #0BA242).'),
+      bgPrompt: z.string().describe('A detailed prompt to generate the background illustration (e.g. "vibrant community volunteering, minimalist green vector").'),
+      recipientPhone: z.string().optional().describe('Optional recipient phone number. Defaults to sending to yourself.'),
+    }),
+    execute: async (input: {
+      title: string;
+      titleUr?: string;
+      date: string;
+      time: string;
+      location: string;
+      division: string;
+      layout: 'glassmorphic_center' | 'bottom_banner' | 'split_side';
+      primaryColor: string;
+      bgPrompt: string;
+      recipientPhone?: string;
+    }) => {
+      try {
+        const socket = (globalThis as any).whatsappSocket;
+        const phone = input.recipientPhone || adminProfile.phone || adminProfile.whatsapp;
+        const phoneJid = formatPhoneToJid(phone);
+
+        if (!socket) {
+          return { error: 'Failed to send poster (WhatsApp socket not active).' };
+        }
+
+        const cleanPrompt = encodeURIComponent(input.bgPrompt);
+        const pollinationsUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=800&height=1000&nologo=true`;
+        console.log(`[Tool:generateEventPoster] Fetching background from Pollinations.ai...`);
+        const bgRes = await fetch(pollinationsUrl);
+        if (!bgRes.ok) {
+          return { error: `Pollinations.ai returned error status: ${bgRes.status}` };
+        }
+        const bgBuffer = Buffer.from(await bgRes.arrayBuffer());
+        const bgBase64 = bgBuffer.toString('base64');
+        const bgDataUrl = `data:image/jpeg;base64,${bgBase64}`;
+
+        const logoPath = 'public/logocolor.png';
+        let logoDataUrl = '';
+        if (fs.existsSync(logoPath)) {
+          const logoBuffer = fs.readFileSync(logoPath);
+          logoDataUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+        }
+
+        console.log(`[Tool:generateEventPoster] Rendering poster using next/og...`);
+        
+        let element: React.JSX.Element;
+
+        const containerStyle: React.CSSProperties = {
+          display: 'flex',
+          flexDirection: 'column',
+          width: '800px',
+          height: '1000px',
+          position: 'relative',
+          backgroundColor: '#111827',
+          fontFamily: 'system-ui, sans-serif',
+        };
+
+        const bgStyle: React.CSSProperties = {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          width: '800px',
+          height: '1000px',
+        };
+
+        if (input.layout === 'bottom_banner') {
+          element = (
+            <div style={containerStyle}>
+              <img src={bgDataUrl} style={bgStyle} />
+              
+              <div style={{ display: 'flex', position: 'absolute', top: '30px', left: '30px', right: '30px', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', padding: '12px 20px', borderRadius: '16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                {logoDataUrl && <img src={logoDataUrl} style={{ width: '120px', height: '40px', objectFit: 'contain' }} />}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: input.primaryColor }}>YOUTH DEVELOPMENT CHAPTER</span>
+                  <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase' }}>{input.division} Chapter</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto', backgroundColor: '#FFFFFF', borderTopLeftRadius: '32px', borderTopRightRadius: '32px', padding: '40px', boxShadow: '0 -10px 15px -3px rgba(0, 0, 0, 0.1)' }}>
+                <span style={{ display: 'inline-flex', alignSelf: 'flex-start', backgroundColor: `${input.primaryColor}15`, color: input.primaryColor, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', marginBottom: '16px' }}>COMMUNITY EVENT</span>
+                <h1 style={{ fontSize: '32px', fontWeight: 'extrabold', color: '#111827', margin: 0, lineHeight: 1.2 }}>{input.title}</h1>
+                {input.titleUr && <h2 style={{ fontSize: '28px', fontWeight: 'bold', color: '#4B5563', margin: '8px 0 0 0' }}>{input.titleUr}</h2>}
+                
+                <div style={{ display: 'flex', height: '1px', backgroundColor: '#E5E7EB', margin: '24px 0' }} />
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <span style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>When</span>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px' }}>{input.date}</span>
+                    <span style={{ fontSize: '14px', color: '#6B7280', marginTop: '2px' }}>{input.time}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1.5 }}>
+                    <span style={{ fontSize: '12px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>Where</span>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px' }}>{input.location}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        } else if (input.layout === 'split_side') {
+          element = (
+            <div style={{ ...containerStyle, flexDirection: 'row' }}>
+              <div style={{ display: 'flex', width: '380px', height: '1000px', position: 'relative' }}>
+                <img src={bgDataUrl} style={{ width: '380px', height: '1000px', objectFit: 'cover' }} />
+                <div style={{ display: 'flex', position: 'absolute', top: '30px', left: '30px' }}>
+                  {logoDataUrl && <img src={logoDataUrl} style={{ width: '130px', height: '45px', objectFit: 'contain', backgroundColor: 'rgba(255,255,255,0.95)', padding: '8px 12px', borderRadius: '12px' }} />}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', width: '420px', height: '1000px', backgroundColor: '#F9FAFB', padding: '50px 40px', justifyContent: 'center' }}>
+                <span style={{ display: 'inline-flex', alignSelf: 'flex-start', backgroundColor: `${input.primaryColor}15`, color: input.primaryColor, padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', marginBottom: '24px' }}>
+                  {input.division.toUpperCase()} CHAPTER
+                </span>
+                
+                <h1 style={{ fontSize: '36px', fontWeight: 'extrabold', color: '#111827', margin: 0, lineHeight: 1.2 }}>{input.title}</h1>
+                {input.titleUr && <h2 style={{ fontSize: '30px', fontWeight: 'bold', color: '#4B5563', margin: '12px 0 0 0' }}>{input.titleUr}</h2>}
+                
+                <div style={{ display: 'flex', height: '2px', backgroundColor: input.primaryColor, width: '60px', margin: '30px 0' }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>Date</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px' }}>{input.date}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>Time</span>
+                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px' }}>{input.time}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', fontWeight: 'bold', textTransform: 'uppercase' }}>Location</span>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px', lineHeight: 1.4 }}>{input.location}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', marginTop: 'auto', borderTop: '1px solid #E5E7EB', paddingTop: '30px', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: input.primaryColor }} />
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#6B7280' }}>Join us and build character!</span>
+                </div>
+              </div>
+            </div>
+          );
+        } else {
+          element = (
+            <div style={containerStyle}>
+              <img src={bgDataUrl} style={bgStyle} />
+              
+              <div style={{ display: 'flex', position: 'absolute', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.2)' }} />
+
+              <div style={{ display: 'flex', flexDirection: 'column', margin: 'auto', width: '680px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', padding: '40px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(20px)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                  {logoDataUrl && <img src={logoDataUrl} style={{ width: '130px', height: '40px', objectFit: 'contain' }} />}
+                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: input.primaryColor, backgroundColor: `${input.primaryColor}15`, padding: '4px 10px', borderRadius: '6px' }}>
+                    {input.division.toUpperCase()} CHAPTER
+                  </span>
+                </div>
+
+                <h1 style={{ fontSize: '38px', fontWeight: 'extrabold', color: '#111827', margin: 0, textAlign: 'center', lineHeight: 1.2 }}>{input.title}</h1>
+                {input.titleUr && <h2 style={{ fontSize: '32px', fontWeight: 'bold', color: '#374151', margin: '10px 0 0 0', textAlign: 'center' }}>{input.titleUr}</h2>}
+
+                <div style={{ display: 'flex', height: '1px', backgroundColor: '#E5E7EB', margin: '24px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+                    <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 'bold', textTransform: 'uppercase' }}>Date & Time</span>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px' }}>{input.date}</span>
+                    <span style={{ fontSize: '14px', color: '#4B5563', marginTop: '2px' }}>{input.time}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1.2 }}>
+                    <span style={{ fontSize: '11px', color: '#6B7280', fontWeight: 'bold', textTransform: 'uppercase' }}>Location</span>
+                    <span style={{ fontSize: '16px', fontWeight: 'bold', color: '#1F2937', marginTop: '4px', lineHeight: 1.3 }}>{input.location}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const imageRes = new ImageResponse(element, { width: 800, height: 1000 });
+        const arrayBuffer = await imageRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        console.log(`[Tool:generateEventPoster] Sending generated event poster directly to ${phoneJid}...`);
+        await socket.sendMessage(phoneJid, {
+          image: buffer,
+          caption: `🎨 *Event Poster: ${input.title}*\n📅 *Date:* ${input.date}\n📍 *Venue:* ${input.location}`
+        });
+
+        return { success: true, status: `I have generated the event poster with YDC branding and sent it directly to ${phone}.` };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
+
+  sendWhatsAppBroadcast: tool({
+    description: 'Send a text message or announcement to one or more recipient phone numbers (supports a list of numbers or individual numbers).',
+    inputSchema: z.object({
+      recipients: z.array(z.string()).describe('List of recipient phone numbers (e.g. ["03001234567", "+923259876543"]).'),
+      message: z.string().describe('The message body to send.'),
+    }),
+    execute: async (input: { recipients: string[]; message: string }) => {
+      try {
+        const socket = (globalThis as any).whatsappSocket;
+        if (!socket) {
+          return { error: 'Failed to send broadcast (WhatsApp socket not active).' };
+        }
+
+        const successList: string[] = [];
+        const failureList: string[] = [];
+
+        for (const rawPhone of input.recipients) {
+          try {
+            const jid = formatPhoneToJid(rawPhone);
+            await socket.sendMessage(jid, { text: input.message });
+            successList.push(rawPhone);
+          } catch (err: any) {
+            console.error(`Failed to send message to ${rawPhone}:`, err.message);
+            failureList.push(rawPhone);
+          }
+        }
+
+        console.log(`[Tool:sendWhatsAppBroadcast] Sent message to ${successList.length} users. Failures: ${failureList.length}`);
+        return {
+          success: true,
+          successCount: successList.length,
+          failureCount: failureList.length,
+          successfulRecipients: successList,
+          failedRecipients: failureList,
+        };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  }),
 });
+
