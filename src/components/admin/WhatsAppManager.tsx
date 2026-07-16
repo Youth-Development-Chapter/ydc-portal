@@ -6,6 +6,7 @@ import {
   XCircle, Loader2, Save, Users, HelpCircle, PhoneCall, Info,
   Terminal
 } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -264,11 +265,11 @@ export default function WhatsAppManager({
                 <p className="text-xs text-zinc-500 font-semibold mb-3 text-center">
                   Open WhatsApp on your phone &gt; Settings &gt; Linked Devices &gt; Scan QR code.
                 </p>
-                <div className="relative p-2 bg-white rounded-lg border border-zinc-200 shadow-sm">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(status.qr)}`}
-                    alt="WhatsApp Connection QR Code"
-                    className="w-48 h-48 block"
+                <div className="relative p-3 bg-white rounded-xl border border-zinc-200 shadow-sm w-48 h-48 flex items-center justify-center">
+                  <QRCode
+                    value={status.qr}
+                    size={160}
+                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                   />
                 </div>
               </div>
